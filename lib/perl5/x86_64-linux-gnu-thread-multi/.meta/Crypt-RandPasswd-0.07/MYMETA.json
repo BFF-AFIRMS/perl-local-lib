@@ -1,0 +1,59 @@
+{
+   "abstract" : "random password generator based on FIPS-181",
+   "author" : [
+      "John Porter <jdporter@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Dist::Zilla version 6.017, CPAN::Meta::Converter version 2.150010",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "Crypt-RandPasswd",
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Getopt::Long" : "0",
+            "constant" : "0",
+            "perl" : "5.006",
+            "strict" : "0",
+            "vars" : "0",
+            "warnings" : "0"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Test::More" : "0.88"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/cpan-janitor/Crypt-RandPasswd/issues"
+      },
+      "homepage" : "https://github.com/cpan-janitor/Crypt-RandPasswd",
+      "repository" : {
+         "type" : "git",
+         "url" : "https://github.com/cpan-janitor/Crypt-RandPasswd.git",
+         "web" : "https://github.com/cpan-janitor/Crypt-RandPasswd"
+      }
+   },
+   "version" : "0.07",
+   "x_generated_by_perl" : "v5.28.2",
+   "x_serialization_backend" : "JSON::PP version 4.04",
+   "x_spdx_expression" : "Artistic-1.0-Perl OR GPL-1.0-or-later"
+}
