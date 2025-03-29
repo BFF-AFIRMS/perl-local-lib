@@ -1,6 +1,7 @@
 /home/production/cxgn/local-lib/bin/tpage
 /home/production/cxgn/local-lib/bin/ttree
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template.pm
+/home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/App/ttree.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Base.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Config.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Constants.pm
@@ -29,7 +30,6 @@
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Parser.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Plugin.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Plugin/Assert.pm
-/home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Plugin/CGI.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Plugin/Datafile.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Plugin/Date.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Template/Plugin/Directory.pm

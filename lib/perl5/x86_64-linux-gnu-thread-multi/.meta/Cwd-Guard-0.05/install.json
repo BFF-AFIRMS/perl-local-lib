@@ -1,1 +1,1 @@
-{"provides":{"Cwd::Guard":{"file":"lib/Cwd/Guard.pm","version":"0.05"}},"pathname":"K/KA/KAZEBURO/Cwd-Guard-0.05.tar.gz","target":"Cwd::Guard","dist":"Cwd-Guard-0.05","version":"0.05","name":"Cwd::Guard"}
+{"provides":{"Cwd::Guard":{"version":"0.05","file":"lib/Cwd/Guard.pm"}},"target":"Cwd::Guard","name":"Cwd::Guard","version":"0.05","pathname":"K/KA/KAZEBURO/Cwd-Guard-0.05.tar.gz","dist":"Cwd-Guard-0.05"}

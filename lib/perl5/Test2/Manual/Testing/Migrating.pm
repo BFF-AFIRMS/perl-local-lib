@@ -2,7 +2,7 @@ package Test2::Manual::Testing::Migrating;
 use strict;
 use warnings;
 
-our $VERSION = '0.000144';
+our $VERSION = '1.302209';
 
 1;
 
@@ -115,6 +115,17 @@ will want to replace L<Test::More> with the L<Test2::V0> bundle.
 B<Note:> You should always double check the latest L<Test2> to see if there is
 a new recommended bundle. When writing a new test you should always use the
 newest Test::V# module. Higher numbers are newer version.
+
+=item NOTE: srand
+
+When srand is on (default) it can cause problems with things like L<File::Temp>
+which will end up attempting the same "random" filenames for every test process
+started on a given day (or sharing the same seed).
+
+If this is a problem for you then please disable srand when loading
+L<Test2::V0>:
+
+    use Test2::V0 -no_srand => 1;
 
 =item Stop using use_ok()
 
@@ -387,7 +398,7 @@ L<Test2::Manual> - Primary index of the manual.
 =head1 SOURCE
 
 The source code repository for Test2-Manual can be found at
-F<https://github.com/Test-More/Test2-Suite/>.
+F<https://github.com/Test-More/test-more/>.
 
 =head1 MAINTAINERS
 
@@ -407,7 +418,7 @@ F<https://github.com/Test-More/Test2-Suite/>.
 
 =head1 COPYRIGHT
 
-Copyright 2018 Chad Granum E<lt>exodist@cpan.orgE<gt>.
+Copyright Chad Granum E<lt>exodist@cpan.orgE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

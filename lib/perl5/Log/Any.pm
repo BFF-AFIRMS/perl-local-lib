@@ -5,7 +5,7 @@ use warnings;
 package Log::Any;
 
 # ABSTRACT: Bringing loggers and listeners together
-our $VERSION = '1.710';
+our $VERSION = '1.717';
 
 use Log::Any::Manager;
 use Log::Any::Proxy::Null;
@@ -135,7 +135,7 @@ Log::Any - Bringing loggers and listeners together
 
 =head1 VERSION
 
-version 1.710
+version 1.717
 
 =head1 SYNOPSIS
 
@@ -478,9 +478,17 @@ Stephen Thirlwall <sdt@cpan.org>
 
 =head1 CONTRIBUTORS
 
-=for stopwords bj5004 cm-perl Jonathan Karen Etheridge Konstantin S. Uvarin Lucas Kanashiro Maros Kollar Maxim Vuets mephinet Michael Conrad Nick Tonkin Paul Durden Philipp Gortan Phill Legault Shlomi Fish
+=for stopwords Andrew Grechkin Hewus Fresh bj5004 cm-perl Doug Bell Jonathan Rubin Karen Etheridge Konstantin S. Uvarin Larry Leszczynski Lucas Kanashiro Maros Kollar Maxim Vuets mephinet Michael Conrad Nick Tonkin Paul Durden Philipp Gortan Phill Legault Samuel Ng Shlomi Fish Sven Willenbuecher XSven
 
 =over 4
+
+=item *
+
+Andrew Grechkin <andrew.grechkin@gmail.com>
+
+=item *
+
+Andrew Hewus Fresh <andrew+github@afresh1.com>
 
 =item *
 
@@ -492,7 +500,15 @@ cm-perl <cm-perl@users.noreply.github.com>
 
 =item *
 
+Doug Bell <preaction@users.noreply.github.com>
+
+=item *
+
 Jonathan <jjrs.pam+github@gmail.com>
+
+=item *
+
+Jonathan Rubin <jon.rubin@grantstreet.com>
 
 =item *
 
@@ -501,6 +517,10 @@ Karen Etheridge <ether@cpan.org>
 =item *
 
 Konstantin S. Uvarin <khedin@gmail.com>
+
+=item *
+
+Larry Leszczynski <larryl@cpan.org>
 
 =item *
 
@@ -540,7 +560,23 @@ Phill Legault <saladdayllc@gmail.com>
 
 =item *
 
+Samuel Ng <samuel.ng@grantstreet.com>
+
+=item *
+
+Samuel Ng <sng@grantstreet.com>
+
+=item *
+
 Shlomi Fish <shlomif@shlomifish.org>
+
+=item *
+
+Sven Willenbuecher <sven.willenbuecher@kuehne-nagel.com>
+
+=item *
+
+XSven <XSven@users.noreply.github.com>
 
 =back
 

@@ -1,0 +1,49 @@
+{
+   "abstract" : "Numeric 1st and 2nd order differentiation.",
+   "author" : [
+      "J. A. R. Williams",
+      "John M. Gamble <jgamble@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Module::Build version 0.4234",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "Math-Derivative",
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "Math::Utils" : "1.10",
+            "Test::More" : 0
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "Module::Build" : 0
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "perl" : "v5.10.1"
+         }
+      }
+   },
+   "provides" : {
+      "Math::Derivative" : {
+         "file" : "lib/Math/Derivative.pm",
+         "version" : "1.01"
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "license" : [
+         "http://dev.perl.org/licenses/"
+      ]
+   },
+   "version" : "1.01",
+   "x_serialization_backend" : "JSON::PP version 4.16"
+}

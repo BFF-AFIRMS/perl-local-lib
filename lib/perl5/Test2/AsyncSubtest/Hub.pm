@@ -2,10 +2,11 @@ package Test2::AsyncSubtest::Hub;
 use strict;
 use warnings;
 
-our $VERSION = '0.000144';
+our $VERSION = '1.302209';
 
 use base 'Test2::Hub::Subtest';
 use Test2::Util::HashBase qw/ast_ids ast/;
+use Test2::Util qw/get_tid/;
 
 sub init {
     my $self = shift;
@@ -33,6 +34,26 @@ sub inherit {
     if (my $fs = $from->{+_FILTERS}) {
         push @{$self->{+_FILTERS}} => grep { $_->{inherit} } @$fs;
     }
+}
+
+sub send {
+    my $self = shift;
+    my ($e) = @_;
+
+    if (my $ast = $self->ast) {
+        if ($$ != $ast->pid || get_tid != $ast->tid) {
+            if (my $plan = $e->facet_data->{plan}) {
+                unless ($plan->{skip}) {
+                    my $trace = $e->facet_data->{trace};
+                    bless($trace, 'Test2::EventFacet::Trace');
+                    $trace->alert("A plan should not be set inside an async-subtest (did you call done_testing()?)");
+                    return;
+                }
+            }
+        }
+    }
+
+    return $self->SUPER::send($e);
 }
 
 1;
@@ -68,7 +89,7 @@ Get the L<Test2::AsyncSubtest> object to which this hub is bound.
 =head1 SOURCE
 
 The source code repository for Test2-AsyncSubtest can be found at
-F<https://github.com/Test-More/Test2-Suite/>.
+F<https://github.com/Test-More/test-more/>.
 
 =head1 MAINTAINERS
 
@@ -88,7 +109,7 @@ F<https://github.com/Test-More/Test2-Suite/>.
 
 =head1 COPYRIGHT
 
-Copyright 2018 Chad Granum E<lt>exodist7@gmail.comE<gt>.
+Copyright Chad Granum E<lt>exodist7@gmail.comE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

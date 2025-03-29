@@ -4,24 +4,20 @@ use strict;
 use warnings;
 use vars qw( $VERSION @EXPORT @EXPORT_OK @ISA $CurrentPackage @IncludeLibs $ScanFileRE );
 
-$VERSION   = '1.31';
+$VERSION   = '1.37';
 @EXPORT    = qw( scan_deps scan_deps_runtime );
 @EXPORT_OK = qw( scan_line scan_chunk add_deps scan_deps_runtime path_to_inc_name );
 
 use Config;
 require Exporter;
 our @ISA = qw(Exporter);
-use constant is_insensitive_fs => (
-    -s $0
-        and (-s lc($0) || -1) == (-s uc($0) || -1)
-        and (-s lc($0) || -1) == -s $0
-);
 
 use version;
 use File::Path ();
 use File::Temp ();
 use FileHandle;
 use Module::Metadata;
+use List::Util qw ( any first );
 
 # NOTE: Keep the following imports exactly as specified, even if the Module::ScanDeps source
 # doesn't reference some of them. See '"use lib" idioms' for the reason.
@@ -30,8 +26,13 @@ use File::Spec;
 use File::Spec::Functions;
 use File::Basename;
 
+use constant is_insensitive_fs => File::Spec->case_tolerant();
 
 $ScanFileRE = qr/(?:^|\\|\/)(?:[^.]*|.*\.(?i:p[ml]|t|al))$/;
+
+my %_glob_cache;
+my %_file_cache;
+my $_cached_inc = "";
 
 =head1 NAME
 
@@ -224,11 +225,28 @@ But this one does not:
 my $SeenTk;
 my %SeenRuntimeLoader;
 
+# match "use LOADER LIST" chunks; sets $1 to LOADER and $2 to LIST
+my $LoaderRE =
+    qr/^ use \s+
+      ( asa
+      | base
+      | parent
+      | prefork
+      | POE
+      | encoding
+      | maybe
+      | only::matching
+      | Mojo::Base
+      | Catalyst
+      )(?!\:) \b \s* (.*)
+      /sx;
+
 # Pre-loaded module dependencies {{{
 my %Preload = (
     'AnyDBM_File.pm'                    => [qw( SDBM_File.pm )],
     'AnyEvent.pm'                       => 'sub',
     'Authen/SASL.pm'                    => 'sub',
+
     'B/Hooks/EndOfScope.pm'             =>
         [qw( B/Hooks/EndOfScope/PP.pm B/Hooks/EndOfScope/XS.pm )],
     'Bio/AlignIO.pm'                    => 'sub',
@@ -254,6 +272,7 @@ my %Preload = (
     'Bio/TreeIO.pm'                     => 'sub',
     'Bio/LiveSeq/IO.pm'                 => 'sub',
     'Bio/Variation/IO.pm'               => 'sub',
+
     'Catalyst.pm'                       => sub {
         return ('Catalyst/Runtime.pm',
                 'Catalyst/Dispatcher.pm',
@@ -267,6 +286,7 @@ my %Preload = (
     'Class/Load.pm'                     => [qw( Class/Load/PP.pm )],
     'Class/MakeMethods.pm'              => 'sub',
     'Class/MethodMaker.pm'              => 'sub',
+    'Class/Plain.pm'                    => [qw( XS/Parse/Keyword.pm )],
     'Config/Any.pm'                     =>'sub',
     'Crypt/Random.pm'                   => sub {
         _glob_in_inc('Crypt/Random/Provider', 1);
@@ -274,6 +294,7 @@ my %Preload = (
     'Crypt/Random/Generator.pm'         => sub {
         _glob_in_inc('Crypt/Random/Provider', 1);
     },
+
     'Date/Manip.pm'                     =>
         [qw( Date/Manip/DM5.pm Date/Manip/DM6.pm )],
     'Date/Manip/Base.pm'                => sub {
@@ -328,6 +349,7 @@ my %Preload = (
 
         return 'pod/perldiag.pod';
     },
+
     'Email/Send.pm'                     => 'sub',
     'Event.pm'                          => sub {
         map "Event/$_.pm", qw( idle io signal timer var );
@@ -335,6 +357,7 @@ my %Preload = (
     'ExtUtils/MakeMaker.pm'             => sub {
         grep /\bMM_/, _glob_in_inc('ExtUtils', 1);
     },
+
     'FFI/Platypus.pm'                   => 'sub',
     'File/Basename.pm'                  => [qw( re.pm )],
     'File/BOM.pm'                       => [qw( Encode/Unicode.pm )],
@@ -343,9 +366,14 @@ my %Preload = (
         require File::Spec;
         map { my $name = $_; $name =~ s!::!/!g; "$name.pm" } @File::Spec::ISA;
     },
+    'Future/AsyncAwait.pm'              => [qw( XS/Parse/Keyword.pm )],
+    'Future/AsyncAwait/Hooks.pm'        => [qw( XS/Parse/Keyword.pm )],
+
     'Gtk2.pm'                           => [qw( Cairo.pm )], # Gtk2.pm does: eval "use Cairo;"
+
     'HTTP/Entity/Parser.pm'             => 'sub',
     'HTTP/Message.pm'                   => [qw( URI/URL.pm URI.pm )],
+
     'Image/ExifTool.pm'                 => sub {
         return(
           (map $_->{name}, _glob_in_inc('Image/ExifTool', 0)), # also *.pl files
@@ -364,6 +392,7 @@ my %Preload = (
     )],
     'IO/Socket.pm'                      => [qw( IO/Socket/UNIX.pm )],
     'IUP.pm'                            => 'sub',
+
     'JSON.pm'                           => sub {
         # add JSON/PP*.pm, JSON/PP/*.pm
         # and ignore other JSON::* modules (e.g. JSON/Syck.pm, JSON/Any.pm);
@@ -373,6 +402,8 @@ my %Preload = (
     'JSON/MaybeXS.pm'                   => [qw(
         Cpanel/JSON/XS.pm JSON/XS.pm JSON/PP.pm
     )],
+
+    'List/Keywords.pm'                  => [qw( XS/Parse/Keyword.pm )],
     'List/MoreUtils.pm'                 => 'sub',
     'List/SomeUtils.pm'                 => 'sub',
     'Locale/Maketext/Lexicon.pm'        => 'sub',
@@ -397,6 +428,7 @@ my %Preload = (
           _glob_in_inc("LWP/Protocol", 1),
         );
     },
+
     'Mail/Audit.pm'                     => 'sub',
     'Math/BigInt.pm'                    => 'sub',
     'Math/BigFloat.pm'                  => 'sub',
@@ -417,6 +449,9 @@ my %Preload = (
         _glob_in_inc('MooseX/POE', 1),
         _glob_in_inc('MooseX/Async', 1),
     },
+    'MooX/HandlesVia.pm'                => sub {
+        _glob_in_inc('Data/Perl', 1)
+    },
     'Mozilla/CA.pm'                     => [qw( Mozilla/CA/cacert.pem )],
     'MozRepl.pm'                        => sub {
         qw( MozRepl/Log.pm MozRepl/Client.pm Module/Pluggable/Fast.pm ),
@@ -424,12 +459,23 @@ my %Preload = (
     },
     'Module/Implementation.pm'          => \&_warn_of_runtime_loader,
     'Module/Runtime.pm'                 => \&_warn_of_runtime_loader,
+    'Mojo/Util.pm'                      => sub {        # html_entities.txt
+        map { $_->{name} } _glob_in_inc('Mojo/resources', 0)
+    },
+    'Mojo/IOLoop/TLS.pm'                => sub {        # server.{crt,key}
+        map { $_->{name} } _glob_in_inc('Mojo/IOLoop/resources', 0)
+    },
+
     'Net/DNS/Resolver.pm'               => 'sub',
     'Net/DNS/RR.pm'                     => 'sub',
     'Net/FTP.pm'                        => 'sub',
     'Net/HTTPS.pm'                      => [qw( IO/Socket/SSL.pm Net/SSL.pm )],
     'Net/Server.pm'                     => 'sub',
     'Net/SSH/Perl.pm'                   => 'sub',
+
+    'Object/Pad.pm'                     => [qw( XS/Parse/Keyword.pm )],
+    'Object/Pad/Keyword/Accessor.pm'    => [qw( XS/Parse/Keyword.pm )],
+
     'Package/Stash.pm'                  => [qw( Package/Stash/PP.pm Package/Stash/XS.pm )],
     'Pango.pm'                          => [qw( Cairo.pm )], # Pango.pm does: eval "use Cairo;"
     'PAR/Repository.pm'                 => 'sub',
@@ -466,10 +512,12 @@ my %Preload = (
           _glob_in_inc('auto/POSIX/SigRt', 0),          # *.al files
     },
     'PPI.pm'                            => 'sub',
+
     'Regexp/Common.pm'                  => 'sub',
     'RPC/XML/ParserFactory.pm'          => sub {
         _glob_in_inc('RPC/XML/Parser', 1);
     },
+
     'SerialJunk.pm'                     => [qw(
         termios.ph asm/termios.ph sys/termiox.ph sys/termios.ph sys/ttycom.ph
     )],
@@ -491,8 +539,15 @@ my %Preload = (
     },
     'SVN/Core.pm'                       => sub {
         _glob_in_inc('SVN', 1),
-        map $_->{name}, _glob_in_inc('auto/SVN', 0),    # *.so, *.bs files
+        map { $_->{name} } _glob_in_inc('auto/SVN', 0),    # *.so, *.bs files
     },
+    'Syntax/Keyword/Combine/Keys.pm'    => [qw( XS/Parse/Keyword.pm )],
+    'Syntax/Keyword/Defer.pm'           => [qw( XS/Parse/Keyword.pm )],
+    'Syntax/Keyword/Dynamically.pm'     => [qw( XS/Parse/Keyword.pm )],
+    'Syntax/Keyword/Inplace.pm'         => [qw( XS/Parse/Keyword.pm )],
+    'Syntax/Keyword/Match.pm'           => [qw( XS/Parse/Keyword.pm )],
+    'Syntax/Keyword/Try.pm'             => [qw( XS/Parse/Keyword.pm )],
+
     'Template.pm'                       => 'sub',
     'Term/ReadLine.pm'                  => 'sub',
     'Test/Deep.pm'                      => 'sub',
@@ -512,15 +567,18 @@ my %Preload = (
     'Tk/FBox.pm'                        => [qw( Tk/folder.xpm Tk/file.xpm )],
     'Tk/Getopt.pm'                      => [qw( Tk/openfolder.xpm Tk/win.xbm )],
     'Tk/Toplevel.pm'                    => [qw( Tk/Wm.pm )],
+
     'Unicode/Normalize.pm'              => \&_unicore,
     'Unicode/UCD.pm'                    => \&_unicore,
     'URI.pm'                            => sub { grep !/urn/, _glob_in_inc('URI', 1) },
     'utf8_heavy.pl'                     => \&_unicore,
+
     'Win32/EventLog.pm'                 => [qw( Win32/IPC.pm )],
     'Win32/Exe.pm'                      => 'sub',
     'Win32/TieRegistry.pm'              => [qw( Win32API/Registry.pm )],
     'Win32/SystemInfo.pm'               => [qw( Win32/cpuspd.dll )],
     'Wx.pm'                             => [qw( attributes.pm )],
+
     'XML/Parser.pm'                     => sub {
         _glob_in_inc('XML/Parser/Style', 1),
         _glob_in_inc('XML/Parser/Encodings', 1),
@@ -531,15 +589,14 @@ my %Preload = (
     'XMLRPC/Lite.pm'                    => sub {
         _glob_in_inc('XMLRPC/Transport', 1);
     },
+    'XS/Parse/Keyword/FromPerl.pm'      => [qw( XS/Parse/Keyword.pm )],
+
     'YAML.pm'                           => [qw( YAML/Loader.pm YAML/Dumper.pm )],
     'YAML/Any.pm'                       => sub {
         # try to figure out what YAML::Any would have used
         my $impl = eval "use YAML::Any; YAML::Any->implementation;";
-        unless ($@)
-        {
-            $impl =~ s!::!/!g;
-            return "$impl.pm";
-        }
+        return _mod2pm($impl) unless $@;
+
         _glob_in_inc('YAML', 1);        # fallback
     },
 );
@@ -597,8 +654,10 @@ sub scan_deps {
     }
     my ($type, $path);
     foreach my $input_file (@{$args{files}}) {
-        if ($input_file !~ $ScanFileRE) {
-            warn "Skipping input file $input_file because it matches \$Module::ScanDeps::ScanFileRE\n" if $args{warn_missing};
+        if ($input_file !~ $ScanFileRE)  {
+            warn "Skipping input file $input_file"
+                 . " because it doesn't match \$Module::ScanDeps::ScanFileRE\n"
+                    if $args{warn_missing};
             next;
         }
 
@@ -655,18 +714,13 @@ sub scan_deps {
         require FindBin;
 
         local $FindBin::Bin;
-        local $FindBin::RealBin;
-        local $FindBin::Script;
-        local $FindBin::RealScript;
+        #local $FindBin::RealBin;
+        #local $FindBin::Script;
+        #local $FindBin::RealScript;
 
         my $_0 = $args{files}[0];
         local *0 = \$_0;
         FindBin->again();
-
-        our $Bin = $FindBin::Bin;
-        our $RealBin = $FindBin::RealBin;
-        our $Script = $FindBin::Script;
-        our $RealScript = $FindBin::RealScript;
 
         scan_deps_static(\%args);
     }
@@ -809,22 +863,20 @@ sub scan_deps_runtime {
 sub scan_file{
     my $file = shift;
     my %found;
-    my $FH;
-    open $FH, $file or die "Cannot open $file: $!";
+    open my $fh, "<", $file or die "Cannot open $file: $!";
 
     $SeenTk = 0;
     # Line-by-line scanning
   LINE:
-    while (<$FH>) {
-        chomp(my $line = $_);
+    while (my $line = <$fh>) {
+        chomp($line);
         foreach my $pm (scan_line($line)) {
             last LINE if $pm eq '__END__';
 
             if ($pm eq '__POD__') {
-                while (<$FH>) {
-                    last if (/^=cut/);
+                while ($line = <$fh>) {
+                    next LINE if $line =~ /^=cut/;
                 }
-                next LINE;
             }
 
             # Skip Tk hits from Term::ReadLine and Tcl::Tk
@@ -838,7 +890,7 @@ sub scan_file{
             $found{$pm}++;
         }
     }
-    close $FH or die "Cannot close $file: $!";
+    close $fh or die "Cannot close $file: $!";
     return keys %found;
 }
 
@@ -850,14 +902,13 @@ sub scan_line {
     return '__POD__' if $line =~ /^=\w/;
 
     $line =~ s/\s*#.*$//;
-    $line =~ s/[\\\/]+/\//g;
 
   CHUNK:
     foreach (split(/;/, $line)) {
         s/^\s*//;
-        #  handle single line blocks like 'do { package foo; use xx; }'
-        s/^(?:do\s*)?\{\s*//;
-        s/\}$//;
+        s/^\w+:\s*//;           # remove LABEL:
+        s/^(?:do\s*)?\{\s*//;   # handle single line blocks like 'do { package foo; use xx; }'
+        s/\s*\}$//;
 
         if (/^package\s+(\w+)/) {
             $CurrentPackage = $1;
@@ -868,53 +919,40 @@ sub scan_line {
         if (/^(?:use|require)\s+v?(\d[\d\._]*)/) {
           # include feature.pm if we have 5.9.5 or better
           if (version->new($1) >= version->new("5.9.5")) {
-              # seems to catch 5.9, too (but not 5.9.4)
+            # seems to catch 5.9, too (but not 5.9.4)
             $found{"feature.pm"}++;
-            next CHUNK;
           }
+          next CHUNK;
         }
 
-        if (my ($pragma, $args) = /^use \s+ (autouse|if) \s+ (.+)/x)
+        if (my ($pragma, $args) = /^(?:use|no) \s+ (autouse|if) \s+ (.+)/x)
         {
             # NOTE: There are different ways the MODULE may
             # be specified for the "autouse" and "if" pragmas, e.g.
             #   use autouse Module => qw(func1 func2);
             #   use autouse "Module", qw(func1);
-            # To avoid to parse them ourself, we simply try to eval the
-            # string after the pragma (in a list context). The MODULE
-            # should be the first ("autouse") or second ("if") element
-            # of the list.
             my $module;
-            {
-                no strict; no warnings;
-                if ($pragma eq "autouse") {
-                    ($module) = eval $args;
-                }
-                else {
-                    # The syntax of the "if" pragma is
-                    #   use if COND, MODULE => ARGUMENTS
-                    # The COND may contain undefined functions (i.e. undefined
-                    # in Module::ScanDeps' context) which would throw an
-                    # exception. Sneak  "1 || " in front of COND so that
-                    # COND will not be evaluated. This will work in most
-                    # cases, but there are operators with lower precedence
-                    # than "||" which will cause this trick to fail.
-                    (undef, $module) = eval "1 || $args";
-                }
-                # punt if there was a syntax error
-                return if $@ or !defined $module;
-            };
-            $module =~ s{::}{/}g;
-            $found{"$pragma.pm"}++;
-            $found{"$module.pm"}++;
+            if ($pragma eq "autouse") {
+                ($module) = _parse_module_list($args);
+            }
+            else {
+                # The syntax of the "if" pragma is
+                #   use if COND, MODULE => ARGUMENTS
+                # NOTE: This works only for simple conditions.
+                $args =~ s/.*? (?:,|=>) \s*//x;
+                ($module) = _parse_module_list($args);
+            }
+            $found{_mod2pm($pragma)}++;
+            $found{_mod2pm($module)}++ if $module;
             next CHUNK;
         }
 
-        if (my ($how, $libs) = /^(use \s+ lib \s+ | (?:unshift|push) \s+ \@INC \s+ ,) (.+)/x)
+        if (my ($how, $libs) = /^(use \s+ lib \s+ | (?:unshift|push) \s+ \@INC \s*,\s*) (.+)/x)
         {
             my $archname = defined($Config{archname}) ? $Config{archname} : '';
             my $ver = defined($Config{version}) ? $Config{version} : '';
-            foreach my $dir (do { no strict; no warnings; eval $libs }) {
+            while ((my $dir, $libs) = _parse_libs($libs))
+            {
                 next unless defined $dir;
                 my @dirs = $dir;
                 push @dirs, "$dir/$ver", "$dir/$archname", "$dir/$ver/$archname"
@@ -932,79 +970,129 @@ sub scan_line {
     return sort keys %found;
 }
 
-# short helper for scan_chunk
-my %LoaderRegexp; # cache
-sub _build_loader_regexp {
-    my $loaders = shift;
-    my $prefix = (@_ && $_[0]) ? $_[0].'::' : '';
 
-    my $loader = join '|', map quotemeta($_), split /\s+/, $loaders;
-    my $regexp = qr/^\s* use \s+ ($loader)(?!\:) \b \s* (.*)/sx;
-    # WARNING: This doesn't take the prefix into account
-    $LoaderRegexp{$loaders} = $regexp;
-    return $regexp
+# convert module name to file name
+sub _mod2pm {
+    my $mod = shift;
+    $mod =~ s!::!/!g;
+    return "$mod.pm";
 }
 
-# short helper for scan_chunk
-sub _extract_loader_dependency {
-    my $loader = shift;
-    my $loadee = shift;
-    my $prefix = (@_ && $_[0]) ? $_[0].'::' : '';
+# parse a comma-separated list of module names (as string literals or qw() lists)
+sub _parse_module_list {
+    my $list = shift;
 
-    my $loader_file = $loader;
-    $loader_file =~ s/::/\//;
-    $loader_file .= ".pm";
-
-    return [
-        $loader_file,
-        map { my $mod="$prefix$_"; $mod =~ s{::}{/}g; "$mod.pm" }
-        grep { length and !/^q[qw]?$/ and !/-/ }
-        split /[^\w:-]+/, $loadee
-        #should skip any module name that contains '-', not split it in two
-    ];
+    # split $list on anything that's not a word character or ":"
+    # and ignore "q", "qq" and "qw"
+    return grep { length and !/^:|^q[qw]?$/ } split(/[^\w:]+/, $list);
 }
+
+# incrementally parse a comma separated list library paths:
+# returning a pair: the contents of the first strings literal and the remainder of the string
+# - for "string", 'string', q/string/, qq/string/ also unescape \\ and \<delimiter>)
+# - for qw(foo bar quux) return ("foo", qw(bar quux))
+# - otherwise skip over the first comma and return (undef, "remainder")
+# - return () if the string is exhausted
+# - as a special case, if the string starts with $FindBin::Bin, replace it with our $Bin
+sub _parse_libs {
+    local $_ = shift;
+
+    s/^[\s,()]*//;
+    return if $_ eq "";
+
+    if (s/^(['"]) ((?:\\.|.)*?) \1//x) {
+        return (_unescape($1, $2), $_);
+    }
+    if (s/^qq? \s* (\W)//x) {
+        my $opening_delim = $1;
+        (my $closing_delim = $opening_delim) =~ tr:([{<:)]}>:;
+        s/^((?:\\.|.)*?) \Q$closing_delim\E//x;
+        return (_unescape($opening_delim, $1), $_);
+    }
+
+    if (s/^qw \s* (\W)//x) {
+        my $opening_delim = $1;
+        (my $closing_delim = $opening_delim) =~ tr:([{<:)]}>:;
+        s/^((?:\\.|.)*?) \Q$closing_delim\E//x;
+        my $contents = $1;
+        my @list = split(" ", $contents);
+        return (undef, $_) unless @list;
+        my $first = shift @list;
+        return (_unescape($opening_delim, $first),
+                @list ? "qw${opening_delim}@list${closing_delim}$_" : $_);
+    }
+
+    # nothing recognizable in the first list item, skip to the next
+    if (s/^.*? ,//x) {
+        return (undef, $_);
+    }
+    return;     # list exhausted
+}
+
+
+sub _unescape {
+    my ($delim, $str) = @_;
+    $str =~ s/\\([\\\Q$delim\E])/$1/g;
+    $str =~ s/^\$FindBin::Bin\b/$FindBin::Bin/;
+
+    return $str;
+}
+
+
 
 sub scan_chunk {
     my $chunk = shift;
 
     # Module name extraction heuristics {{{
     my $module = eval {
-        $_ = $chunk;
+        local $_ = $chunk;
         s/^\s*//;
-        #  handle single line blocks like 'do { package foo; use xx; }'
-        s/^(?:do\s*)?\{\s*//;
-        s/\}\s*$//;
 
+        # "if", "while" etc: analyze the expression
+        s/^(?:if|elsif|unless|while|until) \s* \( \s*//x;
+
+        # "eval" with a block: analyze the block
+        s/^eval \s* \{ \s*//x;
+
+        # "eval" with an expression that's a string literal:
+        # analyze the string
+        s/^eval \s+ (?:['"]|qq?\s*\W) \s*//x;
+
+        # "use LOADER LIST"
         # TODO: There's many more of these "loader" type modules on CPAN!
-        # scan for the typical module-loader modules
-        my $loaders = "asa base parent prefork POE encoding maybe only::matching Mojo::Base";
-        # grab pre-calculated regexp or re-build it (and cache it)
-        my $loader_regexp = $LoaderRegexp{$loaders} || _build_loader_regexp($loaders);
-        if ($_ =~ $loader_regexp) { # $1 == loader, $2 == loadee
-          my $retval = _extract_loader_dependency($1, $2);
-          return $retval if $retval;
+        if (my ($loader, $list) = $_ =~ $LoaderRE) {
+            my @mods = _parse_module_list($list);
+
+            if ($loader eq "Catalyst") {
+                # "use Catalyst 'Foo'" looks for "Catalyst::Plugin::Foo",
+                # but "use Catalyst +Foo" looks for "Foo"
+                @mods = map {
+                    ($list =~ /([+-])\Q$_\E(?:$|[^\w:])/)
+                        ? ($1 eq "-"
+                            ? ()   # "-Foo": it's a flag, eg. "-Debug", skip it
+                            : $_)  # "+Foo": look for "Foo"
+                        : "Catalyst::Plugin::$_"
+                                   # "Foo": look for "Catalyst::Plugin::Foo"
+                } @mods;
+            }
+            return [ map { _mod2pm($_) } $loader, @mods ];
         }
 
-        $loader_regexp = $LoaderRegexp{"Catalyst"} || _build_loader_regexp("Catalyst", "Catalyst::Plugin");
-        if ($_ =~ $loader_regexp) { # $1 == loader, $2 == loadee
-          my $retval = _extract_loader_dependency($1, $2, "Catalyst::Plugin");
-          return $retval if $retval;
+        if (/^use \s+ Class::Autouse \b \s* (.*)/sx
+            or /^Class::Autouse \s* -> \s* autouse \s* (.*)/sx) {
+          return [ map { _mod2pm($_) } "Class::Autouse", _parse_module_list($1) ];
         }
 
-        return [ 'Class/Autouse.pm',
-            map { s{::}{/}g; "$_.pm" }
-              grep { length and !/^:|^q[qw]?$/ } split(/[^\w:]+/, $1) ]
-          if /^use \s+ Class::Autouse \b \s* (.*)/sx
-              or /^Class::Autouse \s* -> \s* autouse \s* (.*)/sx;
+        # generic "use ..."
+        if (s/^(?:use|no) \s+//x) {
+            my ($mod) = _parse_module_list($_);                # just the first word
+            return _mod2pm($mod);
+        }
 
-        return $1 if /^(?:use|no|require) \s+ ([\w:\.\-\\\/\"\']+)/x;
-        return $1
-          if /^(?:use|no|require) \s+ \( \s* ([\w:\.\-\\\/\"\']+) \s* \)/x;
-
-        if (   s/^eval\s+\"([^\"]+)\"/$1/
-            or s/^eval\s*\(\s*\"([^\"]+)\"\s*\)/$1/)
-        {
-            return $1 if /^\s* (?:use|no|require) \s+ ([\w:\.\-\\\/\"\']*)/x;
+        if (s/^(require|do) [\s(]+//x) {
+            return ($1 eq "require" && /^([\w:]+)/)
+                ? _mod2pm($1)                           # bareword ("require" only)
+                : $_;                                   # maybe string literal?
         }
 
         if (/(<[^>]*[^\$\w>][^>]*>)/) {
@@ -1012,7 +1100,12 @@ sub scan_chunk {
             return "File/Glob.pm" if $diamond =~ /[*?\[\]{}~\\]/;
         }
 
-        return "DBD/$1.pm"    if /\b[Dd][Bb][Ii]:(\w+):/;
+        return "DBD/$1.pm"    if /\bdbi:(\w+):/i;
+
+        # Moose/Moo/Mouse style inheritance or composition
+        if (s/^(with|extends)\s+//) {
+            return [ map { _mod2pm($_) } _parse_module_list($_) ];
+        }
 
         # check for stuff like
         #   decode("klingon", ...)
@@ -1031,8 +1124,6 @@ sub scan_chunk {
         if (/\b(?:en|de)code\(\s*['"]?([-\w]+)/) {
             return [qw( Encode.pm ), _find_encoding($1)];
         }
-
-        return $1 if /\b do \s+ ([\w:\.\-\\\/\"\']*)/x;
 
         if ($SeenTk) {
             my @modules;
@@ -1055,10 +1146,10 @@ sub scan_chunk {
         }
 
         # Module::Runtime
-        return $1 if /\b(?:require_module|use_module|use_package_optimistically) \s* \( \s* ([\w:"']+)/x;
+        return $_ if s/^(?:require_module|use_module|use_package_optimistically) \s* \( \s*//x;
 
         # Test::More
-        return $1 if /\b(?:require_ok|use_ok) \s* \( \s* ([\w:"']+)/x;
+        return $_ if s/^(?:require_ok|use_ok) \s* \( \s*//x;
 
         return;
     };
@@ -1068,10 +1159,15 @@ sub scan_chunk {
     return unless defined($module);
     return wantarray ? @$module : $module->[0] if ref($module);
 
-    $module =~ s/^['"]//;
-    return unless $module =~ /^\w/;
+    # extract contents from string literals
+    if ($module =~ /^(['"]) (.*?) \1/x) {
+        $module = $2;
+    }
+    elsif ($module =~ s/^qq? \s* (\W)//x) {
+        (my $closing = $1) =~  tr:([{<:)]}>:;
+        $module =~ s/\Q$closing\E.*//;
+    }
 
-    $module =~ s/\W+$//;
     $module =~ s/::/\//g;
     return if $module =~ /^(?:[\d\._]+|'.*[^']|".*[^"])$/;
 
@@ -1084,8 +1180,7 @@ sub _find_encoding {
     return unless $] >= 5.008 and eval { require Encode; %Encode::ExtModule };
 
     my $mod = eval { $Encode::ExtModule{ Encode::find_encoding($enc)->name } } or return;
-    $mod =~ s{::}{/}g;
-    return "$mod.pm";
+    return _mod2pm($mod);
 }
 
 sub _add_info {
@@ -1100,22 +1195,24 @@ sub _add_info {
 
     # Avoid duplicates that can arise due to case differences that don't actually
     # matter on a case tolerant system
-    if (File::Spec->case_tolerant()) {
-        foreach my $key (keys %$rv) {
-            if (lc($key) eq lc($module)) {
-                $module = $key;
-                last;
-            }
+    if (is_insensitive_fs) {
+        if (!exists $rv->{$module}) {
+            my $lc_module  = lc $module;
+            my $key = first {lc($_) eq $lc_module} keys %$rv;
+            if (defined $key) {
+                $module = $key
+            };
         }
         if (defined($used_by)) {
             if (lc($used_by) eq lc($module)) {
                 $used_by = $module;
             } else {
-                foreach my $key (keys %$rv) {
-                    if (lc($key) eq lc($used_by)) {
-                        $used_by = $key;
-                        last;
-                    }
+                if (!exists $rv->{$used_by}) {
+                    my $lc_used_by = lc $used_by;
+                    my $key = first {lc($_) eq $lc_used_by} keys %$rv;
+                    if (defined $key) {
+                        $used_by = $key
+                    };
                 }
             }
         }
@@ -1128,14 +1225,22 @@ sub _add_info {
     };
 
     if (defined($used_by) and $used_by ne $module) {
-        push @{ $rv->{$module}{used_by} }, $used_by
-          if  ( (!File::Spec->case_tolerant() && !grep { $_ eq $used_by } @{ $rv->{$module}{used_by} })
-             or ( File::Spec->case_tolerant() && !grep { lc($_) eq lc($used_by) } @{ $rv->{$module}{used_by} }));
-
-        # We assume here that another _add_info will be called to provide the other parts of $rv->{$used_by}
-        push @{ $rv->{$used_by}{uses} }, $module
-          if  ( (!File::Spec->case_tolerant() && !grep { $_ eq $module } @{ $rv->{$used_by}{uses} })
-             or ( File::Spec->case_tolerant() && !grep { lc($_) eq lc($module) } @{ $rv->{$used_by}{uses} }));
+        if (is_insensitive_fs) {
+            my $lc_used_by = lc $used_by;
+            my $lc_module  = lc $module;
+            push @{ $rv->{$module}{used_by} }, $used_by
+                if !any { lc($_) eq $lc_used_by } @{ $rv->{$module}{used_by} };
+            # We assume here that another _add_info will be called to provide the other parts of $rv->{$used_by}
+            push @{ $rv->{$used_by}{uses} }, $module
+                if !any { lc($_) eq $lc_module } @{ $rv->{$used_by}{uses} };
+        }
+        else {
+            push @{ $rv->{$module}{used_by} }, $used_by
+                if !any { $_ eq $used_by } @{ $rv->{$module}{used_by} };
+            # We assume here that another _add_info will be called to provide the other parts of $rv->{$used_by}
+            push @{ $rv->{$used_by}{uses} }, $module
+                if !any { $_ eq $module } @{ $rv->{$used_by}{uses} };
+        }
     }
 }
 
@@ -1198,12 +1303,31 @@ sub add_deps {
     return $rv;
 }
 
+# invalidate %_file_cache and %_glob_cache in case @INC changes
+sub _validate_cached_inc
+{
+    my $inc = join("\0", @INC, @IncludeLibs);
+    return if $inc eq $_cached_inc;
+
+    # blow away the caches
+    %_file_cache = ();
+    %_glob_cache = ();
+    $_cached_inc = $inc;
+}
+
 sub _find_in_inc {
     my $file = shift;
     return unless defined $file;
 
+    _validate_cached_inc();
+    my $cached_val = $_file_cache{$file};
+    return $cached_val if $cached_val;
+
     foreach my $dir (grep !/\bBSDPAN\b/, @INC, @IncludeLibs) {
-        return "$dir/$file" if -f "$dir/$file";
+        if (-f "$dir/$file") {
+            $_file_cache{$file} = "$dir/$file";
+            return "$dir/$file"
+        };
     }
 
     # absolute file names
@@ -1213,29 +1337,38 @@ sub _find_in_inc {
 }
 
 sub _glob_in_inc {
-    my $subdir  = shift;
-    my $pm_only = shift;
-    my @files;
+    my ($subdir, $pm_only) = @_;
 
     require File::Find;
 
     $subdir =~ s/\$CurrentPackage/$CurrentPackage/;
 
+    _validate_cached_inc();
+    my $cached_val = $_glob_cache{$subdir};
+    return @$cached_val if $cached_val;
+
+    my @files;
     foreach my $inc (grep !/\bBSDPAN\b/, @INC, @IncludeLibs) {
         my $dir = "$inc/$subdir";
         next unless -d $dir;
+
+        # canonicalize $inc (ie. use "/" as filename separator exclusively)
+        # as newer versions of File::Find return a canonicalized $File::Find::name
+        (my $canon = $inc) =~ s|\\|/|g;
         File::Find::find(
             sub {
-                return unless -f;
+                return unless -f $_;
                 return if $pm_only and !/\.p[mh]$/i;
-                (my $name = $File::Find::name) =~ s!^\Q$inc\E/!!;
-                push @files, $pm_only
-                  ? $name
-                  : { file => $File::Find::name, name => $name };
+                (my $file = $File::Find::name) =~ s|\\|/|g;
+                (my $name = $file) =~ s|^\Q$canon\E/||;
+                push @files, $pm_only ? $name
+                                      : { file => $file, name => $name };
             },
             $dir
         );
     }
+
+    $_glob_cache{$subdir} = \@files;
 
     return @files;
 }
@@ -1245,12 +1378,11 @@ sub _glob_in_inc {
 # NOTE: File::Find has no public notion of the depth of the traversal
 # in its "wanted" callback, so it's not helpful
 sub _glob_in_inc_1 {
-    my $subdir  = shift;
-    my $pm_only = shift;
-    my @files;
+    my ($subdir, $pm_only) = @_;
 
     $subdir =~ s/\$CurrentPackage/$CurrentPackage/;
 
+    my @files;
     foreach my $inc (grep !/\bBSDPAN\b/, @INC, @IncludeLibs) {
         my $dir = "$inc/$subdir";
         next unless -d $dir;
@@ -1259,9 +1391,8 @@ sub _glob_in_inc_1 {
         my @names = map { "$subdir/$_" } grep { -f "$dir/$_" } readdir $dh;
         closedir $dh;
 
-        push @files, $pm_only
-            ? ( grep { /\.p[mh]$/i } @names )
-            : ( map { { file => "$inc/$_", name => $_ } } @names );
+        push @files, $pm_only ? ( grep { /\.p[mh]$/i } @names )
+                              : ( map { { file => "$inc/$_", name => $_ } } @names );
     }
 
     return @files;
@@ -1295,8 +1426,7 @@ sub set_options {
     my $self = shift;
     my %args = @_;
     foreach my $module (@{ $args{add_modules} }) {
-        $module =~ s/::/\//g;
-        $module .= '.pm' unless $module =~ /\.p[mh]$/i;
+        $module = _mod2pm($module) unless $module =~ /\.p[mh]$/i;
         my $file = _find_in_inc($module)
           or _warn_of_missing_module($module, $args{warn_missing}), next;
         $self->{files}{$module} = $file;
@@ -1525,7 +1655,7 @@ sub _info2rv {
     my $rv = {};
 
     my $incs = join('|', sort { length($b) <=> length($a) }
-                              map { s:\\:/:g; s:^(/.*?)/+$:$1:; quotemeta($_) }
+                              map { s|\\|/|g; s|/+$||; quotemeta($_) }
                                   @{ $info->{'@INC'} });
     my $i = is_insensitive_fs() ? "i" : "";
     my $strip_inc_prefix = qr{^(?$i:$incs)/};
@@ -1533,9 +1663,14 @@ sub _info2rv {
     require File::Spec;
 
     foreach my $key (keys %{ $info->{'%INC'} }) {
-        (my $path = $info->{'%INC'}{$key}) =~ s:\\:/:g;
-        $key =~ s:\\:/:g;
-        $key =~ s/$strip_inc_prefix// if File::Spec->file_name_is_absolute($key);
+        (my $path = $info->{'%INC'}{$key}) =~ s|\\|/|g;
+
+        # NOTE: %INC may contain (as keys) absolute pathnames,
+        # e.g. for autosplit .ix and .al files. In the latter case,
+        # the key may also start with "./" if found via a relative path in @INC.
+        $key =~ s|\\|/|g;
+        $key =~ s|^\./||;
+        $key =~ s/$strip_inc_prefix//;
 
         $rv->{$key} = {
             'used_by' => [],
@@ -1546,7 +1681,7 @@ sub _info2rv {
     }
 
     foreach my $path (@{ $info->{dl_shared_objects} }) {
-        $path =~ s:\\:/:g;
+        $path =~ s|\\|/|g;
         (my $key = $path) =~ s/$strip_inc_prefix//;
 
         $rv->{$key} = {
@@ -1611,7 +1746,7 @@ sub _merge_rv {
 
 sub _not_dup {
     my ($key, $rv1, $rv2) = @_;
-    if (File::Spec->case_tolerant()) {
+    if (is_insensitive_fs) {
         return lc(abs_path($rv1->{$key}{file})) ne lc(abs_path($rv2->{$key}{file}));
     }
     else {
@@ -1706,8 +1841,10 @@ The B<scan_deps_runtime> function is contributed by Edward S. Peschko.
 
 You can write to the mailing list at E<lt>par@perl.orgE<gt>, or send an empty
 mail to E<lt>par-subscribe@perl.orgE<gt> to participate in the discussion.
+Archives of the mailing list are available at
+E<lt>https://www.mail-archive.com/par@perl.org/E<gt> or E<lt>https://groups.google.com/g/perl.parE<gt>.
 
-Please submit bug reports to E<lt>bug-Module-ScanDeps@rt.cpan.orgE<gt>.
+Please submit bug reports to E<lt>https://github.com/rschupp/Module-ScanDeps/issuesE<gt>.
 
 =head1 COPYRIGHT
 

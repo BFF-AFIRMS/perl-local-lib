@@ -1,0 +1,6 @@
+/home/production/cxgn/local-lib/lib/perl5/Memoize.pm
+/home/production/cxgn/local-lib/lib/perl5/Memoize/AnyDBM_File.pm
+/home/production/cxgn/local-lib/lib/perl5/Memoize/Expire.pm
+/home/production/cxgn/local-lib/lib/perl5/Memoize/NDBM_File.pm
+/home/production/cxgn/local-lib/lib/perl5/Memoize/SDBM_File.pm
+/home/production/cxgn/local-lib/lib/perl5/Memoize/Storable.pm

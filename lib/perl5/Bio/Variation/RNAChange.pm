@@ -1,7 +1,7 @@
 #
 # BioPerl module for Bio::Variation::RNAChange
 #
-# Please direct questions and support issues to <bioperl-l@bioperl.org> 
+# Please direct questions and support issues to <bioperl-l@bioperl.org>
 #
 # Cared for by Heikki Lehvaslaiho <heikki-at-bioperl-dot-org>
 #
@@ -36,8 +36,8 @@ Bio::Variation::RNAChange - Sequence change class for RNA level
    $rnachange->add_Allele($a2);
    $rnachange->allele_mut($a2);
 
-   print "The codon change is ", $rnachange->codon_ori, 
-       ">", $rnachange->codon_mut, "\n"; 
+   print "The codon change is ", $rnachange->codon_ori,
+       ">", $rnachange->codon_mut, "\n";
 
    # add it to a SeqDiff container object
    $seqdiff->add_Variant($rnachange);
@@ -68,22 +68,22 @@ L<Bio::Variation::AAChange> for more information.
 =head2 Mailing Lists
 
 User feedback is an integral part of the evolution of this and other
-Bioperl modules. Send your comments and suggestions preferably to the 
+Bioperl modules. Send your comments and suggestions preferably to the
 Bioperl mailing lists  Your participation is much appreciated.
 
   bioperl-l@bioperl.org                  - General discussion
   http://bioperl.org/wiki/Mailing_lists  - About the mailing lists
 
 
-=head2 Support 
+=head2 Support
 
 Please direct usage questions or support issues to the mailing list:
 
 I<bioperl-l@bioperl.org>
 
-rather than to the module maintainer directly. Many experienced and 
-reponsive experts will be able look at the problem and quickly 
-address it. Please include a thorough description of the problem 
+rather than to the module maintainer directly. Many experienced and
+reponsive experts will be able look at the problem and quickly
+address it. Please include a thorough description of the problem
 with code and data examples if at all possible.
 
 =head2 Reporting Bugs
@@ -110,6 +110,7 @@ methods. Internal methods are usually preceded with a _
 
 
 package Bio::Variation::RNAChange;
+$Bio::Variation::RNAChange::VERSION = '1.7.5';
 use strict;
 
 # Object preamble - inheritance
@@ -156,11 +157,11 @@ sub new {
 				  TRANSLATION_TABLE
 				  CDS_END
 				  )],@args);
-    
+
     $self->primary_tag("Variation");
-    
+
     $self->{ 'alleles' } = [];
-    
+
     $start && $self->start($start);
     $end   && $self->end($end);
     $length && $self->length($length);
@@ -170,12 +171,12 @@ sub new {
     $frame   && $self->frame($frame);
     $score   && $self->score($score);
     $gff_string && $self->_from_gff_string($gff_string);
-    
+
     $allele_ori && $self->allele_ori($allele_ori);
     $allele_mut  && $self->allele_mut($allele_mut);
     $upstreamseq  && $self->upStreamSeq($upstreamseq);
     $dnstreamseq  && $self->dnStreamSeq($dnstreamseq);
-    
+
     $label  && $self->label($label);
     $status  && $self->status($status);
     $proof && $self->proof($proof);
@@ -185,7 +186,7 @@ sub new {
     $numbering && $self->numbering($numbering);
     $mut_number && $self->mut_number($mut_number);
     $isMutation && $self->isMutation($isMutation);
-    
+
     $codon_ori  && $self->codon_ori($codon_ori);
     $codon_mut  && $self->codon_mut($codon_mut);
     $codon_pos  && $self->codon_pos($codon_pos);
@@ -199,14 +200,14 @@ sub new {
 
  Title   : codon_ori
  Usage   : $obj->codon_ori();
- Function: 
+ Function:
 
             Sets and returns codon_ori triplet.  If value is not set,
             creates the codon triplet from the codon position and
             flanking sequences.  The string has to be three characters
             long. The character content is not checked.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -224,17 +225,17 @@ sub codon_ori {
 	my $codon_ori = '';
 
 	if ($self->region eq 'coding' && $self->start && $self->start  >= 1) {
-	    
-	    $self->warn('Codon position is not defined') 
+
+	    $self->warn('Codon position is not defined')
 		if not defined $self->codon_pos;
-	    $self->warn('Upstream flanking sequence  is not defined') 
+	    $self->warn('Upstream flanking sequence  is not defined')
 		if not defined $self->upStreamSeq;
-	    $self->warn('Downstream flanking sequence  is not defined') 
+	    $self->warn('Downstream flanking sequence  is not defined')
 		if not defined $self->dnStreamSeq;
 
-	    my $cpos = $self->codon_pos; 
+	    my $cpos = $self->codon_pos;
 	    $codon_ori = substr($self->upStreamSeq, -$cpos +1  , $cpos-1);
-	    $codon_ori .= substr($self->allele_ori->seq, 0, 4-$cpos) 
+	    $codon_ori .= substr($self->allele_ori->seq, 0, 4-$cpos)
 		if $self->allele_ori and $self->allele_ori->seq;
 	    $codon_ori .= substr($self->dnStreamSeq, 0, 3-length($codon_ori));
 	}
@@ -248,13 +249,13 @@ sub codon_ori {
 
  Title   : codon_mut
  Usage   : $obj->codon_mut();
- Function: 
+ Function:
 
             Sets and returns codon_mut triplet.  If value is not
             set, creates the codon triplet from the codon position and
             flanking sequences. Return undef for other than point mutations.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -272,25 +273,25 @@ sub codon_mut {
     else {
 	my $codon_mut = '';
 	if ($self->allele_ori->seq and $self->allele_mut->seq and
-	  CORE::length($self->allele_ori->seq) == 1 and 
+	  CORE::length($self->allele_ori->seq) == 1 and
 	  CORE::length($self->allele_mut->seq) == 1 and
 	    $self->region eq 'coding' and $self->start >= 1) {
 
-	    $self->warn('Codon position is not defined') 
+	    $self->warn('Codon position is not defined')
 		if not defined $self->codon_pos;
-	    $self->warn('Upstream flanking sequnce  is not defined') 
+	    $self->warn('Upstream flanking sequnce  is not defined')
 		if not defined $self->upStreamSeq;
-	    $self->warn('Downstream flanking sequnce  is not defined') 
+	    $self->warn('Downstream flanking sequnce  is not defined')
 		if not defined $self->dnStreamSeq;
-	    $self->throw('Mutated allele is not defined') 
+	    $self->throw('Mutated allele is not defined')
 		if not defined $self->allele_mut;
-	    
+
 	    my $cpos = $self->codon_pos;
 	    $codon_mut = substr($self->upStreamSeq, -$cpos +1  , $cpos-1);
-	    $codon_mut .= substr($self->allele_mut->seq, 0, 4-$cpos) 
-		if $self->allele_mut and $self->allele_mut->seq; 
+	    $codon_mut .= substr($self->allele_mut->seq, 0, 4-$cpos)
+		if $self->allele_mut and $self->allele_mut->seq;
 	    $codon_mut .= substr($self->dnStreamSeq, 0, 3-length($codon_mut));
-	    
+
 	    $self->{'codon_mut'} = lc $codon_mut;
 	}
     }
@@ -302,12 +303,12 @@ sub codon_mut {
 
  Title   : codon_pos
  Usage   : $obj->codon_pos();
- Function: 
+ Function:
 
             Sets and returns the position of the mutation start in the
             codon. If value is not set, returns false.
 
- Example : 
+ Example :
  Returns : 1,2,3
  Args    : none if get, the new value if set
 
@@ -330,12 +331,12 @@ sub codon_pos {
 
  Title   : codon_table
  Usage   : $obj->codon_table();
- Function: 
+ Function:
 
             Sets and returns the codon table id of the RNA
             If value is not set, returns 1, 'universal' code, as the default.
 
- Example : 
+ Example :
  Returns : integer
  Args    : none if get, the new value if set
 
@@ -418,7 +419,7 @@ sub AAChange {
     } else {
 	return $self->{'AAChange'};
     }
-}    
+}
 
 
 =head2 exons_modified
@@ -443,13 +444,13 @@ sub exons_modified {
 
  Title   : region
  Usage   : $obj->region();
- Function: 
+ Function:
 
             Sets and returns the name of the sequence region type or
             protein domain at this location.  If value is not set,
             returns false.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -461,16 +462,16 @@ sub region {
     my ($self,$value) = @_;
     if( defined $value) {
 	$self->{'region'} = $value;
-    } 
+    }
     elsif (not defined $self->{'region'}) {
 
-	$self->warn('Mutation start position is not defined') 
+	$self->warn('Mutation start position is not defined')
 	    if not defined $self->start and $self->verbose;
-	$self->warn('Mutation end position is not defined') 
+	$self->warn('Mutation end position is not defined')
 	    if not defined $self->end and $self->verbose;
 	$self->warn('Length of the CDS is not defined, the mutation can be beyond coding region!')
 	    if not defined $self->cds_end and $self->verbose;
-	
+
 	$self->region('coding');
 	if ($self->end && $self->end < 0 ){
 	    $self->region('5\'UTR');
@@ -486,16 +487,16 @@ sub region {
 
  Title   : cds_end
  Usage   : $cds_end = $obj->get_cds_end();
- Function: 
+ Function:
 
            Sets or returns the cds_end from the beginning of the DNA sequence
            to the coordinate start used to describe variants.
            Should be the location of the last nucleotide of the
            terminator codon of the gene.
 
- Example : 
+ Example :
  Returns : value of cds_end, a scalar
- Args    : 
+ Args    :
 
 =cut
 
@@ -504,7 +505,7 @@ sub region {
 sub cds_end {
     my ($self, $value) = @_;
     if (defined $value) {
-	$self->warn("[$value] is not a good value for sequence position") 
+	$self->warn("[$value] is not a good value for sequence position")
 	    if not $value =~ /^\d+$/ ;
 	$self->{'cds_end'} = $value;
     } else {
@@ -518,7 +519,7 @@ sub cds_end {
 
  Title   : label
  Usage   : $obj->label();
- Function: 
+ Function:
 
             Sets and returns mutation event label(s).  If value is not
             set, or no argument is given returns false.  Each
@@ -527,7 +528,7 @@ sub cds_end {
             'Mutation event controlled vocabulary' in
             http://www.ebi.ac.uk/mutations/recommendations/mutevent.html.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -540,7 +541,7 @@ sub label {
     $m = $self->allele_mut->seq if $self->allele_mut and $self->allele_mut->seq;
 
     my $ct  = Bio::Tools::CodonTable -> new ( -id => $self->codon_table );
-    if ($o and $m and CORE::length($o) == 1 and CORE::length($m) == 1) { 
+    if ($o and $m and CORE::length($o) == 1 and CORE::length($m) == 1) {
 	if (defined $self->AAChange) {
 	    if ($self->start > 0 and $self->start < 4 ) {
 		$type = 'initiation codon';
@@ -552,9 +553,9 @@ sub label {
 	    elsif ($self->codon_mut && $ct->is_ter_codon($self->codon_mut) ) {
 		#elsif ($self->AAChange->allele_mut and $self->AAChange->allele_mut->seq eq "*") {
 		$type = 'nonsense';
-	    } 
-	    elsif ($o and $m and ($o eq $m or 
-				  $self->AAChange->allele_ori->seq eq 
+	    }
+	    elsif ($o and $m and ($o eq $m or
+				  $self->AAChange->allele_ori->seq eq
 				  $self->AAChange->allele_mut->seq)) {
 		$type = 'silent';
 	    } else {
@@ -580,7 +581,7 @@ sub label {
 	}
 	else {
 	    $type .= ', '. 'complex';
-	}	
+	}
 	if ($self->codon_ori && $ct->is_ter_codon($self->codon_ori) ) {
 	    $type .= ', '. 'termination codon';
 	}
@@ -595,12 +596,12 @@ sub label {
 
  Title   : _change_codon_pos
  Usage   : $newCodonPos = _change_codon_pos($myCodonPos, 5)
- Function: 
+ Function:
 
            Keeps track of the codon position in a changeing sequence
 
  Returns : codon_pos = integer 1, 2 or 3
- Args    : valid codon position 
+ Args    : valid codon position
            signed integer offset to a new location in sequence
 
 =cut

@@ -2,7 +2,7 @@ package Test2::Tools::Basic;
 use strict;
 use warnings;
 
-our $VERSION = '0.000144';
+our $VERSION = '1.302209';
 
 use Carp qw/croak/;
 use Test2::API qw/context/;
@@ -41,6 +41,7 @@ sub diag {
     my $ctx = context();
     $ctx->diag( join '', grep { defined $_ } @_ );
     $ctx->release;
+    return 0;
 }
 
 sub note {
@@ -248,6 +249,8 @@ Fire off a failing test (a single Ok event). The name and diagnostics are option
 Write diagnostics messages. All items in C<@messages> will be joined into a
 single string with no separator. When using TAP, diagnostics are sent to STDERR.
 
+Returns false, so as to preserve failure.
+
 =item note(@messages)
 
 Write note-diagnostics messages. All items in C<@messages> will be joined into
@@ -325,7 +328,7 @@ many results.
 =head1 SOURCE
 
 The source code repository for Test2-Suite can be found at
-F<https://github.com/Test-More/Test2-Suite/>.
+F<https://github.com/Test-More/test-more/>.
 
 =head1 MAINTAINERS
 
@@ -345,7 +348,7 @@ F<https://github.com/Test-More/Test2-Suite/>.
 
 =head1 COPYRIGHT
 
-Copyright 2018 Chad Granum E<lt>exodist@cpan.orgE<gt>.
+Copyright Chad Granum E<lt>exodist@cpan.orgE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

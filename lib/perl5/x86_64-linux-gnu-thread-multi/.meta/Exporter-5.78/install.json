@@ -1,0 +1,1 @@
+{"name":"Exporter","version":"5.78","pathname":"T/TO/TODDR/Exporter-5.78.tar.gz","dist":"Exporter-5.78","provides":{"Exporter::Heavy":{"file":"lib/Exporter/Heavy.pm","version":"5.78"},"Exporter":{"file":"lib/Exporter.pm","version":"5.78"}},"target":"Exporter"}

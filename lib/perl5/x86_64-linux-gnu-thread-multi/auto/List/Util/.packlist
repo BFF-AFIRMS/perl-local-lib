@@ -1,5 +1,17 @@
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/List/Util.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/List/Util/XS.pm
+/home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Scalar/List/Utils.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Scalar/Util.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/Sub/Util.pm
 /home/production/cxgn/local-lib/lib/perl5/x86_64-linux-gnu-thread-multi/auto/List/Util/Util.so
+/usr/local/lib/x86_64-linux-gnu/perl/5.36.0/List/Util.pm
+/usr/local/lib/x86_64-linux-gnu/perl/5.36.0/List/Util/XS.pm
+/usr/local/lib/x86_64-linux-gnu/perl/5.36.0/Scalar/List/Utils.pm
+/usr/local/lib/x86_64-linux-gnu/perl/5.36.0/Scalar/Util.pm
+/usr/local/lib/x86_64-linux-gnu/perl/5.36.0/Sub/Util.pm
+/usr/local/lib/x86_64-linux-gnu/perl/5.36.0/auto/List/Util/Util.so
+/usr/local/man/man3/List::Util.3pm
+/usr/local/man/man3/List::Util::XS.3pm
+/usr/local/man/man3/Scalar::List::Utils.3pm
+/usr/local/man/man3/Scalar::Util.3pm
+/usr/local/man/man3/Sub::Util.3pm

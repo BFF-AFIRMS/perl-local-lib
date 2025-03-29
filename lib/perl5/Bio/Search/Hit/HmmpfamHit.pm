@@ -83,7 +83,7 @@ Internal methods are usually preceded with a _
 # Let the code begin...
 
 package Bio::Search::Hit::HmmpfamHit;
-
+$Bio::Search::Hit::HmmpfamHit::VERSION = '1.7.3';
 use strict;
 
 use Bio::Search::HSP::HmmpfamHSP;

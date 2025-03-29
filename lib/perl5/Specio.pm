@@ -5,7 +5,7 @@ use warnings;
 
 use 5.008;
 
-our $VERSION = '0.47';
+our $VERSION = '0.50';
 
 1;
 
@@ -23,7 +23,7 @@ Specio - Type constraints and coercions for Perl
 
 =head1 VERSION
 
-version 0.47
+version 0.50
 
 =head1 SYNOPSIS
 
@@ -84,9 +84,6 @@ type to a variable at all.
 
 Instead, you can explicitly check a value against a type, and optionally coerce
 values to that type.
-
-My long-term goal is to replace Moose's built-in types and L<MooseX::Types>
-with this module.
 
 =head1 WHAT IS A TYPE?
 
@@ -428,16 +425,9 @@ level namespace. Specio is Latin for for "look at" and "spec" is the root for
 the word "species". It's short, relatively easy to type, and not used by any
 other distro.
 
-=head1 LONG-TERM PLANS
-
-Eventually I'd like to see this distro replace Moose's internal type system,
-which would also make MooseX::Types obsolete.
-
 =head1 SUPPORT
 
 Bugs may be submitted at L<https://github.com/houseabsolute/Specio/issues>.
-
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
 
 =head1 SOURCE
 
@@ -458,7 +448,7 @@ software much more, unless I get so many donations that I can consider working
 on free software full time (let's all have a chuckle at that together).
 
 To donate, log into PayPal and send money to autarch@urth.org, or use the
-button at L<https://www.urth.org/fs-donation.html>.
+button at L<https://houseabsolute.com/foss-donations/>.
 
 =head1 AUTHOR
 
@@ -466,7 +456,7 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 CONTRIBUTORS
 
-=for stopwords Chris White cpansprout Graham Knop Karen Etheridge
+=for stopwords Chris White cpansprout Graham Knop Karen Etheridge Vitaly Lipatov
 
 =over 4
 
@@ -486,11 +476,15 @@ Graham Knop <haarg@haarg.org>
 
 Karen Etheridge <ether@cpan.org>
 
+=item *
+
+Vitaly Lipatov <lav@altlinux.ru>
+
 =back
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2012 - 2021 by Dave Rolsky.
+This software is Copyright (c) 2012 - 2025 by Dave Rolsky.
 
 This is free software, licensed under:
 

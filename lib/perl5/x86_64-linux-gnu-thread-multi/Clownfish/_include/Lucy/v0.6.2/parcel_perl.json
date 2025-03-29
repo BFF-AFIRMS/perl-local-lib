@@ -1,29 +1,6 @@
 {
     "host_module": "Lucy",
     "classes": {
-        "Lucy::Document::Doc": {
-            "methods": {
-                "Store": {
-                    "excluded": true
-                },
-                "Set_Fields": {
-                    "excluded": true
-                },
-                "Get_Fields": {
-                    "excluded": true
-                }
-            }
-        },
-        "Lucy::Highlight::Highlighter": {
-            "methods": {
-                "Raw_Excerpt": {
-                    "alias": "_raw_excerpt"
-                },
-                "Highlight_Excerpt": {
-                    "alias": "_highlight_excerpt"
-                }
-            }
-        },
         "Lucy::Index::Posting::ScorePosting": {
             "methods": {
                 "Get_Prox": {
@@ -41,17 +18,23 @@
                 }
             }
         },
-        "Lucy::Index::SortCache": {
+        "Lucy::Document::Doc": {
             "methods": {
-                "Value": {
+                "Store": {
+                    "excluded": true
+                },
+                "Set_Fields": {
+                    "excluded": true
+                },
+                "Get_Fields": {
                     "excluded": true
                 }
             }
         },
-        "Lucy::Index::IndexReader": {
+        "Lucy::Index::SortCache": {
             "methods": {
-                "Offsets": {
-                    "alias": "_offsets"
+                "Value": {
+                    "excluded": true
                 }
             }
         },
@@ -66,6 +49,23 @@
             "methods": {
                 "Add_Doc": {
                     "excluded": true
+                }
+            }
+        },
+        "Lucy::Index::IndexReader": {
+            "methods": {
+                "Offsets": {
+                    "alias": "_offsets"
+                }
+            }
+        },
+        "Lucy::Highlight::Highlighter": {
+            "methods": {
+                "Raw_Excerpt": {
+                    "alias": "_raw_excerpt"
+                },
+                "Highlight_Excerpt": {
+                    "alias": "_highlight_excerpt"
                 }
             }
         },

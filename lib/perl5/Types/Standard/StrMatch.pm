@@ -1,12 +1,14 @@
+# INTERNAL MODULE: guts for StrMatch type from Types::Standard.
+
 package Types::Standard::StrMatch;
 
-use 5.006001;
+use 5.008001;
 use strict;
 use warnings;
 
 BEGIN {
 	$Types::Standard::StrMatch::AUTHORITY = 'cpan:TOBYINK';
-	$Types::Standard::StrMatch::VERSION   = '1.012004';
+	$Types::Standard::StrMatch::VERSION   = '2.006000';
 }
 
 $Types::Standard::StrMatch::VERSION =~ tr/_//d;
@@ -65,14 +67,15 @@ sub __constraint_generator {
 	
 	$checker
 		? sub {
-		my $value = shift;
-		return if ref( $value );
-		my @m = ( $value =~ $regexp );
-		$checker->check( \@m );
+			my $value = shift;
+			return if !defined ( $value );
+			return if ref( $value );
+			my @m = ( $value =~ $regexp );
+			$checker->check( \@m );
 		}
 		: sub {
-		my $value = shift;
-		!ref( $value ) and $value =~ $regexp;
+			my $value = shift;
+			defined( $value ) and !ref( $value ) and !!( $value =~ $regexp );
 		};
 } #/ sub __constraint_generator
 
@@ -94,7 +97,7 @@ sub __inline_generator {
 					"Cannot serialize regexp without callbacks; serializing using callbacks" );
 			}
 			sprintf
-				"!ref($v) and do { my \$m = [$v =~ %s]; %s }",
+				"defined($v) and !ref($v) and do { my \$m = [$v =~ %s]; %s }",
 				$serialized_re,
 				$checker->inline_check( '$m' ),
 				;
@@ -104,12 +107,12 @@ sub __inline_generator {
 		my $regexp_string = "$regexp";
 		if ( $regexp_string =~ /\A\(\?\^u?:\\A(\.+)\)\z/ ) {
 			my $length = length $1;
-			return sub { "!ref($_) and length($_)>=$length" };
+			return sub { "defined($_) and !ref($_) and length($_)>=$length" };
 		}
 		
 		if ( $regexp_string =~ /\A\(\?\^u?:\\A(\.+)\\z\)\z/ ) {
 			my $length = length $1;
-			return sub { "!ref($_) and length($_)==$length" };
+			return sub { "defined($_) and !ref($_) and length($_)==$length" };
 		}
 		
 		return sub {
@@ -121,56 +124,9 @@ sub __inline_generator {
 				Carp::carp(
 					"Cannot serialize regexp without callbacks; serializing using callbacks" );
 			}
-			"!ref($v) and $v =~ $serialized_re";
+			"defined($v) and !ref($v) and !!( $v =~ $serialized_re )";
 		};
 	} #/ else [ if ( $checker ) ]
 } #/ sub __inline_generator
 
 1;
-
-__END__
-
-=pod
-
-=encoding utf-8
-
-=head1 NAME
-
-Types::Standard::StrMatch - internals for the Types::Standard StrMatch type constraint
-
-=head1 STATUS
-
-This module is considered part of Type-Tiny's internals. It is not
-covered by the
-L<Type-Tiny stability policy|Type::Tiny::Manual::Policies/"STABILITY">.
-
-=head1 DESCRIPTION
-
-This file contains some of the guts for L<Types::Standard>.
-It will be loaded on demand. You may ignore its presence.
-
-=head1 BUGS
-
-Please report any bugs to
-L<https://github.com/tobyink/p5-type-tiny/issues>.
-
-=head1 SEE ALSO
-
-L<Types::Standard>.
-
-=head1 AUTHOR
-
-Toby Inkster E<lt>tobyink@cpan.orgE<gt>.
-
-=head1 COPYRIGHT AND LICENCE
-
-This software is copyright (c) 2013-2014, 2017-2021 by Toby Inkster.
-
-This is free software; you can redistribute it and/or modify it under
-the same terms as the Perl 5 programming language system itself.
-
-=head1 DISCLAIMER OF WARRANTIES
-
-THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
-MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.

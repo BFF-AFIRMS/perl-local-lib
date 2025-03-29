@@ -1,9 +1,8 @@
-use 5.008001;
-use strict;
+use v5.12.0;
 use warnings;
-package Email::MIME;
+package Email::MIME 1.954;
 # ABSTRACT: easy MIME message handling
-$Email::MIME::VERSION = '1.952';
+
 use Email::Simple 2.212; # nth header value
 use parent qw(Email::Simple);
 
@@ -14,11 +13,15 @@ use Email::MIME::ContentType 1.023; # build_content_type
 use Email::MIME::Encode;
 use Email::MIME::Encodings 1.314;
 use Email::MIME::Header;
-use Email::MIME::Modifier;
 use Encode 1.9801 ();
 use Scalar::Util qw(reftype weaken);
 
 our @CARP_NOT = qw(Email::MIME::ContentType);
+
+our $MAX_DEPTH = 10;
+
+our $CUR_PARTS = 0;
+our $MAX_PARTS = 100;
 
 #pod =head1 SYNOPSIS
 #pod
@@ -125,6 +128,12 @@ my $NO_ENCODE_RE = qr/
 /ix;
 
 sub new {
+  local $CUR_PARTS = 0;
+  my ($class, @rest) = @_;
+  $class->_new(@rest);
+}
+
+sub _new {
   my ($class, $text, $arg, @rest) = @_;
   $arg ||= {};
 
@@ -174,10 +183,9 @@ sub new {
 #pod
 #pod C<attributes> is a hash of MIME attributes to assign to the part, and may
 #pod override portions of the header set in the C<header> parameter. The hash keys
-#pod correspond directly to methods for modifying a message from
-#pod C<Email::MIME::Modifier>. The allowed keys are: content_type, charset, name,
-#pod format, boundary, encoding, disposition, and filename. They will be mapped to
-#pod C<"$attr\_set"> for message modification.
+#pod correspond directly to methods for modifying a message. The allowed keys are:
+#pod content_type, charset, name, format, boundary, encoding, disposition, and
+#pod filename. They will be mapped to C<"$attr\_set"> for message modification.
 #pod
 #pod The C<parts> parameter is a list reference containing C<Email::MIME>
 #pod objects. Elements of the C<parts> list can also be a non-reference
@@ -377,8 +385,6 @@ sub body_str {
   return $str;
 }
 
-our $MAX_DEPTH = 10;
-
 sub parts_multipart {
   my $self     = shift;
   my $boundary = $self->{ct}->{attributes}->{boundary};
@@ -394,8 +400,7 @@ sub parts_multipart {
   # that means it's a bogus message, but a mangled result (or exception) is
   # better than endless recursion. -- rjbs, 2008-01-07
   return $self->parts_single_part
-    unless defined $boundary and length $boundary and
-           $self->body_raw =~ /^--\Q$boundary\E\s*$/sm;
+    unless length $boundary and $self->body_raw =~ /^--\Q$boundary\E\s*$/sm;
 
   $self->{body_raw} = $self->SUPER::body;
 
@@ -412,14 +417,16 @@ sub parts_multipart {
   # 2006-11-27
   $self->SUPER::body_set(shift @bits) if index(($bits[0] || ''), ':') == -1;
 
-  my $bits = @bits;
+  local $CUR_PARTS = $CUR_PARTS + @bits;
+  Carp::croak("attempted to parse a MIME message with more than $MAX_PARTS parts")
+    if $MAX_PARTS && $CUR_PARTS > $MAX_PARTS;
 
   my @parts;
   for my $bit (@bits) {
     $bit =~ s/\A[\n\r]+//smg;
     $bit =~ s/(?<!\x0d)$self->{mycrlf}\Z//sm;
     local $DEPTH = $DEPTH + 1;
-    my $email = (ref $self)->new($bit, { encode_check => $self->encode_check });
+    my $email = (ref $self)->_new($bit, { encode_check => $self->encode_check });
     push @parts, $email;
   }
 
@@ -551,7 +558,7 @@ sub boundary_set {
   my ($self, $value) = @_;
   my $ct_header = parse_content_type($self->header('Content-Type'));
 
-  if (defined $value and length $value) {
+  if (length $value) {
     $ct_header->{attributes}->{boundary} = $value;
   } else {
     delete $ct_header->{attributes}->{boundary};
@@ -649,8 +656,6 @@ sub encoding_set {
 #pod This method will encode the new body you send using the encoding
 #pod specified in the C<Content-Transfer-Encoding> header, then set
 #pod the body to the new encoded body.
-#pod
-#pod This method overrides the default C<body_set()> method.
 #pod
 #pod =cut
 
@@ -769,7 +774,7 @@ sub parts_set {
 
     # setup multipart
     $ct_header->{attributes}->{boundary} = Email::MessageID->new->user
-      unless defined $ct_header->{attributes}->{boundary} and length $ct_header->{attributes}->{boundary};
+      unless length $ct_header->{attributes}->{boundary};
     my $bound = $ct_header->{attributes}->{boundary};
     foreach my $part (@{$parts}) {
       $body .= "$self->{mycrlf}--$bound$self->{mycrlf}";
@@ -908,10 +913,7 @@ sub _reset_cids {
     if ($ct_header->{subtype} eq 'alternative') {
       my %cids;
       for my $part ($self->parts) {
-        my $cid
-          = defined $part->header('Content-ID')
-          ? $part->header('Content-ID')
-          : q{};
+        my $cid = $part->header('Content-ID') // q{};
         $cids{$cid}++;
       }
       return if keys(%cids) == 1;
@@ -940,7 +942,7 @@ Email::MIME - easy MIME message handling
 
 =head1 VERSION
 
-version 1.952
+version 1.954
 
 =head1 SYNOPSIS
 
@@ -1034,13 +1036,13 @@ message. Headers are decoded from MIME encoding.
 
 =head1 PERL VERSION
 
-This library should run on perls released even a long time ago.  It should work
-on any version of perl released in the last five years.
+This library should run on perls released even a long time ago.  It should
+work on any version of perl released in the last five years.
 
 Although it may work on older versions of perl, no guarantee is made that the
 minimum required version will not be increased.  The version may be increased
-for any reason, and there is no promise that patches will be accepted to lower
-the minimum required perl.
+for any reason, and there is no promise that patches will be accepted to
+lower the minimum required perl.
 
 =head1 METHODS
 
@@ -1082,10 +1084,9 @@ C<header_str>.  Its values will be used verbatim.
 
 C<attributes> is a hash of MIME attributes to assign to the part, and may
 override portions of the header set in the C<header> parameter. The hash keys
-correspond directly to methods for modifying a message from
-C<Email::MIME::Modifier>. The allowed keys are: content_type, charset, name,
-format, boundary, encoding, disposition, and filename. They will be mapped to
-C<"$attr\_set"> for message modification.
+correspond directly to methods for modifying a message. The allowed keys are:
+content_type, charset, name, format, boundary, encoding, disposition, and
+filename. They will be mapped to C<"$attr\_set"> for message modification.
 
 The C<parts> parameter is a list reference containing C<Email::MIME>
 objects. Elements of the C<parts> list can also be a non-reference
@@ -1164,8 +1165,6 @@ method, will be changed to reflect the new encoding.
 This method will encode the new body you send using the encoding
 specified in the C<Content-Transfer-Encoding> header, then set
 the body to the new encoded body.
-
-This method overrides the default C<body_set()> method.
 
 =head2 body_str_set
 
@@ -1354,15 +1353,17 @@ The variable C<$Email::MIME::MAX_DEPTH> is the maximum depth of parts that will
 be processed.  It defaults to 10, already higher than legitimate mail is ever
 likely to be.  This value may go up over time as the parser is improved.
 
-=head1 TODO
+The variable C<$Email::MIME::MAX_PARTS> is the maximum number of parts that
+will be processed.  It defaults to 100, already higher than legitimate mail is
+ever likely to be.  This value may go up over time as the parser is improved or
+as research suggests that our starting position was wrong.
 
-All of the Email::MIME-specific guts should move to a single entry on the
-object's guts.  This will require changes to both Email::MIME and
-L<Email::MIME::Modifier>, sadly.
+Increasing either of these variables risks significant consumption of memory.
+Test before changing things.
 
 =head1 SEE ALSO
 
-L<Email::Simple>, L<Email::MIME::Modifier>, L<Email::MIME::Creator>.
+L<Email::Simple>
 
 =head1 THANKS
 
@@ -1375,7 +1376,7 @@ This module was generously sponsored by Best Practical
 
 =item *
 
-Ricardo SIGNES <rjbs@semiotic.systems>
+Ricardo SIGNES <cpan@semiotic.systems>
 
 =item *
 
@@ -1389,7 +1390,7 @@ Simon Cozens <simon@cpan.org>
 
 =head1 CONTRIBUTORS
 
-=for stopwords Alex Vandiver Anirvan Chatterjee Arthur Axel 'fREW' Schmidt Brian Cassidy Damian Lukowski Dan Book David Steinbrunner Dotan Dimet dxdc Eric Wong Geraint Edwards ivulfson Jesse Luehrs Kurt Anderson Lance A. Brown Matthew Horsfall memememomo Michael McClimon Mishrakk Pali Shawn Sorichetti Tomohiro Hosaka
+=for stopwords Alex Vandiver Anirvan Chatterjee Arthur Axel 'fREW' Schmidt Brian Cassidy Damian Lukowski Dan Book David Steinbrunner Dotan Dimet dxdc Eric Wong Geraint Edwards ivulfson Jesse Luehrs Kurt Anderson Lance A. Brown Matthew Horsfall memememomo Michael McClimon Mishrakk Pali Ricardo Signes Shawn Sorichetti Tomohiro Hosaka
 
 =over 4
 
@@ -1472,6 +1473,14 @@ Mishrakk <48946018+Mishrakk@users.noreply.github.com>
 =item *
 
 Pali <pali@cpan.org>
+
+=item *
+
+Ricardo Signes <rjbs@semiotic.systems>
+
+=item *
+
+Ricardo Signes <rjbs@users.noreply.github.com>
 
 =item *
 
@@ -1620,15 +1629,17 @@ __END__
 #pod be processed.  It defaults to 10, already higher than legitimate mail is ever
 #pod likely to be.  This value may go up over time as the parser is improved.
 #pod
-#pod =head1 TODO
+#pod The variable C<$Email::MIME::MAX_PARTS> is the maximum number of parts that
+#pod will be processed.  It defaults to 100, already higher than legitimate mail is
+#pod ever likely to be.  This value may go up over time as the parser is improved or
+#pod as research suggests that our starting position was wrong.
 #pod
-#pod All of the Email::MIME-specific guts should move to a single entry on the
-#pod object's guts.  This will require changes to both Email::MIME and
-#pod L<Email::MIME::Modifier>, sadly.
+#pod Increasing either of these variables risks significant consumption of memory.
+#pod Test before changing things.
 #pod
 #pod =head1 SEE ALSO
 #pod
-#pod L<Email::Simple>, L<Email::MIME::Modifier>, L<Email::MIME::Creator>.
+#pod L<Email::Simple>
 #pod
 #pod =head1 THANKS
 #pod

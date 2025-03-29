@@ -1,1 +1,1 @@
-{"provides":{"GD::Graph::Map":{"version":"1.05","file":"lib/GD/Graph/Map.pm"}},"target":"GD::Graph::Map","name":"GD::Graph::Map","version":"1.05","dist":"GDGraph-Map-1.05","pathname":"R/RA/RA/GDGraph-Map-1.05.tgz"}
+{"dist":"GDGraph-Map-1.05","pathname":"R/RA/RA/GDGraph-Map-1.05.tgz","version":"1.05","name":"GD::Graph::Map","provides":{"GD::Graph::Map":{"file":"lib/GD/Graph/Map.pm","version":"1.05"}},"target":"GD::Graph::Map"}

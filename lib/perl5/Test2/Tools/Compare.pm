@@ -2,13 +2,14 @@ package Test2::Tools::Compare;
 use strict;
 use warnings;
 
-our $VERSION = '0.000144';
+our $VERSION = '1.302209';
 
 use Carp qw/croak/;
 use Scalar::Util qw/reftype/;
 
 use Test2::API qw/context/;
 use Test2::Util::Ref qw/rtype/;
+use Test2::Util qw/pkg_to_file/;
 
 use Test2::Compare qw{
     compare
@@ -68,6 +69,7 @@ our @EXPORT_OK = qw{
     is like isnt unlike
     match mismatch validator
     hash array bag object meta meta_check number float rounded within string subset bool check_isa
+    number_lt number_le number_ge number_gt
     in_set not_in_set check_set
     item field call call_list call_hash prop check all_items all_keys all_vals all_values
     etc end filter_items
@@ -76,6 +78,27 @@ our @EXPORT_OK = qw{
     exact_ref
 };
 use base 'Exporter';
+
+my $_autodump = sub {
+    my ($ctx, $got) = @_;
+
+    my $module = $ENV{'T2_AUTO_DUMP'} or return;
+    $module = 'Data::Dumper' if $module eq '1';
+
+    my $file = pkg_to_file($module);
+    eval { require $file };
+
+    if (not $module->can('Dump')) {
+        require Data::Dumper;
+        $module = 'Data::Dumper';
+    }
+
+    my $deparse = $Data::Dumper::Deparse;
+    $deparse = !!$ENV{'T2_AUTO_DEPARSE'} if exists $ENV{'T2_AUTO_DEPARSE'};
+    local $Data::Dumper::Deparse = $deparse;
+
+    $ctx->diag($module->Dump([$got], ['GOT']));
+};
 
 sub is($$;$@) {
     my ($got, $exp, $name, @diag) = @_;
@@ -114,6 +137,7 @@ sub is($$;$@) {
         }
         else {
             $ctx->fail($name, $delta->diag, @diag);
+            $ctx->$_autodump($got);
         }
     }
     else {
@@ -135,6 +159,7 @@ sub isnt($$;$@) {
     }
     else {
         $ctx->ok(0, $name, ["Comparison matched (it should not).", @diag]);
+        $ctx->$_autodump($got);
     }
 
     $ctx->release;
@@ -149,6 +174,7 @@ sub like($$;$@) {
 
     if ($delta) {
         $ctx->fail($name, $delta->diag, @diag);
+        $ctx->$_autodump($got);
     }
     else {
         $ctx->ok(1, $name);
@@ -169,6 +195,7 @@ sub unlike($$;$@) {
     }
     else {
         $ctx->ok(0, $name, ["Comparison matched (it should not).", @diag]);
+        $ctx->$_autodump($got);
     }
 
     $ctx->release;
@@ -240,7 +267,12 @@ sub F() {
 sub FDNE() {
     my @caller = caller;
     Test2::Compare::Custom->new(
-        code => sub { defined $_ && ( ref $_ || $_ ) ? 0 : 1 }, name => 'FALSE', operator => 'FALSE() || !exists',
+        code => sub {
+            my %p = @_;
+            return 1 unless $p{exists};
+            return $p{got} ? 0 : 1;
+        },
+        name => 'FALSE', operator => 'FALSE() || !exists',
         file => $caller[1],
         lines => [$caller[2]],
     );
@@ -249,7 +281,12 @@ sub FDNE() {
 sub T() {
     my @caller = caller;
     Test2::Compare::Custom->new(
-        code => sub { defined $_ && ( ref $_ || $_ ) ? 1 : 0 }, name => 'TRUE', operator => 'TRUE()',
+        code => sub {
+            my %p = @_;
+            return 0 unless $p{exists};
+            return $p{got} ? 1 : 0;
+        },
+        name => 'TRUE', operator => 'TRUE()',
         file => $caller[1],
         lines => [$caller[2]],
     );
@@ -314,6 +351,54 @@ sub number($;@) {
         file  => $caller[1],
         lines => [$caller[2]],
         input => $num,
+        @args,
+    );
+}
+
+sub number_lt($;@) {
+    my ($num, @args) = @_;
+    my @caller = caller;
+    return Test2::Compare::Number->new(
+        file  => $caller[1],
+        lines => [$caller[2]],
+        input => $num,
+        mode  => '<',
+        @args,
+    );
+}
+
+sub number_le($;@) {
+    my ($num, @args) = @_;
+    my @caller = caller;
+    return Test2::Compare::Number->new(
+        file  => $caller[1],
+        lines => [$caller[2]],
+        input => $num,
+        mode  => '<=',
+        @args,
+    );
+}
+
+sub number_ge($;@) {
+    my ($num, @args) = @_;
+    my @caller = caller;
+    return Test2::Compare::Number->new(
+        file  => $caller[1],
+        lines => [$caller[2]],
+        input => $num,
+        mode  => '>=',
+        @args,
+    );
+}
+
+sub number_gt($;@) {
+    my ($num, @args) = @_;
+    my @caller = caller;
+    return Test2::Compare::Number->new(
+        file  => $caller[1],
+        lines => [$caller[2]],
+        input => $num,
+        mode  => '>',
         @args,
     );
 }
@@ -698,7 +783,7 @@ your data. There are both 'strict' and 'relaxed' versions of the tools.
     # regex to approximate a field.
     like(
         $some_hash,
-        {a => 1, b => qr/[0-9]+/},
+        {a => 1, b => qr/\A[0-9]+\z/},
         "'a' is 1, 'b' is an integer, we don't care about 'c'."
     );
 
@@ -771,7 +856,7 @@ provided and converted to a specification for you.
         $some_hash,
         hash {    # Note: the hash function is not exported by default
             field a => 1;
-            field b => match(qr/[0-9]+/);    # Note: The match function is not exported by default
+            field b => match(qr/\A[0-9]+\z/);    # Note: The match function is not exported by default
             # Don't care about other fields.
         },
         "The hash comparison is not strict"
@@ -790,7 +875,8 @@ refers back to itself at some point. If this happens, an exception will be
 thrown to break an otherwise infinite recursion.
 
 B<Note>: Non-reference values will be compared as strings using C<eq>, so that
-means '2.0' and '2' will match.
+means strings '2.0' and '2' will not match, but numeric 2.0 and 2 will, since
+they are both stringified to '2'.
 
 =item $bool = isnt($got, $expect)
 
@@ -823,7 +909,7 @@ In this tool regexes will stringify the thing they are checking.
 
     like(
         $some_hash,
-        {a => 1, b => qr/[0-9]+/},
+        {a => 1, b => qr/\A[0-9]+\z/},
         "'a' is 1, 'b' is an integer, we don't care about other fields"
     );
 
@@ -842,6 +928,13 @@ Opposite of C<like()>. Does all the same checks, but passes when there is a
 mismatch.
 
 =back
+
+The C<is()>, C<isnt()>, C<like()>, and C<unlike()> functions can be made
+to dump C<$got> using L<Data::Dumper> when tests fail by setting the
+C<T2_AUTO_DUMP> environment variable to "1". (Alternatively, C<T2_AUTO_DUMP>
+can be set to the name of a Perl module providing a compatible C<Dump()>
+method.) The C<T2_AUTO_DEPARSE> environment variable can be used to
+enable Data::Dumper's deparsing of coderefs.
 
 =head2 QUICK CHECKS
 
@@ -1023,6 +1116,17 @@ Verify that the value matches the given number using the C<==> operator.
 =item $check = !number ...;
 
 Verify that the value does not match the given number using the C<!=> operator.
+
+=item $check = number_lt ...;
+
+=item $check = number_le ...;
+
+=item $check = number_ge ...;
+
+=item $check = number_gt ...;
+
+Verify that the value is less than, less than or equal to, greater than or
+equal to, or greater than the given number.
 
 =item $check = float ...;
 
@@ -1674,7 +1778,7 @@ Check for details about the event:
         # Check the file the event reports to
         prop file => 'foo.t';
 
-        # Check the line number the event reports o
+        # Check the line number the event reports to
         prop line => '42';
 
         # You can check the todo/skip values as well:
@@ -1788,7 +1892,7 @@ has custom diagnostics you will need to add checks for them.
 =head1 SOURCE
 
 The source code repository for Test2-Suite can be found at
-F<https://github.com/Test-More/Test2-Suite/>.
+F<https://github.com/Test-More/test-more/>.
 
 =head1 MAINTAINERS
 
@@ -1808,7 +1912,7 @@ F<https://github.com/Test-More/Test2-Suite/>.
 
 =head1 COPYRIGHT
 
-Copyright 2018 Chad Granum E<lt>exodist@cpan.orgE<gt>.
+Copyright Chad Granum E<lt>exodist@cpan.orgE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

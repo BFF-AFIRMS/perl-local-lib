@@ -1,0 +1,62 @@
+{
+   "abstract" : "Useful mathematical functions not in Perl",
+   "author" : [
+      "John M. Gamble <jgamble@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Module::Build version 0.4234",
+   "keywords" : [
+      "math",
+      "math-utils",
+      "sign",
+      "gcd",
+      "logarithm",
+      "scale",
+      "softmax",
+      "comparison",
+      "polymonial"
+   ],
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "Math-Utils",
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "Test::More" : 0
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "Module::Build" : "0.4"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "perl" : "v5.10.1"
+         }
+      }
+   },
+   "provides" : {
+      "Math::Utils" : {
+         "file" : "lib/Math/Utils.pm",
+         "version" : "1.14"
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "license" : [
+         "http://dev.perl.org/licenses/"
+      ],
+      "repository" : {
+         "type" : "git",
+         "url" : "git://github.com/jgamble/Math-Utils.git"
+      }
+   },
+   "version" : "1.14",
+   "x_serialization_backend" : "JSON::PP version 4.16"
+}

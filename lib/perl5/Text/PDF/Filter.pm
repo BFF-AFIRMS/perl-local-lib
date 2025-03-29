@@ -115,9 +115,9 @@ sub outfilt
             $res .= "z";
             next;
         }
-        for ($j = 3; $j >= 0; $j--)
+        for ($j = 0; $j < 4; $j++)
         { $c[$j] = $b - int($b / 85) * 85 + 33; $b /= 85; }
-        $res .= pack("C5", $b + 33, @c);
+        $res .= pack("C5", @c, $b + 33);
         $res .= "\n" if ($i % 60 == 56);
     }
     if ($isend && $i > length($str))
@@ -349,10 +349,7 @@ sub new
     my ($self) = {};
 
     $self->{'indict'} = [@basedict];
-    $self->{'count'} = 258;
     $self->{'insize'} = 9;
-    $self->{'cache'} = 0;
-    $self->{'cache_size'} = 0;
 #    $self->{'outfilt'} = Compress::Zlib::deflateInit();     # patent precludes LZW encoding
     bless $self, $class;
 }
@@ -360,40 +357,37 @@ sub new
 sub infilt
 {
     my ($self, $dat, $last) = @_;
-    my ($num, $res);
+    my ($num, $cache, $cache_size, $res, $mode, $count);
 
-    $res = '';
-
-    while ($dat ne '' || $self->{'cache_size'} >= $self->{'insize'})
+    $count = 258;
+    while ($dat ne '' || $cache_size > 0)
     {
-        $num = $self->read_dat(\$dat);
-        last if $num < 0;
-        return $res if ($num == 257);	# End of Data
-        if ($num == 256)				# Clear table
+        ($num, $cache, $cache_size) = $self->read_dat(\$dat, $cache, $cache_size, $self->{'insize'});
+        return $res if ($num == 257);
+        if ($num == 256)
+        {
+             $self->{'indict'} = [@basedict];
+             $self->{'insize'} = 9;
+             $count = 258;
+             undef $mode;
+             next;
+        }
+        if (defined $mode)
+        {
+            $self->{'indict'}[$count] = $mode . substr($self->{'indict'}[$num], 0, 1);
+            $count++;
+        }
+        $mode = $self->{'indict'}[$num];
+        $res .= $mode;
+        if ($count >= 4096)
         {
             $self->{'indict'} = [@basedict];
             $self->{'insize'} = 9;
-            $self->{'count'} = 258;
-            next;
-        }
-        if ($self->{'count'} > 258)
-        {
-            ($self->{'indict'}[$self->{'count'}-1]) .= substr($self->{'indict'}[$num], 0, 1);
-        }
-        if ($self->{'count'} < 4096)
-        {
-            $self->{'indict'}[$self->{'count'}] = $self->{'indict'}[$num];
-            $self->{'count'}++;
-        }
-        $res .= $self->{'indict'}[$num];
-        if ($self->{'count'} >= 4096)
-        {
-           # don't do anything on table full, the encoder tells us when to clear
-        } elsif ($self->{'count'} == 512)  
+        } elsif ($count == 511)
         { $self->{'insize'} = 10; }
-        elsif ($self->{'count'} == 1024) 
+        elsif ($count == 1023)
         { $self->{'insize'} = 11; }
-        elsif ($self->{'count'} == 2048) 
+        elsif ($count == 2047)
         { $self->{'insize'} = 12; }
     }
     return $res;
@@ -401,21 +395,20 @@ sub infilt
 
 sub read_dat
 {
-    my ($self, $rdat) = @_;
+    my ($self, $rdat, $cache, $size, $len) = @_;
     my ($res);
 
-    while ($self->{'cache_size'} < $self->{'insize'})
+    while ($size < $len)
     {
-        return -1 if $$rdat eq '';	# oops -- not enough data in this chunk
-        $self->{'cache'} = ($self->{'cache'} << 8) + unpack("C", $$rdat);
+        $cache = ($cache << 8) + unpack("C", $$rdat);
         substr($$rdat, 0, 1) = '';
-        $self->{'cache_size'} += 8;
+        $size += 8;
     }
 
-    $res = $self->{'cache'} >> ($self->{'cache_size'} - $self->{'insize'});
-    $self->{'cache'} &= (1 << ($self->{'cache_size'} - $self->{'insize'})) - 1;
-    $self->{'cache_size'} -= $self->{'insize'};
-    return $res;
+    $res = $cache >> ($size - $len);
+    $cache &= (1 << ($size - $len)) - 1;
+    $size -= $len;
+    ($res, $cache, $size);
 }
 
 1;

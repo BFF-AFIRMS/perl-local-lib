@@ -1,9 +1,8 @@
-use v5.8;
-use strict;
+use v5.12.0;
 use warnings;
-package Sub::Exporter;
+package Sub::Exporter 0.991;
 # ABSTRACT: a sophisticated exporter for custom-built routines
-$Sub::Exporter::VERSION = '0.988';
+
 use Carp ();
 use Data::OptList 0.100 ();
 use Params::Util 0.14 (); # _CODELIKE
@@ -79,8 +78,8 @@ use Sub::Install 0.92 ();
 #pod
 #pod     return sub {
 #pod       my $data      = shift;
-#pod       my $tolerance = shift || $arg->{tolerance}; 
-#pod       my $passes    = shift || $arg->{passes}; 
+#pod       my $tolerance = shift || $arg->{tolerance};
+#pod       my $passes    = shift || $arg->{passes};
 #pod
 #pod       analyze($data, $tolerance, $passes);
 #pod     }
@@ -309,8 +308,8 @@ use Sub::Install 0.92 ();
 #pod
 #pod    return sub {
 #pod      my $data      = shift;
-#pod      my $tolerance = shift || $arg->{tolerance} || $col->{defaults}{tolerance}; 
-#pod      my $passes    = shift || $arg->{passes}    || $col->{defaults}{passes}; 
+#pod      my $tolerance = shift || $arg->{tolerance} || $col->{defaults}{tolerance};
+#pod      my $passes    = shift || $arg->{passes}    || $col->{defaults}{passes};
 #pod
 #pod      analyze($data, $tolerance, $passes);
 #pod    }
@@ -360,7 +359,7 @@ use Sub::Install 0.92 ();
 #pod
 #pod First, the collectors gather any collections found in the arguments.  Any
 #pod reference type may be given as the value for a collector.  For each collection
-#pod given in the arguments, its validator (if any) is called.  
+#pod given in the arguments, its validator (if any) is called.
 #pod
 #pod Next, groups are expanded.  If the group is implemented by a group generator,
 #pod the generator is called.  There are two special arguments which, if given to a
@@ -783,7 +782,7 @@ sub _do_import {
     }
 
     my $code = $arg->{generator}->(
-      { 
+      {
         class     => $arg->{class},
         name      => $name,
         arg       => $import_arg,
@@ -809,7 +808,7 @@ sub _do_import {
 ## no Module::Whatever qw(arg arg arg);
 # sub _unexport {
 #   my (undef, undef, undef, undef, undef, $as, $into) = @_;
-# 
+#
 #   if (ref $as eq 'SCALAR') {
 #     undef $$as;
 #   } elsif (ref $as) {
@@ -982,7 +981,7 @@ sub _setup {
 #pod
 #pod For simple uses, setting up Sub::Exporter is about as easy as Exporter.  For
 #pod complex uses, Sub::Exporter makes hard things possible, which would not be
-#pod possible with Exporter. 
+#pod possible with Exporter.
 #pod
 #pod When using a module that uses Sub::Exporter, users familiar with Exporter will
 #pod probably see no difference in the basics.  These two lines do about the same
@@ -1078,7 +1077,7 @@ sub _setup {
 #pod improve my documentation quite a bit.  Yuval Kogman helped me find a bunch of
 #pod little problems.
 #pod
-#pod Thanks, friends! 
+#pod Thanks, friends!
 #pod
 #pod =head1 BUGS
 #pod
@@ -1102,7 +1101,7 @@ Sub::Exporter - a sophisticated exporter for custom-built routines
 
 =head1 VERSION
 
-version 0.988
+version 0.991
 
 =head1 SYNOPSIS
 
@@ -1174,8 +1173,8 @@ The package with the generator for that would look something like this:
 
     return sub {
       my $data      = shift;
-      my $tolerance = shift || $arg->{tolerance}; 
-      my $passes    = shift || $arg->{passes}; 
+      my $tolerance = shift || $arg->{tolerance};
+      my $passes    = shift || $arg->{passes};
 
       analyze($data, $tolerance, $passes);
     }
@@ -1243,15 +1242,15 @@ How much easier to write:
 and to have at one's disposal C<offense> and C<trig_sin> -- not to mention
 C<trig_cos> and C<trig_tan>.
 
-=head1 PERL VERSION SUPPORT
+=head1 PERL VERSION
 
-This module has a long-term perl support period.  That means it will not
-require a version of perl released fewer than five years ago.
+This library should run on perls released even a long time ago.  It should
+work on any version of perl released in the last five years.
 
 Although it may work on older versions of perl, no guarantee is made that the
 minimum required version will not be increased.  The version may be increased
-for any reason, and there is no promise that patches will be accepted to lower
-the minimum required perl.
+for any reason, and there is no promise that patches will be accepted to
+lower the minimum required perl.
 
 =head1 EXPORTER CONFIGURATION
 
@@ -1414,8 +1413,8 @@ rewritten as:
 
    return sub {
      my $data      = shift;
-     my $tolerance = shift || $arg->{tolerance} || $col->{defaults}{tolerance}; 
-     my $passes    = shift || $arg->{passes}    || $col->{defaults}{passes}; 
+     my $tolerance = shift || $arg->{tolerance} || $col->{defaults}{tolerance};
+     my $passes    = shift || $arg->{passes}    || $col->{defaults}{passes};
 
      analyze($data, $tolerance, $passes);
    }
@@ -1465,7 +1464,7 @@ C<use> statement) are parsed as follows:
 
 First, the collectors gather any collections found in the arguments.  Any
 reference type may be given as the value for a collector.  For each collection
-given in the arguments, its validator (if any) is called.  
+given in the arguments, its validator (if any) is called.
 
 Next, groups are expanded.  If the group is implemented by a group generator,
 the generator is called.  There are two special arguments which, if given to a
@@ -1614,7 +1613,7 @@ a good idea, not a missing feature.
 
 For simple uses, setting up Sub::Exporter is about as easy as Exporter.  For
 complex uses, Sub::Exporter makes hard things possible, which would not be
-possible with Exporter. 
+possible with Exporter.
 
 When using a module that uses Sub::Exporter, users familiar with Exporter will
 probably see no difference in the basics.  These two lines do about the same
@@ -1708,7 +1707,7 @@ Ian Langworth and Shawn Sorichetti asked some good questions and helped me
 improve my documentation quite a bit.  Yuval Kogman helped me find a bunch of
 little problems.
 
-Thanks, friends! 
+Thanks, friends!
 
 =head1 BUGS
 
@@ -1718,11 +1717,11 @@ notified of progress on your bug as I make changes.
 
 =head1 AUTHOR
 
-Ricardo Signes <rjbs@semiotic.systems>
+Ricardo Signes <cpan@semiotic.systems>
 
 =head1 CONTRIBUTORS
 
-=for stopwords David Steinbrunner everybody George Hartzell Hans Dieter Pearcey Karen Etheridge
+=for stopwords David Steinbrunner everybody George Hartzell Hans Dieter Pearcey Karen Etheridge Ricardo Signes Yves Orton
 
 =over 4
 
@@ -1745,6 +1744,18 @@ Hans Dieter Pearcey <hdp@cpan.org>
 =item *
 
 Karen Etheridge <ether@cpan.org>
+
+=item *
+
+Ricardo Signes <rjbs@semiotic.systems>
+
+=item *
+
+Ricardo Signes <rjbs@users.noreply.github.com>
+
+=item *
+
+Yves Orton <demerphq@gmail.com>
 
 =back
 

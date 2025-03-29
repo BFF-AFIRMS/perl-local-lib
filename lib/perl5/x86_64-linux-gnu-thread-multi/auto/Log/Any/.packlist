@@ -16,4 +16,5 @@
 /home/production/cxgn/local-lib/lib/perl5/Log/Any/Proxy.pm
 /home/production/cxgn/local-lib/lib/perl5/Log/Any/Proxy/Null.pm
 /home/production/cxgn/local-lib/lib/perl5/Log/Any/Proxy/Test.pm
+/home/production/cxgn/local-lib/lib/perl5/Log/Any/Proxy/WithStackTrace.pm
 /home/production/cxgn/local-lib/lib/perl5/Log/Any/Test.pm

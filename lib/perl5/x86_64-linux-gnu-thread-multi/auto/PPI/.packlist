@@ -38,6 +38,7 @@
 /home/production/cxgn/local-lib/lib/perl5/PPI/Structure/For.pm
 /home/production/cxgn/local-lib/lib/perl5/PPI/Structure/Given.pm
 /home/production/cxgn/local-lib/lib/perl5/PPI/Structure/List.pm
+/home/production/cxgn/local-lib/lib/perl5/PPI/Structure/Signature.pm
 /home/production/cxgn/local-lib/lib/perl5/PPI/Structure/Subscript.pm
 /home/production/cxgn/local-lib/lib/perl5/PPI/Structure/Unknown.pm
 /home/production/cxgn/local-lib/lib/perl5/PPI/Structure/When.pm

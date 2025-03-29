@@ -2,13 +2,55 @@ package Test2::Tools::Tester;
 use strict;
 use warnings;
 
-our $VERSION = '0.000144';
+our $VERSION = '1.302209';
 
 use Carp qw/croak/;
-use Module::Pluggable search_path => ['Test2::EventFacet'], require => 1;
 use Test2::Util::Ref qw/rtype/;
 
-use Importer Importer => 'import';
+BEGIN {
+    if (eval {
+        no warnings 'deprecated';
+        require Module::Pluggable;
+        1;
+    }) {
+        Module::Pluggable->import(search_path => ['Test2::EventFacet'], require => 1);
+    }
+    else {
+        require Test2::EventFacet::About;
+        require Test2::EventFacet::Amnesty;
+        require Test2::EventFacet::Assert;
+        require Test2::EventFacet::Control;
+        require Test2::EventFacet::Error;
+        require Test2::EventFacet::Hub;
+        require Test2::EventFacet::Info;
+        require Test2::EventFacet::Info::Table;
+        require Test2::EventFacet::Meta;
+        require Test2::EventFacet::Parent;
+        require Test2::EventFacet::Plan;
+        require Test2::EventFacet::Render;
+        require Test2::EventFacet::Trace;
+
+        *plugins = sub {
+            return (
+                'Test2::EventFacet::About',
+                'Test2::EventFacet::Amnesty',
+                'Test2::EventFacet::Assert',
+                'Test2::EventFacet::Control',
+                'Test2::EventFacet::Error',
+                'Test2::EventFacet::Hub',
+                'Test2::EventFacet::Info',
+                'Test2::EventFacet::Info::Table',
+                'Test2::EventFacet::Meta',
+                'Test2::EventFacet::Parent',
+                'Test2::EventFacet::Plan',
+                'Test2::EventFacet::Render',
+                'Test2::EventFacet::Trace',
+            );
+        };
+    }
+}
+
+use Test2::Util::Importer 'Test2::Util::Importer' => 'import';
 
 our @EXPORT_OK = qw{
     facets
@@ -227,7 +269,7 @@ class, otherwise it is left as a hashref. Facet Order is preserved.
 =head1 SOURCE
 
 The source code repository for Test2-Suite can be found at
-F<https://github.com/Test-More/Test2-Suite/>.
+F<https://github.com/Test-More/test-more/>.
 
 =head1 MAINTAINERS
 
@@ -247,7 +289,7 @@ F<https://github.com/Test-More/Test2-Suite/>.
 
 =head1 COPYRIGHT
 
-Copyright 2018 Chad Granum E<lt>exodist@cpan.orgE<gt>.
+Copyright Chad Granum E<lt>exodist@cpan.orgE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

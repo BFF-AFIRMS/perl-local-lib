@@ -81,7 +81,7 @@ Internal methods are usually preceded with a _
 # Let the code begin...
 
 package Bio::SearchIO::hmmer_pull;
-
+$Bio::SearchIO::hmmer_pull::VERSION = '1.7.3';
 use strict;
 
 

@@ -1,0 +1,1 @@
+{"provides":{"Parallel::ForkManager":{"file":"lib/Parallel/ForkManager.pm","version":"2.03"},"Parallel::ForkManager::Child":{"version":"2.03","file":"lib/Parallel/ForkManager/Child.pm"}},"target":"Parallel::ForkManager::Child","name":"Parallel::ForkManager","version":"2.03","pathname":"Y/YA/YANICK/Parallel-ForkManager-2.03.tar.gz","dist":"Parallel-ForkManager-2.03"}

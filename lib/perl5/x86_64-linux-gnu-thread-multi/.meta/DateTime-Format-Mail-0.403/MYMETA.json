@@ -72,5 +72,5 @@
       "Dave Rolsky <autarch@urth.org>",
       "Dagfinn Ilmari Mannsåker <ilmari@ilmari.org>"
    ],
-   "x_serialization_backend" : "JSON::PP version 4.04"
+   "x_serialization_backend" : "JSON::PP version 4.07"
 }

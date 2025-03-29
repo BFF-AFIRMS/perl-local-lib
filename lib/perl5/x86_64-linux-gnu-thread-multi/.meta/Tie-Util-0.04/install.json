@@ -1,0 +1,1 @@
+{"pathname":"S/SP/SPROUT/Tie-Util-0.04.tar.gz","dist":"Tie-Util-0.04","name":"Tie::Util","version":"0.04","target":"to","provides":{"Tie::Util":{"file":"lib/Tie/Util.pm","version":"0.04"},"to":{"file":"misc/dummy.pm"}}}

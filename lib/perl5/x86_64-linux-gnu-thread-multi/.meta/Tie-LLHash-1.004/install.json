@@ -1,1 +1,1 @@
-{"name":"Tie::LLHash","dist":"Tie-LLHash-1.004","pathname":"X/XA/XAERXESS/Tie-LLHash-1.004.tar.gz","version":"1.004","provides":{"Tie::LLHash":{"file":"lib/Tie/LLHash.pm","version":"1.004"}},"target":"Tie::LLHash"}
+{"name":"Tie::LLHash","version":"1.004","pathname":"X/XA/XAERXESS/Tie-LLHash-1.004.tar.gz","dist":"Tie-LLHash-1.004","provides":{"Tie::LLHash":{"version":"1.004","file":"lib/Tie/LLHash.pm"}},"target":"Tie::LLHash"}

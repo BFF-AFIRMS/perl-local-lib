@@ -1,0 +1,9 @@
+/home/production/cxgn/local-lib/lib/perl5/Metrics/Any.pm
+/home/production/cxgn/local-lib/lib/perl5/Metrics/Any/Adapter.pm
+/home/production/cxgn/local-lib/lib/perl5/Metrics/Any/Adapter/File.pm
+/home/production/cxgn/local-lib/lib/perl5/Metrics/Any/Adapter/Null.pm
+/home/production/cxgn/local-lib/lib/perl5/Metrics/Any/Adapter/Stderr.pm
+/home/production/cxgn/local-lib/lib/perl5/Metrics/Any/Adapter/Tee.pm
+/home/production/cxgn/local-lib/lib/perl5/Metrics/Any/Adapter/Test.pm
+/home/production/cxgn/local-lib/lib/perl5/Metrics/Any/AdapterBase/Stored.pm
+/home/production/cxgn/local-lib/lib/perl5/Metrics/Any/Collector.pm

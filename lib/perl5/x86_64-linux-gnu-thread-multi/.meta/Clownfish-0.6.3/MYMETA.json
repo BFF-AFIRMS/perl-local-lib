@@ -4,7 +4,7 @@
       "The Apache Lucy Project <dev at lucy dot apache dot org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Module::Build version 0.4231",
+   "generated_by" : "Module::Build version 0.4234",
    "keywords" : [
       "clownfish"
    ],
@@ -57,5 +57,5 @@
       }
    },
    "version" : "v0.6.3",
-   "x_serialization_backend" : "JSON::PP version 4.04"
+   "x_serialization_backend" : "JSON::PP version 4.07"
 }

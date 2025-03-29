@@ -1,9 +1,8 @@
 package MooseX::Runnable::Invocation::Plugin::Debug;
-BEGIN {
-  $MooseX::Runnable::Invocation::Plugin::Debug::AUTHORITY = 'cpan:JROCKWAY';
-}
 # ABSTRACT: print debugging information
-$MooseX::Runnable::Invocation::Plugin::Debug::VERSION = '0.09';
+
+our $VERSION = '0.10';
+
 use Moose::Role;
 use namespace::autoclean;
 
@@ -67,7 +66,7 @@ MooseX::Runnable::Invocation::Plugin::Debug - print debugging information
 
 =head1 VERSION
 
-version 0.09
+version 0.10
 
 =head1 DESCRIPTION
 
@@ -79,6 +78,17 @@ messages.
 =head1 SEE ALSO
 
 L<MooseX::Runnable>
+
+=head1 SUPPORT
+
+Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=MooseX-Runnable>
+(or L<bug-MooseX-Runnable@rt.cpan.org|mailto:bug-MooseX-Runnable@rt.cpan.org>).
+
+There is also a mailing list available for users of this distribution, at
+L<http://lists.perl.org/list/moose.html>.
+
+There is also an irc channel available for users of this distribution, at
+L<C<#moose> on C<irc.perl.org>|irc://irc.perl.org/#moose>.
 
 =head1 AUTHOR
 

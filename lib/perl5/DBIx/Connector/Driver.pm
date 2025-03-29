@@ -2,7 +2,7 @@ use strict; use warnings;
 
 package DBIx::Connector::Driver;
 
-our $VERSION = '0.57';
+our $VERSION = '0.60';
 
 DRIVERS: {
     my %DRIVERS;
@@ -11,9 +11,11 @@ DRIVERS: {
         my ($class, $driver) = @_;
         return $DRIVERS{$driver} ||= do {
             my $subclass = __PACKAGE__ . "::$driver";
-            eval "require $subclass";
-            $class = $subclass unless $@;
-            bless { driver => $driver } => $class;
+            ( my $path = $subclass ) =~ s!::!/!g;
+            local $@;
+            my $ok = eval "require $subclass";
+            die $@ unless $ok or $@ =~ /^Can't locate $path\.pm in \@INC \(/;
+            bless { driver => $driver } => ( $ok ? $subclass : $class );
         };
     }
 }
@@ -80,7 +82,7 @@ sub rollback_to {
 
 ROLLBACKERR: {
     package DBIx::Connector::RollbackError;
-    our $VERSION = '0.57';
+    our $VERSION = '0.58';
     # an exception is always true
     use overload bool => sub {1}, '""' => 'as_string', fallback => 1;
 
@@ -95,12 +97,12 @@ ROLLBACKERR: {
     }
 
     package DBIx::Connector::TxnRollbackError;
-    our $VERSION = '0.57';
+    our $VERSION = '0.58';
     our @ISA = qw( DBIx::Connector::RollbackError );
     sub _label    { 'Transaction' }
 
     package DBIx::Connector::SvpRollbackError;
-    our $VERSION = '0.57';
+    our $VERSION = '0.58';
     our @ISA = qw( DBIx::Connector::RollbackError );
     sub _label    { 'Savepoint' }
 }
@@ -109,11 +111,11 @@ ROLLBACKERR: {
 
 __END__
 
-=head1 Name
+=head1 NAME
 
 DBIx::Connector::Driver - Database-specific connection interface
 
-=head1 Description
+=head1 DESCRIPTION
 
 Some of the things that DBIx::Connector does are implemented differently by
 different drivers, or the official interface provided by the DBI may not be
@@ -133,7 +135,7 @@ If you're just a user of DBIx::Connector, you can ignore the driver classes.
 DBIx::Connector uses them internally to do its magic, so you needn't worry
 about them.
 
-=head1 Interface
+=head1 INTERFACE
 
 In case you need to implement a driver, here's the interface you can modify.
 
@@ -210,7 +212,7 @@ implementations in L<DBIx::Connector::Driver::Pg|DBIx::Connector::Driver::Pg>
 and L<DBIx::Connector::Driver::Oracle|DBIx::Connector::Driver::Oracle> for
 examples.
 
-=head1 Authors
+=head1 AUTHORS
 
 This module was written by:
 
@@ -230,7 +232,7 @@ It is based on code written by:
 
 =back
 
-=head1 Copyright and License
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (c) 2009-2013 David E. Wheeler. Some Rights Reserved.
 

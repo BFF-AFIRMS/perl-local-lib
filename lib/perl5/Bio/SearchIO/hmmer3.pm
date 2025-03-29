@@ -91,7 +91,7 @@ Internal methods are usually preceded with a _
 # Let the code begin...
 
 package Bio::SearchIO::hmmer3;
-
+$Bio::SearchIO::hmmer3::VERSION = '1.7.3';
 use strict;
 use Data::Dumper;
 use Bio::Factory::ObjectFactory;

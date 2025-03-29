@@ -22,6 +22,10 @@
 /home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/Metadata.pm
 /home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/Packager.pm
 /home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/Relationships.pm
+/home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/RichValue.pm
+/home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/RichValueRel.pm
+/home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/RichValueStructure.pm
+/home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/RichValueTypes.pm
 /home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/SharedStrings.pm
 /home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/Styles.pm
 /home/production/cxgn/local-lib/lib/perl5/Excel/Writer/XLSX/Package/Table.pm

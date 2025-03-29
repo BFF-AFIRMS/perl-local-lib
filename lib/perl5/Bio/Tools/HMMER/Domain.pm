@@ -46,7 +46,7 @@ methods. Internal methods are usually preceded with a _
 
 #'
 package Bio::Tools::HMMER::Domain;
-
+$Bio::Tools::HMMER::Domain::VERSION = '1.7.3';
 use Bio::SeqFeature::Generic;
 use strict;
 

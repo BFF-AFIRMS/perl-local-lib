@@ -27,8 +27,6 @@ Text::PDF::Dict - PDF Dictionaries and Streams. Inherits from L<PDF::Objind>
 There are various special instance variables which are used to look after,
 particularly, streams. Each begins with a space:
 
-=over
-
 =item stream
 
 Holds the stream contents for output
@@ -42,8 +40,6 @@ not the same as a PDF file stream. The data is stored in its unfiltered form.
 
 If both ' stream' and ' streamfile' are empty, this indicates where in the
 source PDF the stream starts.
-
-=back
 
 =head1 METHODS
 
@@ -102,10 +98,9 @@ sub outobjdeep
             $fh->print("\n");
         }
     }
-    foreach $key (sort {$a cmp $b} keys %{$self})
+    while (($key, $val) = each %{$self})
     {
         next if ($key =~ m/^[\s\-]/o || $specs{$key});
-        $val = $self->{$key};
         next if ($val eq '');
         $key = Text::PDF::Name::string_to_name ($key, $pdf);
         $fh->print("/$key ");
@@ -127,17 +122,11 @@ sub outobjdeep
             && defined $self->{'Filter'})
     {
         my ($hasflate) = -1;
-        my ($temp, $i, $temp1, @filtlist);
+        my ($temp, $i, $temp1);
         
-        if (ref($self->{'Filter'}) eq 'Text::PDF::Name')
-        { push(@filtlist, $self->{'Filter'}->val); }
-        else
+        for ($i = 0; $i < scalar @{$self->{'Filter'}{' val'}}; $i++)
         {
-            for ($i = 0; $i < scalar @{$self->{'Filter'}{' val'}}; $i++)
-            { push (@filtlist, $self->{'Filter'}{' val'}[$i]->val); }
-        }
-        foreach $temp (@filtlist)
-        {
+            $temp = $self->{'Filter'}{' val'}[$i]->val;
             if ($temp eq 'LZWDecode')               # hack to get around LZW patent
             {
                 if ($hasflate < -1)
@@ -264,7 +253,7 @@ sub read_stream
 
         foreach $f (@filts)
         { $dat = $f->infilt($dat, $last); }
-        if (!$force_memory && !defined $self->{' streamfile'} && ((length($self->{' stream'}) * 2) > $mincache))
+        if (!$force_memory && !defined $self->{' streamfile'} && ((length($dat) * 2) > $mincache))
         {
             open (DICTFH, ">$tempbase") || next;
             binmode DICTFH;
@@ -324,5 +313,5 @@ sub copy
     }
     $res;
 }
+    
 
-1;

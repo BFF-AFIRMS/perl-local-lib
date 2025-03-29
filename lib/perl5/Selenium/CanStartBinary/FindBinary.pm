@@ -1,5 +1,5 @@
 package Selenium::CanStartBinary::FindBinary;
-$Selenium::CanStartBinary::FindBinary::VERSION = '1.46';
+$Selenium::CanStartBinary::FindBinary::VERSION = '1.49';
 use strict;
 use warnings;
 
@@ -86,7 +86,7 @@ Selenium::CanStartBinary::FindBinary - Coercions for finding webdriver binaries 
 
 =head1 VERSION
 
-version 1.46
+version 1.49
 
 =for Pod::Coverage *EVERYTHING*
 

@@ -95,7 +95,7 @@ methods. Internal methods are usually preceded with a _
 =cut
 
 package Bio::Tools::HMMER::Results;
-
+$Bio::Tools::HMMER::Results::VERSION = '1.7.3';
 use strict;
 
 use Bio::Tools::HMMER::Domain;

@@ -1,0 +1,1 @@
+{"version":"0.88","name":"Archive::Extract","dist":"Archive-Extract-0.88","pathname":"B/BI/BINGOS/Archive-Extract-0.88.tar.gz","target":"Archive::Extract","provides":{"Archive::Extract":{"file":"lib/Archive/Extract.pm","version":"0.88"}}}

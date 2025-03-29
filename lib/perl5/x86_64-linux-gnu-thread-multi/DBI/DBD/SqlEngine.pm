@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 # -*- perl -*-
 #
 #   DBI::DBD::SqlEngine - A base class for implementing DBI drivers that
@@ -9,7 +10,7 @@
 #
 #  The original author is Jochen Wiedmann.
 #
-#  Copyright (C) 2009-2013 by H.Merijn Brand & Jens Rehsack
+#  Copyright (C) 2009-2020 by H.Merijn Brand & Jens Rehsack
 #  Copyright (C) 2004 by Jeff Zucker
 #  Copyright (C) 1998 by Jochen Wiedmann
 #
@@ -31,11 +32,11 @@ package DBI::DBD::SqlEngine;
 use strict;
 
 use Carp;
-use vars qw( @ISA $VERSION $drh %methods_installed);
+our %methods_installed;
 
-$VERSION = "0.06";
+our $VERSION = "0.06";
 
-$drh = undef;    # holds driver handle(s) once initialized
+our $drh = undef;    # holds driver handle(s) once initialized
 
 DBI->setup_driver("DBI::DBD::SqlEngine");    # only needed once but harmless to repeat
 
@@ -123,11 +124,9 @@ package DBI::DBD::SqlEngine::dr;
 use strict;
 use warnings;
 
-use vars qw(@ISA $imp_data_size);
-
 use Carp qw/carp/;
 
-$imp_data_size = 0;
+our $imp_data_size = 0;
 
 sub connect ($$;$$$)
 {
@@ -275,8 +274,6 @@ package DBI::DBD::SqlEngine::db;
 use strict;
 use warnings;
 
-use vars qw(@ISA $imp_data_size);
-
 use Carp;
 
 if ( eval { require Clone; } )
@@ -289,7 +286,7 @@ else
     *clone = \&Storable::dclone;
 }
 
-$imp_data_size = 0;
+our $imp_data_size = 0;
 
 sub ping
 {
@@ -1046,7 +1043,7 @@ package DBI::DBD::SqlEngine::TieMeta;
 
 use Carp qw(croak);
 require Tie::Hash;
-@DBI::DBD::SqlEngine::TieMeta::ISA = qw(Tie::Hash);
+our @ISA = qw(Tie::Hash);
 
 sub TIEHASH
 {
@@ -1115,7 +1112,7 @@ package DBI::DBD::SqlEngine::TieTables;
 
 use Carp qw(croak);
 require Tie::Hash;
-@DBI::DBD::SqlEngine::TieTables::ISA = qw(Tie::Hash);
+our @ISA = qw(Tie::Hash);
 
 sub TIEHASH
 {
@@ -1208,9 +1205,7 @@ package DBI::DBD::SqlEngine::st;
 use strict;
 use warnings;
 
-use vars qw(@ISA $imp_data_size);
-
-$imp_data_size = 0;
+our $imp_data_size = 0;
 
 sub bind_param ($$$;$)
 {
@@ -1443,7 +1438,7 @@ use warnings;
 
 use Carp;
 
-@DBI::DBD::SqlEngine::Statement::ISA = qw(DBI::SQL::Nano::Statement);
+our @ISA = qw(DBI::SQL::Nano::Statement);
 
 sub open_table ($$$$$)
 {
@@ -1489,7 +1484,7 @@ use warnings;
 
 use Carp;
 
-@DBI::DBD::SqlEngine::Table::ISA = qw(DBI::SQL::Nano::Table);
+our @ISA = qw(DBI::SQL::Nano::Table);
 
 sub bootstrap_table_meta
 {
@@ -1686,14 +1681,14 @@ DBI::DBD::SqlEngine - Base class for DBI drivers without their own SQL engine
 
     package DBD::myDriver::dr;
 
-    @ISA = qw(DBI::DBD::SqlEngine::dr);
+    our @ISA = qw(DBI::DBD::SqlEngine::dr);
 
     sub data_sources { ... }
     ...
 
     package DBD::myDriver::db;
 
-    @ISA = qw(DBI::DBD::SqlEngine::db);
+    our @ISA = qw(DBI::DBD::SqlEngine::db);
 
     sub init_valid_attributes { ... }
     sub init_default_attributes { ... }
@@ -1705,20 +1700,20 @@ DBI::DBD::SqlEngine - Base class for DBI drivers without their own SQL engine
 
     package DBD::myDriver::st;
 
-    @ISA = qw(DBI::DBD::SqlEngine::st);
+    our @ISA = qw(DBI::DBD::SqlEngine::st);
 
     sub FETCH { ... }
     sub STORE { ... }
 
     package DBD::myDriver::Statement;
 
-    @ISA = qw(DBI::DBD::SqlEngine::Statement);
+    our @ISA = qw(DBI::DBD::SqlEngine::Statement);
 
     sub open_table { ... }
 
     package DBD::myDriver::Table;
 
-    @ISA = qw(DBI::DBD::SqlEngine::Table);
+    our @ISA = qw(DBI::DBD::SqlEngine::Table);
 
     sub new { ... }
 
@@ -2056,7 +2051,7 @@ following:
 
   @ary = DBI->data_sources($driver);
   @ary = DBI->data_sources($driver, \%attr);
-  
+
   @ary = $dbh->data_sources();
   @ary = $dbh->data_sources(\%attr);
 
@@ -2064,7 +2059,7 @@ The C<avail_tables> method is called when the user invokes any of the
 following:
 
   @names = $dbh->tables( $catalog, $schema, $table, $type );
-  
+
   $sth = $dbh->table_info( $catalog, $schema, $table, $type );
   $sth = $dbh->table_info( $catalog, $schema, $table, $type, \%attr );
 
@@ -2072,7 +2067,7 @@ following:
 
 Every time where an C<\%attr> argument can be specified, this C<\%attr>
 object's C<sql_table_source> attribute is preferred over the C<$dbh>
-attribute or the driver default, eg.
+attribute or the driver default, e.g.
 
   @ary = DBI->data_sources("dbi:CSV:", {
     f_dir => "/your/csv/tables",
@@ -2089,11 +2084,11 @@ and C<sql_data_source>) to the returned DSN's.
 
 Provides base functionality for dealing with tables. It is primarily
 designed for allowing transparent access to files on disk or already
-opened (file-)streams (eg. for DBD::CSV).
+opened (file-)streams (e.g. for DBD::CSV).
 
-Derived classes shall be restricted to similar functionality, too (eg.
+Derived classes shall be restricted to similar functionality, too (e.g.
 opening streams from an archive, transparently compress/uncompress
-log files before parsing them, 
+log files before parsing them,
 
   package DBI::DBD::SqlEngine::DataSource;
 
@@ -2134,7 +2129,7 @@ to open the resource is required:
   }
 
 After the method C<open_data> has been run successfully, the table's meta
-information are in a state which allowes the table's data accessor methods
+information are in a state which allows the table's data accessor methods
 will be able to fetch/store row information. Implementation details heavily
 depends on the table implementation, whereby the most famous is surely
 L<DBD::File::Table|DBD::File/DBD::File::Table>.
@@ -2166,11 +2161,6 @@ You can also look for information at:
 
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=DBI>
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Statement>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/DBI>
-L<http://annocpan.org/dist/SQL-Statement>
 
 =item * CPAN Ratings
 
@@ -2216,7 +2206,7 @@ The original authors are Jochen Wiedmann and Jeff Zucker.
 
 =head1 COPYRIGHT AND LICENSE
 
- Copyright (C) 2009-2013 by H.Merijn Brand & Jens Rehsack
+ Copyright (C) 2009-2020 by H.Merijn Brand & Jens Rehsack
  Copyright (C) 2004-2009 by Jeff Zucker
  Copyright (C) 1998-2004 by Jochen Wiedmann
 

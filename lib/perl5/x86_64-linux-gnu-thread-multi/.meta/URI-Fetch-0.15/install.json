@@ -1,1 +1,1 @@
-{"target":"URI::Fetch","provides":{"URI::Fetch":{"version":"0.15","file":"lib/URI/Fetch.pm"},"URI::Fetch::Response":{"version":"0.15","file":"lib/URI/Fetch/Response.pm"}},"pathname":"N/NE/NEILB/URI-Fetch-0.15.tar.gz","dist":"URI-Fetch-0.15","name":"URI::Fetch","version":"0.15"}
+{"pathname":"N/NE/NEILB/URI-Fetch-0.15.tar.gz","dist":"URI-Fetch-0.15","name":"URI::Fetch","version":"0.15","provides":{"URI::Fetch::Response":{"version":"0.15","file":"lib/URI/Fetch/Response.pm"},"URI::Fetch":{"file":"lib/URI/Fetch.pm","version":"0.15"}},"target":"URI::Fetch"}

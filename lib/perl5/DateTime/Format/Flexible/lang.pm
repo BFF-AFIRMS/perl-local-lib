@@ -3,7 +3,7 @@ package DateTime::Format::Flexible::lang;
 use strict;
 use warnings;
 
-use List::MoreUtils 'any';
+#use List::MoreUtils 'any';
 
 sub new
 {
@@ -34,15 +34,16 @@ sub plugins {return @{$_[0]->{_plugins}}}
 sub _cleanup
 {
     my ( $self , $date , $p ) = @_;
-    foreach my $plug ( $self->plugins )
+    PLUGIN: foreach my $plug ( $self->plugins )
     {
         if ( $self->{lang} )
         {
             my ( $lang ) = $plug =~ m{(\w{2}\z)}mx;
-            if ( not any { $_ eq $lang } @{ $self->{lang} } )
-            {
-                printf( "# skipping %s\n", $plug ) if $ENV{DFF_DEBUG};
-                next;
+            foreach my $l (@{ $self->{lang} }) {
+                if ( not $l eq $lang ) {
+                    printf( "# skipping %s\n", $plug ) if $ENV{DFF_DEBUG};
+                    next PLUGIN;
+                }
             }
         }
         printf( "# not skipping %s\n", $plug ) if $ENV{DFF_DEBUG};
@@ -62,13 +63,13 @@ sub _cleanup
         printf( "#   before locate_time: %s\n", $date ) if $ENV{DFF_DEBUG};
         $date = $self->_locate_time( $plug , $date );
         printf( "#   before fix_internal_tz: %s\n", $date ) if $ENV{DFF_DEBUG};
-        ( $date , $p ) = $self->_fix_internal_tz( $plug , $date , $p );
+        ( $date , $p ) = $self->_check_internal_tz( $plug , $date , $p );
         printf( "#   finished: %s\n", $date ) if $ENV{DFF_DEBUG};
     }
     return ( $date , $p );
 }
 
-sub _fix_internal_tz
+sub _check_internal_tz
 {
     my ( $self , $plug , $date , $p ) = @_;
     my %tzs = $plug->timezone_map;
@@ -76,12 +77,22 @@ sub _fix_internal_tz
     {
         if( $date =~ m{$orig_tz}mxi )
         {
-            $p->{ time_zone } = $new_tz;
-            $date =~ s{$orig_tz}{}mxi;
-            $date =~ s{\(\)}{}g; # remove empty parens
-            return ( $date , $p );
+            return ($self->_fix_internal_tz( $date , $p , $orig_tz , $new_tz ));
+        }
+        if( exists $p->{time_zone} and $p->{time_zone} eq $orig_tz )
+        {
+            return ($self->_fix_internal_tz( $date , $p , $orig_tz , $new_tz ));
         }
     }
+    return ( $date , $p );
+}
+
+sub _fix_internal_tz
+{
+    my ( $self , $date , $p , $orig_tz , $new_tz ) = @_;
+    $p->{ time_zone } = $new_tz;
+    $date =~ s{$orig_tz}{}mxi;
+    $date =~ s{\(\)}{}g; # remove empty parens
     return ( $date , $p );
 }
 

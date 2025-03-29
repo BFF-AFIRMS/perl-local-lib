@@ -43,7 +43,7 @@ $subcount = "BXCJIM";
 
 Creates a new font resource for the given fontfile. This includes the font
 descriptor and the font stream. The $pdfname is the name by which this font
-resource will be known throughtout a particular PDF file.
+resource will be known throught a particular PDF file.
 
 All font resources are full PDF objects.
 
@@ -70,21 +70,20 @@ sub new
 
     $self->{' font'} = $font;
     $Font::TTF::Name::utf8 = 1;
-    $name = $font->{'name'}->read->find_name(4) || return undef;
-    $subf = $font->{'name'}->find_name(2);
-    $name =~ s/\s//og;
-    $name .= $subf if ($subf =~ m/^Regular$/oi);
     
     $self->{'Type'} = PDFName("Font");
     $self->{'Subtype'} = PDFName("TrueType");
     if ($self->{' subset'})
     {
-        $self->{' subname'} = "$subcount+" . $name;
+        $self->{' subname'} = "$subcount+";
         $subcount++;
     }
-    else
-    { $self->{' subname'} = $name; }
-    $self->{'BaseFont'} = PDFName($self->{' subname'});
+    $name = $font->{'name'}->read->find_name(4) || return undef;
+    $subf = $font->{'name'}->find_name(2);
+    $name =~ s/\s//og;
+    $name .= $subf if ($subf =~ m/^Regular$/oi);
+    $self->{'BaseFont'} = PDFName($self->{' subname'} . $name);
+    $subcount++;
     $self->{'Name'} = PDFName($pdfname);
     $parent->new_obj($self);
 # leave the encoding & widths, etc. until we know the glyph list
@@ -200,7 +199,7 @@ sub trim
 
 
 =head2 $t->out_text($text)
-
+    
 Indicates to the font that the text is to be output and returns the text to be output
 
 =cut

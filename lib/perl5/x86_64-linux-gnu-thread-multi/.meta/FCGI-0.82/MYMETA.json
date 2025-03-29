@@ -1,0 +1,63 @@
+{
+   "abstract" : "Fast CGI module",
+   "author" : [
+      "Sven Verdoolaege (skimo@kotnet.org)"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "ExtUtils::MakeMaker version 7.6304, CPAN::Meta::Converter version 2.150010",
+   "license" : [
+      "unknown"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "FCGI",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "XSLoader" : "0",
+            "perl" : "5.006"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Config" : "0",
+            "FCGI::Client" : "0.09",
+            "File::Temp" : "0",
+            "IO::Socket" : "0",
+            "Test::More" : "0"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "bugtracker" : {
+         "mailto" : "bug-FCGI@rt.cpan.org",
+         "web" : "https://rt.cpan.org/Public/Dist/Display.html?Name=FCGI"
+      },
+      "repository" : {
+         "type" : "git",
+         "url" : "https://github.com/perl-catalyst/FCGI.git",
+         "web" : "https://github.com/perl-catalyst/FCGI"
+      }
+   },
+   "version" : "0.82",
+   "x_serialization_backend" : "JSON::PP version 4.07"
+}

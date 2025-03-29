@@ -4,4 +4,5 @@
 /home/production/cxgn/local-lib/lib/perl5/IPC/Run/Timer.pm
 /home/production/cxgn/local-lib/lib/perl5/IPC/Run/Win32Helper.pm
 /home/production/cxgn/local-lib/lib/perl5/IPC/Run/Win32IO.pm
+/home/production/cxgn/local-lib/lib/perl5/IPC/Run/Win32Process.pm
 /home/production/cxgn/local-lib/lib/perl5/IPC/Run/Win32Pump.pm

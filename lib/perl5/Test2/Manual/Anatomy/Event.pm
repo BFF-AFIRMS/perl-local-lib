@@ -2,7 +2,7 @@ package Test2::Manual::Anatomy::Event;
 use strict;
 use warnings;
 
-our $VERSION = '0.000144';
+our $VERSION = '1.302209';
 
 1;
 
@@ -288,12 +288,6 @@ This means the package name is '::Error', but the key is 'errors'.
     sub facet_key { 'errors' }
     sub is_list { 1 }
 
-B<Note> Do not worry too much about getting the key/pluralization wrong. Most
-tools will use L<Module::Pluggable> to load all facet types and build a hash
-linking keys to packages and so on, working backwards. This means, in general,
-that even if you get it wrong any tool that NEEDS the package for the facet
-will find it.
-
 B<Note2:> In practice most tools completely ignore the facet packages, and work
 with the facet data directly in its raw structure. This is by design and
 recommended. The facet data is intended to be serialized frequently and passed
@@ -386,7 +380,7 @@ L<Test2::Manual> - Primary index of the manual.
 =head1 SOURCE
 
 The source code repository for Test2-Manual can be found at
-F<https://github.com/Test-More/Test2-Suite/>.
+F<https://github.com/Test-More/test-more/>.
 
 =head1 MAINTAINERS
 
@@ -406,7 +400,7 @@ F<https://github.com/Test-More/Test2-Suite/>.
 
 =head1 COPYRIGHT
 
-Copyright 2018 Chad Granum E<lt>exodist@cpan.orgE<gt>.
+Copyright Chad Granum E<lt>exodist@cpan.orgE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

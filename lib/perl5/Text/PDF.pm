@@ -1,6 +1,6 @@
 package Text::PDF;
 
-$VERSION = '0.31';
+$VERSION = '0.29';
 
 1;
 

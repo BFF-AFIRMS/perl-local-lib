@@ -74,6 +74,7 @@
 /home/production/cxgn/local-lib/lib/perl5/SQL/Translator/Schema/Constraint.pm
 /home/production/cxgn/local-lib/lib/perl5/SQL/Translator/Schema/Field.pm
 /home/production/cxgn/local-lib/lib/perl5/SQL/Translator/Schema/Index.pm
+/home/production/cxgn/local-lib/lib/perl5/SQL/Translator/Schema/IndexField.pm
 /home/production/cxgn/local-lib/lib/perl5/SQL/Translator/Schema/Object.pm
 /home/production/cxgn/local-lib/lib/perl5/SQL/Translator/Schema/Procedure.pm
 /home/production/cxgn/local-lib/lib/perl5/SQL/Translator/Schema/Role/Compare.pm

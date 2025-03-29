@@ -1,7 +1,7 @@
 #
 # BioPerl module for Bio::Variation::VariantI
 #
-# Please direct questions and support issues to <bioperl-l@bioperl.org> 
+# Please direct questions and support issues to <bioperl-l@bioperl.org>
 #
 # Cared for by Heikki Lehvaslaiho <heikki-at-bioperl-dot-org>
 #
@@ -62,21 +62,21 @@ the changes between that and allele_ori.
 =head2 Mailing Lists
 
 User feedback is an integral part of the evolution of this and other
-Bioperl modules. Send your comments and suggestions preferably to the 
+Bioperl modules. Send your comments and suggestions preferably to the
 Bioperl mailing lists  Your participation is much appreciated.
 
   bioperl-l@bioperl.org                  - General discussion
   http://bioperl.org/wiki/Mailing_lists  - About the mailing lists
 
-=head2 Support 
+=head2 Support
 
 Please direct usage questions or support issues to the mailing list:
 
 I<bioperl-l@bioperl.org>
 
-rather than to the module maintainer directly. Many experienced and 
-reponsive experts will be able look at the problem and quickly 
-address it. Please include a thorough description of the problem 
+rather than to the module maintainer directly. Many experienced and
+reponsive experts will be able look at the problem and quickly
+address it. Please include a thorough description of the problem
 with code and data examples if at all possible.
 
 =head2 Reporting Bugs
@@ -103,6 +103,7 @@ methods. Internal methods are usually preceded with a _
 
 
 package Bio::Variation::VariantI;
+$Bio::Variation::VariantI::VERSION = '1.7.5';
 use strict;
 # Object preamble - inheritance
 
@@ -135,14 +136,14 @@ sub id {
 
  Title   : add_Allele
  Usage   : $self->add_Allele($allele)
- Function: 
+ Function:
 
 	    Adds one Bio::Variation::Allele into the list of alleles.
             Note that the method forces the convention that nucleotide
             sequence is in lower case and amino acds are in upper
             case.
 
- Example : 
+ Example :
  Returns : 1 when succeeds, 0 for failure.
  Args    : Allele object
 
@@ -161,8 +162,8 @@ sub add_Allele {
 	      $value->seq( uc $value->seq) if $value->seq;
 	  } else {
 	      $value->seq( lc $value->seq) if $value->seq;
-	  } 
-	  push(@{$self->{'alleles'}},$value); 
+	  }
+	  push(@{$self->{'alleles'}},$value);
 	  $self->allele_mut($value); #????
 	  return 1;
       }
@@ -176,11 +177,11 @@ sub add_Allele {
 
  Title   : alleles
  Usage   : $obj->each_Allele();
- Function: 
+ Function:
 
 	     Returns a list of Bio::Variation::Allele objects
 
- Example : 
+ Example :
  Returns : list of Alleles
  Args    : none
 
@@ -218,14 +219,14 @@ sub isMutation {
         }
     }
     return $self->{'isMutation'};
-} 
+}
 
 
 =head2 allele_ori
 
  Title   : allele_ori
  Usage   : $obj->allele_ori();
- Function: 
+ Function:
 
             Links to and returns the Bio::Variation::Allele object.
             If value is not set, returns false. All other Alleles are
@@ -234,7 +235,7 @@ sub isMutation {
             Amino acid sequences are stored in upper case characters,
             others in lower case.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -252,7 +253,7 @@ sub allele_ori {
 	       $value->seq( uc $value->seq) if $value->seq;
 	   } else {
 	       $value->seq( lc $value->seq) if $value->seq;
-	   } 
+	   }
 	   $self->{'allele_ori'} = $value;
        }
    }
@@ -264,7 +265,7 @@ sub allele_ori {
 
  Title   : allele_mut
  Usage   : $obj->allele_mut();
- Function: 
+ Function:
 
              Links to and returns the Bio::Variation::Allele
              object.  Sets and returns the mutated allele sequence.
@@ -273,7 +274,7 @@ sub allele_ori {
              Amino acid sequences are stored in upper case characters,
              others in lower case.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -292,7 +293,7 @@ sub allele_mut {
 	       $value->seq( uc $value->seq) if $value->seq;
 	   } else {
 	       $value->seq( lc $value->seq) if $value->seq;
-	   } 
+	   }
 	   $self->{'allele_mut'} = $value;
        }
    }
@@ -303,7 +304,7 @@ sub allele_mut {
 
  Title   : length
  Usage   : $obj->length();
- Function: 
+ Function:
 
             Sets and returns the length of the affected original
             allele sequence.  If value is not set, returns false == 0.
@@ -315,7 +316,7 @@ sub allele_mut {
             deletion (2delT) (Think about indel polymorpism ATC <=> AC
             where the origianal state is not known ).
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -329,7 +330,7 @@ sub length {
   }
    if ( ! exists $self->{'length'} ) {
        return 0;
-   } 
+   }
    return $self->{'length'};
 }
 
@@ -337,13 +338,13 @@ sub length {
 
  Title   : upStreamSeq
  Usage   : $obj->upStreamSeq();
- Function: 
+ Function:
 
             Sets and returns upstream flanking sequence string.  If
             value is not set, returns false. The sequence should be
             >=25 characters long, if possible.
 
- Example : 
+ Example :
  Returns : string or false
  Args    : string
 
@@ -363,13 +364,13 @@ sub upStreamSeq {
 
  Title   : dnStreamSeq
  Usage   : $obj->dnStreamSeq();
- Function: 
+ Function:
 
             Sets and returns dnstream flanking sequence string.  If
             value is not set, returns false. The sequence should be
             >=25 characters long, if possible.
 
- Example : 
+ Example :
  Returns : string or false
  Args    : string
 
@@ -382,7 +383,7 @@ sub dnStreamSeq {
 	$self->{'dnstreamseq'} = $value;
     }
     return $self->{'dnstreamseq'};
-    
+
 }
 
 
@@ -390,7 +391,7 @@ sub dnStreamSeq {
 
  Title   : label
  Usage   : $obj->label();
- Function: 
+ Function:
 
             Sets and returns mutation event label(s).  If value is not
             set, or no argument is given returns false.  Each
@@ -398,7 +399,7 @@ sub dnStreamSeq {
             values are listed in 'Mutation event controlled vocabulary' in
             http://www.ebi.ac.uk/mutations/recommendations/mutevent.html.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -416,7 +417,7 @@ sub label {
 
  Title   : status
  Usage   : $obj->status()
- Function: 
+ Function:
 
            Returns the status of the sequence change object.
            Valid values are: 'suspected' and 'proven'
@@ -439,7 +440,7 @@ sub status {
        $value = lc $value;
        if ($status{$value}) {
 	   $self->{'status'} = $value;
-       } 
+       }
        else {
 	   $self->throw("$value is not valid status value!");
        }
@@ -455,7 +456,7 @@ sub status {
 
  Title   : proof
  Usage   : $obj->proof()
- Function: 
+ Function:
 
            Returns the proof of the sequence change object.
            Valid values are: 'computed' and 'experimental'.
@@ -490,13 +491,13 @@ sub proof {
 
  Title   : region
  Usage   : $obj->region();
- Function: 
+ Function:
 
             Sets and returns the name of the sequence region type or
             protein domain at this location.  If value is not set,
             returns false.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -516,13 +517,13 @@ sub region {
 
  Title   : region_value
  Usage   : $obj->region_value();
- Function: 
+ Function:
 
             Sets and returns the name of the sequence region_value or
             protein domain at this location.  If value is not set,
             returns false.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -541,13 +542,13 @@ sub region_value {
 
  Title   : region_dist
  Usage   : $obj->region_dist();
- Function: 
+ Function:
 
             Sets and returns the distance tot the closest region
             (i.e. intro/exon or domain) boundary. If distance is not
             set, returns false.
 
- Example : 
+ Example :
  Returns : integer
  Args    : integer
 
@@ -571,7 +572,7 @@ sub region_dist {
 
  Title   : numbering
  Usage   : $obj->numbering()
- Function: 
+ Function:
 
            Returns the numbering chema used locating sequnce features.
            Valid values are: 'entry' and 'coding'
@@ -594,7 +595,7 @@ sub numbering {
        $value = lc $value;
        if ($numbering{$value}) {
 	   $self->{'numbering'} = $value;
-       } 
+       }
        else {
 	   $self->throw("'$value' is not a valid for numbering!");
        }
@@ -610,7 +611,7 @@ sub numbering {
  Title   : mut_number
  Usage   : $num = $obj->mut_number;
          : $num = $obj->mut_number($number);
- Function: 
+ Function:
 
            Returns or sets the number identifying the order in which the
            mutation has been issued. Numbers shouldstart from 1.
@@ -635,7 +636,7 @@ sub mut_number {
     } else {
 	return $self->{'mut_number'};
     }
-}       
+}
 
 
 =head2 SeqDiff
@@ -643,7 +644,7 @@ sub mut_number {
  Title   : SeqDiff
  Usage   : $mutobj = $obj->SeqDiff;
          : $mutobj = $obj->SeqDiff($objref);
- Function: 
+ Function:
 
            Returns or sets the link-reference to the umbrella
            Bio::Variation::SeqDiff object.  If there is no link,
@@ -682,7 +683,7 @@ sub SeqDiff {
  Usage   : $self->add_DBLink($ref)
  Function: adds a link object
  Example :
- Returns : 
+ Returns :
  Args    :
 
 
@@ -703,7 +704,7 @@ sub add_DBLink{
  Usage   : foreach $ref ( $self->each_DBlink() )
  Function: gets an array of DBlink of objects
  Example :
- Returns : 
+ Returns :
  Args    :
 
 
@@ -711,38 +712,38 @@ sub add_DBLink{
 
 sub each_DBLink{
    my ($self) = @_;
-   
-   return @{$self->{'link'}}; 
+
+   return @{$self->{'link'}};
 }
 
 =head2 restriction_changes
 
  Title   : restriction_changes
  Usage   : $obj->restriction_changes();
- Function: 
+ Function:
 
             Returns a string containing a list of restriction
             enzyme changes of form +EcoRI, separated by
             commas. Strings need to be valid restriction enzyme names
             as stored in REBASE. allele_ori and allele_mut need to be assigned.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
 =cut
 
-sub restriction_changes { 
+sub restriction_changes {
     my ($self) = @_;
 
-    if (not $self->{'re_changes'}) { 
+    if (not $self->{'re_changes'}) {
 	my %re = &_enzymes;
-	
+
 	# complain if used on AA data
 	if ($self->isa('Bio::Variation::AAChange')) {
 	    $self->throw('Restriction enzymes do not bite polypeptides!');
 	}
-	
+
 	#sanity checks
 	$self->warn('Upstream sequence is empty!')
 	    if $self->upStreamSeq eq '';
@@ -752,18 +753,18 @@ sub restriction_changes {
 #	     if $self->allele_ori eq '';
 #	 $self->warn('Mutated allele sequence is empty!')
 #	     if $self->allele_mut eq '';
-	
+
 	#reuse the non empty DNA level list at RNA level if the flanks are identical
 	#Hint: Check DNAMutation object first
 	if ($self->isa('Bio::Variation::RNAChange') and  $self->DNAMutation and
-	    $self->upStreamSeq eq $self->DNAMutation->upStreamSeq  and 
+	    $self->upStreamSeq eq $self->DNAMutation->upStreamSeq  and
 	    $self->dnStreamSeq eq $self->DNAMutation->dnStreamSeq and
 	    $self->DNAMutation->restriction_changes ne '' ) {
 	    $self->{'re_changes'} = $self->DNAMutation->restriction_changes;
 	} else {
-	    
+
 	    #maximum length of a type II restriction site in the current REBASE
-	    my ($le_dn) = 15; 
+	    my ($le_dn) = 15;
 	    my ($le_up) = $le_dn;
 
 	    #reduce the flank lengths if the desired length is not available
@@ -771,13 +772,13 @@ sub restriction_changes {
 	    $le_up = CORE::length ($self->upStreamSeq) if $le_up > CORE::length ($self->upStreamSeq);
 
 	    #Build sequence strings to compare
-	    my ($oriseq, $mutseq);    
+	    my ($oriseq, $mutseq);
 	    $oriseq  = $mutseq = substr($self->upStreamSeq, -$le_up, $le_up);
 	    $oriseq .= $self->allele_ori->seq if $self->allele_ori->seq;
 	    $mutseq .= $self->allele_mut->seq if $self->allele_mut->seq;
 	    $oriseq .= substr($self->dnStreamSeq, 0, $le_dn);
 	    $mutseq .= substr($self->dnStreamSeq, 0, $le_dn);
-	    
+
 	    # ... and their reverse complements
 	    my $oriseq_rev = _revcompl ($oriseq);
 	    my $mutseq_rev = _revcompl ($mutseq);
@@ -790,12 +791,12 @@ sub restriction_changes {
 		my @mut = ($mutseq=~ /$site/g);
 		my @ori_r = ($oriseq_rev =~ /$site/g);
 		my @mut_r = ($mutseq_rev =~ /$site/g);
-		
-		$rec .= '+'. $enz. ", " 
+
+		$rec .= '+'. $enz. ", "
 		    if (scalar @ori < scalar @mut) or (scalar @ori_r < scalar @mut_r);
-		$rec .= '-'. $enz. ", " 		    
+		$rec .= '-'. $enz. ", "
 		    if (scalar @ori > scalar @mut) or (scalar @ori_r > scalar @mut_r);
-		
+
 	    }
 	    $rec = substr($rec, 0, CORE::length($rec) - 2) if $rec ne '';
 	    $self->{'re_changes'} =  $rec;
@@ -805,7 +806,7 @@ sub restriction_changes {
 }
 
 
-sub _revcompl { 
+sub _revcompl {
     # side effect: lower case letters
     my ($seq) = shift;
 

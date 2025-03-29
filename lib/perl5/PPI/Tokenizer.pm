@@ -86,8 +86,9 @@ use PPI::Element    ();
 use PPI::Token      ();
 use PPI::Exception  ();
 use PPI::Exception::ParserRejection ();
+use PPI::Document ();
 
-our $VERSION = '1.272';
+our $VERSION = '1.281';
 
 # The x operator cannot follow most Perl operators, implying that
 # anything beginning with x following an operator is a word.
@@ -159,6 +160,7 @@ sub new {
 		# Source code
 		source       => undef,
 		source_bytes => undef,
+		document     => undef,
 
 		# Line buffer
 		line         => undef,
@@ -246,6 +248,11 @@ sub new {
 	}
 
 	$self;
+}
+
+sub _document {
+	my $self = shift;
+	return @_ ? $self->{document} = shift : $self->{document};
 }
 
 
@@ -573,8 +580,8 @@ sub _process_next_char {
 		return undef;
 	}
 
-	# Increment the counter and check for end of line
-	return 0 if ++$self->{line_cursor} >= $self->{line_length};
+    $self->{line_cursor}++;
+    return 0 if $self->_at_line_end;
 
 	# Pass control to the token class
 	my $result;
@@ -612,6 +619,11 @@ sub _process_next_char {
 	}
 
 	1;
+}
+
+sub _at_line_end {
+    my ($self) = @_;
+    return $self->{line_cursor} >= $self->{line_length};
 }
 
 
@@ -845,6 +857,24 @@ sub __current_token_is_forced_word {
 
 	# Otherwise we probably aren't forced
 	return '';
+}
+
+sub _current_token_has_signatures_active {
+	my ($t) = @_;
+
+	# Get at least the three previous significant tokens, and extend the
+	# retrieval range to include at least one token that can walk the
+	# already generated tree. (i.e. has a parent)
+	my ( $tokens_to_get, @tokens ) = (3);
+	while ( !@tokens or ( $tokens[-1] and !$tokens[-1]->parent ) ) {
+		@tokens = $t->_previous_significant_tokens($tokens_to_get);
+		last if @tokens < $tokens_to_get;
+		$tokens_to_get++;
+	}
+
+	my ($closest_parented_token) = grep $_->parent, @tokens;
+	$closest_parented_token ||= $t->_document || $t->_document(PPI::Document->new);
+	return $closest_parented_token->presumed_features->{signatures}, @tokens;
 }
 
 1;

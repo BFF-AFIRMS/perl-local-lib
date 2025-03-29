@@ -2,9 +2,9 @@ package Test2::Tools::Warnings;
 use strict;
 use warnings;
 
-our $VERSION = '0.000144';
+our $VERSION = '1.302209';
 
-use Test2::API qw/context/;
+use Test2::API qw/context test2_add_pending_diag/;
 
 our @EXPORT = qw/warns warning warnings no_warnings/;
 use base 'Exporter';
@@ -17,7 +17,14 @@ sub warns(&) {
     return $warnings;
 }
 
-sub no_warnings(&) { return !&warns(@_) }
+sub no_warnings(&) {
+    my $warnings = &warnings(@_);
+    return 1 if !@$warnings;
+
+    test2_add_pending_diag(@$warnings);
+
+    return 0;
+}
 
 sub warning(&) {
     my $code = shift;
@@ -123,7 +130,7 @@ Return true if the block has no warnings. Returns false if there are warnings.
 =head1 SOURCE
 
 The source code repository for Test2-Suite can be found at
-F<https://github.com/Test-More/Test2-Suite/>.
+F<https://github.com/Test-More/test-more/>.
 
 =head1 MAINTAINERS
 
@@ -143,7 +150,7 @@ F<https://github.com/Test-More/Test2-Suite/>.
 
 =head1 COPYRIGHT
 
-Copyright 2018 Chad Granum E<lt>exodist@cpan.orgE<gt>.
+Copyright Chad Granum E<lt>exodist@cpan.orgE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

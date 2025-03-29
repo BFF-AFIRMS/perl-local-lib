@@ -1,7 +1,7 @@
 #
 # BioPerl module for Bio::Variation::DNAMutation
 #
-# Please direct questions and support issues to <bioperl-l@bioperl.org> 
+# Please direct questions and support issues to <bioperl-l@bioperl.org>
 #
 # Cared for by Heikki Lehvaslaiho <heikki-at-bioperl-dot-org>
 #
@@ -56,21 +56,21 @@ method RNAChange(). See L<Bio::Variation::RNAChange> for more information.
 =head2 Mailing Lists
 
 User feedback is an integral part of the evolution of this and other
-Bioperl modules. Send your comments and suggestions preferably to the 
+Bioperl modules. Send your comments and suggestions preferably to the
 Bioperl mailing lists  Your participation is much appreciated.
 
   bioperl-l@bioperl.org                  - General discussion
   http://bioperl.org/wiki/Mailing_lists  - About the mailing lists
 
-=head2 Support 
+=head2 Support
 
 Please direct usage questions or support issues to the mailing list:
 
 I<bioperl-l@bioperl.org>
 
-rather than to the module maintainer directly. Many experienced and 
-reponsive experts will be able look at the problem and quickly 
-address it. Please include a thorough description of the problem 
+rather than to the module maintainer directly. Many experienced and
+reponsive experts will be able look at the problem and quickly
+address it. Please include a thorough description of the problem
 with code and data examples if at all possible.
 
 =head2 Reporting Bugs
@@ -97,6 +97,7 @@ methods. Internal methods are usually preceded with a _
 
 
 package Bio::Variation::DNAMutation;
+$Bio::Variation::DNAMutation::VERSION = '1.7.5';
 use strict;
 
 # Object preamble - inheritance
@@ -106,11 +107,11 @@ use base qw(Bio::Variation::VariantI);
 sub new {
     my($class,@args) = @_;
     my $self = $class->SUPER::new(@args);
-    
-    my ($start, $end, $length, $strand, $primary, $source, 
+
+    my ($start, $end, $length, $strand, $primary, $source,
 	$frame, $score, $gff_string,
-	$allele_ori,  $allele_mut,  $upstreamseq,  $dnstreamseq,  
-	$label,  $status,  $proof,  $region, $region_value, $region_dist, $numbering, 
+	$allele_ori,  $allele_mut,  $upstreamseq,  $dnstreamseq,
+	$label,  $status,  $proof,  $region, $region_value, $region_dist, $numbering,
 	$cpg, $mut_number, $ismutation) =
 	    $self->_rearrange([qw(START
 				  END
@@ -151,12 +152,12 @@ sub new {
     $frame   && $self->frame($frame);
     $score   && $self->score($score);
     $gff_string && $self->_from_gff_string($gff_string);
-    
+
     $allele_ori && $self->allele_ori($allele_ori);
     $allele_mut  && $self->allele_mut($allele_mut);
     $upstreamseq  && $self->upStreamSeq($upstreamseq);
     $dnstreamseq  && $self->dnStreamSeq($dnstreamseq);
-    
+
     $label  && $self->label($label);
     $status  && $self->status($status);
     $proof && $self->proof($proof);
@@ -168,7 +169,7 @@ sub new {
     $ismutation && $self->isMutation($ismutation);
 
     $cpg && $self->CpG($cpg);
-    
+
     return $self; # success - we hope!
 }
 
@@ -177,7 +178,7 @@ sub new {
 
  Title   : CpG
  Usage   : $obj->CpG()
- Function: sets and returns boolean values for variation 
+ Function: sets and returns boolean values for variation
            hitting a CpG site.  Unset value return -1.
  Example : $obj->CpG()
  Returns : boolean
@@ -206,12 +207,12 @@ sub CpG {
 sub _CpG_value {
     my ($self) = @_;
     if ($self->allele_ori eq $self->allele_mut and length ($self->allele_ori) == 1 ) {
-    
+
 	# valid only for point mutations
 	# CpG methylation-mediated deamination:
 	#   CG -> TG | CG -> CA substitutions
 	# implementation here is  less strict: if CpG dinucleotide was hit
-	
+
 	if ( ( ($self->allele_ori eq 'c') && (substr($self->upStreamSeq, 0, 1) eq 'g') ) ||
 	     ( ($self->allele_ori eq 'g') && (substr($self->dnStreamSeq, -1, 1) eq 'c') ) ) {
 	    return 1;
@@ -261,7 +262,7 @@ sub RNAChange {
 
  Title   : label
  Usage   : $obj->label();
- Function: 
+ Function:
 
             Sets and returns mutation event label(s).  If value is not
             set, or no argument is given returns false.  Each
@@ -270,7 +271,7 @@ sub RNAChange {
             'Mutation event controlled vocabulary' in
             http://www.ebi.ac.uk/mutations/recommendations/mutevent.html.
 
- Example : 
+ Example :
  Returns : string
  Args    : string
 
@@ -282,7 +283,7 @@ sub label {
     my ($o, $m, $type);
     $o = $self->allele_ori->seq if $self->allele_ori and $self->allele_ori->seq;
     $m = $self->allele_mut->seq if $self->allele_mut and $self->allele_mut->seq;
-    
+
     if (not $o and not $m ) {
 	$self->warn("[DNAMutation, label] Both alleles should not be empty!\n");
 	$type = 'no change'; # is this enough?
@@ -330,13 +331,13 @@ sub _point_type_label {
 
  Title   : sysname
  Usage   : $self->sysname
- Function: 
+ Function:
 
            This subroutine creates a string corresponding to the
            'systematic name' of the mutation. Systematic name is
            specified in Antonorakis & MDI Nomenclature Working Group:
-           Human Mutation 11:1-3, 1998. 
-           
+           Human Mutation 11:1-3, 1998.
+
  Returns : string
 
 =cut
@@ -347,7 +348,7 @@ sub sysname {
     if( defined $value) {
 	$self->{'sysname'} = $value;
     } else {
-	$self->warn('Mutation start position is not defined') 
+	$self->warn('Mutation start position is not defined')
 	    if not defined $self->start;
 	my $sysname = '';
 	# show the alphabet only if $self->SeqDiff->alphabet is set;
@@ -367,7 +368,7 @@ if ($self->SeqDiff ) {
 	} else {
 	    $sep = '|';
 	}
-	my $sign = '+'; 
+	my $sign = '+';
 	$sign = '' if $self->start < 1;
 	$sysname .=  $mol ;#if $mol;
 	$sysname .= $sign. $self->start;
@@ -388,7 +389,7 @@ if ($self->SeqDiff ) {
 	    $sysname .=  uc $self->allele_mut->seq if $self->allele_mut->seq;
 	}
 	$self->{'sysname'} = $sysname;
-	#$self->{'sysname'} = $sign. $self->start. 
+	#$self->{'sysname'} = $sign. $self->start.
 	#    uc $self->allele_ori->seq. $sep. uc $self->allele_mut->seq;
     }
     return $self->{'sysname'};

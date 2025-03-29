@@ -1,9 +1,9 @@
 package XML::RSS;
-$XML::RSS::VERSION = '1.62';
+$XML::RSS::VERSION = '1.65';
 use strict;
 use warnings;
 
-use Carp qw/ confess croak /;
+use Carp        qw/ confess croak /;
 use XML::Parser ();
 
 use XML::RSS::Private::Output::Base  ();
@@ -15,8 +15,6 @@ use XML::RSS::Private::Output::V2_0  ();
 use vars qw($VERSION $AUTOLOAD @ISA $AUTO_ADD);
 
 require 5.008;
-
-$VERSION = '1.59';
 
 $AUTO_ADD = 0;
 
@@ -288,7 +286,7 @@ sub _get_dc_ok_fields {
           subject
           title
           type
-          )
+        )
     ];
 }
 
@@ -331,6 +329,9 @@ sub _reset {
     $self->{items} = [];
 
     delete $self->{_allow_multiple};
+
+    # reset empty OK to default
+    %empty_ok_elements = (enclosure => 1);
 
     my $ok_fields = $self->_get_ok_fields();
 
@@ -905,9 +906,36 @@ sub _start_array_element {
 }
 
 sub _last_item {
-    my $self = shift;
+    my $self      = shift;
+    my $items     = $self->{'items'};
+    my $num_items = $self->{num_items};
 
-    return ($self->{'items'}->[$self->{num_items} - 1] ||= {});
+    if( (($num_items != @$items + 1) and ($num_items != @$items ))) # or (not @$items))
+    {
+        confess "num_items [ $num_items vs @{[scalar@$items]} ] is not big enough";
+    }
+    my $pos =$num_items - 1;
+    if ($pos < 0)
+    {
+        push @$items, +{};
+        ++$pos;
+        if ($pos != 0)
+        {
+            confess "num_items [ $num_items vs @{[scalar@$items]} ] is not big enough";
+        }
+    }
+    elsif ($pos > $#$items)
+    {
+        push @$items, +{};
+        # ++$pos;
+        if ($pos !=$#$items)
+        {
+            confess "num_items [ $num_items vs @{[scalar@$items]} ] is not big enough";
+        }
+    }
+
+
+    return ($items->[$pos]);
 }
 
 sub _handle_start {
@@ -1018,10 +1046,10 @@ sub _handle_start {
 
         # guid element is a permanent link unless isPermaLink attribute is set to false
     }
-    elsif ($el eq 'guid') {
+    elsif (($el eq 'guid')
+            and ($self->{_inside_item_elem})) {
         $self->_last_item->{'isPermaLink'} =
           ((!exists($attribs{'isPermaLink'})) || (lc($attribs{'isPermaLink'}) ne 'false'));
-
         # beginning of taxo li element in item element
         #'http://purl.org/rss/1.0/modules/taxonomy/' => 'taxo'
     }
@@ -1294,6 +1322,11 @@ sub _generic_parse {
 
     $self->_parse_options($options || {});
 
+    # patch to allow a parse-time option for elements to be empty
+    foreach my $el (@{$self->_parse_options()->{'allow_empty'}}) {
+        $empty_ok_elements{$el} = 1;
+    }
+
     # Workaround to make sure that if we were defined with version => "2.0"
     # then we can still parse 1.0 and 0.9.x feeds correctly.
     if ($self->{version} eq "2.0") {
@@ -1502,7 +1535,7 @@ XML::RSS - creates and updates RSS files
 
 =head1 VERSION
 
-version 1.62
+version 1.65
 
 =head1 SYNOPSIS
 
@@ -1832,6 +1865,17 @@ This option when true, will parse the modules key-value-pairs as an arrayref of
 C<<< { el => $key_name, value => $value, } >>> hash-refs to gracefully
 handle duplicate items (see below). It will not affect the known modules such
 as dc ("Dublin Core").
+
+=item * allow_empty
+
+Takes an array ref of names which indicates which elements are
+allowed to be empty. So, for example, to parse feeds with custom
+fields with the form C<<< <foo bar="1" baz="2" /> >>> which have no content,
+only attributes, add:
+
+   $rss->parse($xml, { allow_empty => ['foo'] });
+
+( Added in XML::RSS v 1.63 .)
 
 =back
 

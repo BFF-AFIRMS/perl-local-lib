@@ -98,6 +98,7 @@
 /home/production/cxgn/local-lib/lib/perl5/PDF/API2/Resource/XObject/Form/BarCode/code3of9.pm
 /home/production/cxgn/local-lib/lib/perl5/PDF/API2/Resource/XObject/Form/BarCode/ean13.pm
 /home/production/cxgn/local-lib/lib/perl5/PDF/API2/Resource/XObject/Form/BarCode/int2of5.pm
+/home/production/cxgn/local-lib/lib/perl5/PDF/API2/Resource/XObject/Form/BarCode/qrcode.pm
 /home/production/cxgn/local-lib/lib/perl5/PDF/API2/Resource/XObject/Form/Hybrid.pm
 /home/production/cxgn/local-lib/lib/perl5/PDF/API2/Resource/XObject/Image.pm
 /home/production/cxgn/local-lib/lib/perl5/PDF/API2/Resource/XObject/Image/GD.pm

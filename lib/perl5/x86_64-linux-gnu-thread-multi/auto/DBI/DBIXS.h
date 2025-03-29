@@ -2,7 +2,8 @@
  *
  * $Id$
  *
- * Copyright (c) 1994-2010  Tim Bunce  Ireland
+ * Copyright (c) 2024-2025  DBI Team
+ * Copyright (c) 1994-2024  Tim Bunce  Ireland
  *
  * See COPYRIGHT section in DBI.pm for usage and distribution rights.
  */
@@ -36,6 +37,7 @@
 
 /* Perl backwards compatibility definitions */
 #define NEED_sv_2pv_flags
+#define NEED_croak_xs_usage
 #include "dbipport.h"
 
 /* DBI SQL_* type definitions */

@@ -1,0 +1,1 @@
+{"pathname":"P/PM/PMQS/Compress-Raw-Bzip2-2.213.tar.gz","dist":"Compress-Raw-Bzip2-2.213","name":"Compress::Raw::Bzip2","version":"2.213","target":"Compress::Raw::Bzip2","provides":{"Compress::Raw::Bzip2":{"file":"lib/Compress/Raw/Bzip2.pm","version":"2.213"}}}

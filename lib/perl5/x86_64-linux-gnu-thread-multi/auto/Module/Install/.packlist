@@ -17,7 +17,6 @@
 /home/production/cxgn/local-lib/lib/perl5/Module/Install/Bundle.pm
 /home/production/cxgn/local-lib/lib/perl5/Module/Install/Can.pm
 /home/production/cxgn/local-lib/lib/perl5/Module/Install/Compiler.pm
-/home/production/cxgn/local-lib/lib/perl5/Module/Install/DSL.pm
 /home/production/cxgn/local-lib/lib/perl5/Module/Install/Deprecated.pm
 /home/production/cxgn/local-lib/lib/perl5/Module/Install/External.pm
 /home/production/cxgn/local-lib/lib/perl5/Module/Install/FAQ.pod
@@ -36,4 +35,3 @@
 /home/production/cxgn/local-lib/lib/perl5/Module/Install/With.pm
 /home/production/cxgn/local-lib/lib/perl5/Module/Install/WriteAll.pm
 /home/production/cxgn/local-lib/lib/perl5/inc/Module/Install.pm
-/home/production/cxgn/local-lib/lib/perl5/inc/Module/Install/DSL.pm

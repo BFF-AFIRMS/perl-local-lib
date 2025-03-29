@@ -1,0 +1,1 @@
+{"name":"Catalyst::Action::RenderView","version":"0.17","pathname":"H/HA/HAARG/Catalyst-Action-RenderView-0.17.tar.gz","dist":"Catalyst-Action-RenderView-0.17","target":"Catalyst::Action::RenderView","provides":{"Catalyst::Action::RenderView":{"file":"lib/Catalyst/Action/RenderView.pm","version":"0.17"}}}

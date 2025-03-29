@@ -155,7 +155,7 @@ methods. Internal methods are usually preceded with a _
 =cut
 
 package Bio::Tools::Run::RemoteBlast;
-
+$Bio::Tools::Run::RemoteBlast::VERSION = '1.7.3';
 use strict;
 use warnings;
 

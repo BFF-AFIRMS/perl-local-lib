@@ -21,3 +21,4 @@
 /home/production/cxgn/local-lib/lib/perl5/Net/Server/Proto/UNIXDGRAM.pm
 /home/production/cxgn/local-lib/lib/perl5/Net/Server/SIG.pm
 /home/production/cxgn/local-lib/lib/perl5/Net/Server/Single.pm
+/home/production/cxgn/local-lib/lib/perl5/Net/Server/Thread.pm

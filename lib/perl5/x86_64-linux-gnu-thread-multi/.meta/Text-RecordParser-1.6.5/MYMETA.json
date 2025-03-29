@@ -1,0 +1,58 @@
+{
+   "abstract" : "Parse record-oriented data in a text file",
+   "author" : [
+      "Ken Youens-Clark <kclark@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Module::Install version 1.14, CPAN::Meta::Converter version 2.150010",
+   "license" : [
+      "open_source"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "Text-RecordParser",
+   "no_index" : {
+      "directory" : [
+         "inc",
+         "t"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "6.36",
+            "Test::Exception" : "0",
+            "Test::More" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "runtime" : {
+         "recommends" : {
+            "GraphViz" : "0",
+            "Text::TabularDisplay" : "1.22"
+         },
+         "requires" : {
+            "Class::Accessor" : "0",
+            "IO::Scalar" : "0",
+            "List::MoreUtils" : "0",
+            "List::Util" : "0",
+            "Readonly" : "0",
+            "Text::Autoformat" : "0"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "license" : [
+         "http://opensource.org/licenses/gpl-license.php"
+      ]
+   },
+   "version" : "1.006005",
+   "x_serialization_backend" : "JSON::PP version 4.16"
+}

@@ -2,7 +2,7 @@ package Test2::Util::Ref;
 use strict;
 use warnings;
 
-our $VERSION = '0.000144';
+our $VERSION = '1.302209';
 
 use Scalar::Util qw/reftype blessed refaddr/;
 
@@ -32,11 +32,18 @@ sub render_ref {
 
     # Look past overloading
     my $class = blessed($in) || '';
+
     my $it = sprintf('0x%x', refaddr($in));
     my $ref = "$type($it)";
 
     return $ref unless $class;
-    return "$class=$ref";
+
+    my $out = "$class=$ref";
+    if ($class =~ m/bool/i) {
+        my $bool = $in ? 'TRUE' : 'FALSE';
+        return "<$bool: $out>";
+    }
+    return $out;
 }
 
 1;
@@ -86,7 +93,7 @@ address.
 =head1 SOURCE
 
 The source code repository for Test2-Suite can be found at
-F<https://github.com/Test-More/Test2-Suite/>.
+F<https://github.com/Test-More/test-more/>.
 
 =head1 MAINTAINERS
 
@@ -108,7 +115,7 @@ F<https://github.com/Test-More/Test2-Suite/>.
 
 =head1 COPYRIGHT
 
-Copyright 2018 Chad Granum E<lt>exodist@cpan.orgE<gt>.
+Copyright Chad Granum E<lt>exodist@cpan.orgE<gt>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

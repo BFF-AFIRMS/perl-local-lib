@@ -1,8 +1,8 @@
-use strict;
+use v5.12.0;
 use warnings;
-package Sub::Exporter::Util;
+package Sub::Exporter::Util 0.991;
 # ABSTRACT: utilities to make Sub::Exporter easier
-$Sub::Exporter::Util::VERSION = '0.988';
+
 use Data::OptList ();
 use Params::Util ();
 
@@ -106,7 +106,7 @@ sub curry_chain {
 
       for my $i (0 .. $#$pairs) {
         my $pair = $pairs->[ $i ];
-        
+
         unless (Params::Util::_INVOCANT($next)) { ## no critic Private
           my $str = defined $next ? "'$next'" : 'undef';
           Carp::croak("can't call $pair->[0] on non-invocant $str")
@@ -125,19 +125,19 @@ sub curry_chain {
 }
 
 # =head2 name_map
-# 
+#
 # This utility returns an list to be used in specify export generators.  For
 # example, the following:
-# 
+#
 #   exports => {
 #     name_map(
 #       '_?_gen'  => [ qw(fee fie) ],
 #       '_make_?' => [ qw(foo bar) ],
 #     ),
 #   }
-# 
+#
 # is equivalent to:
-# 
+#
 #   exports => {
 #     name_map(
 #       fee => \'_fee_gen',
@@ -146,26 +146,26 @@ sub curry_chain {
 #       bar => \'_make_bar',
 #     ),
 #   }
-# 
+#
 # This can save a lot of typing, when providing many exports with similarly-named
 # generators.
-# 
+#
 # =cut
-# 
+#
 # sub name_map {
 #   my (%groups) = @_;
-# 
+#
 #   my %map;
-# 
+#
 #   while (my ($template, $names) = each %groups) {
 #     for my $name (@$names) {
 #       (my $export = $template) =~ s/\?/$name/
 #         or Carp::croak 'no ? found in name_map template';
-# 
+#
 #       $map{ $name } = \$export;
 #     }
 #   }
-# 
+#
 #   return %map;
 # }
 
@@ -342,7 +342,7 @@ Sub::Exporter::Util - utilities to make Sub::Exporter easier
 
 =head1 VERSION
 
-version 0.988
+version 0.991
 
 =head1 DESCRIPTION
 
@@ -350,15 +350,15 @@ This module provides a number of utility functions for performing common or
 useful operations when setting up a Sub::Exporter configuration.  All of the
 utilities may be exported, but none are by default.
 
-=head1 PERL VERSION SUPPORT
+=head1 PERL VERSION
 
-This module has a long-term perl support period.  That means it will not
-require a version of perl released fewer than five years ago.
+This library should run on perls released even a long time ago.  It should
+work on any version of perl released in the last five years.
 
 Although it may work on older versions of perl, no guarantee is made that the
 minimum required version will not be increased.  The version may be increased
-for any reason, and there is no promise that patches will be accepted to lower
-the minimum required perl.
+for any reason, and there is no promise that patches will be accepted to
+lower the minimum required perl.
 
 =head1 THE UTILITIES
 
@@ -476,7 +476,7 @@ passed on to the generators for matching exports.
 
 =head1 AUTHOR
 
-Ricardo Signes <rjbs@semiotic.systems>
+Ricardo Signes <cpan@semiotic.systems>
 
 =head1 COPYRIGHT AND LICENSE
 

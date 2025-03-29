@@ -1,0 +1,1 @@
+{"name":"FCGI","version":"0.82","pathname":"E/ET/ETHER/FCGI-0.82.tar.gz","dist":"FCGI-0.82","provides":{"FCGI":{"file":"FCGI.pm","version":"0.82"},"FCGI::Stream":{"file":"FCGI.pm","version":"0.82"}},"target":"FCGI"}

@@ -1287,6 +1287,6 @@
       "Demian Riccardi <dde@ornl.gov>",
       "Gregory Oschwald <goschwald@maxmind.com>"
    ],
-   "x_serialization_backend" : "JSON::PP version 4.04",
+   "x_serialization_backend" : "JSON::PP version 4.16",
    "x_static_install" : 1
 }

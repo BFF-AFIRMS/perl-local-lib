@@ -1,1 +1,1 @@
-{"dist":"SUPER-1.20190531","version":"1.20190531","provides":{"SUPER":{"file":"lib/SUPER.pm","version":"1.20190531"}},"pathname":"C/CH/CHROMATIC/SUPER-1.20190531.tar.gz","target":"SUPER","name":"SUPER"}
+{"provides":{"SUPER":{"version":"1.20190531","file":"lib/SUPER.pm"}},"target":"SUPER","pathname":"C/CH/CHROMATIC/SUPER-1.20190531.tar.gz","dist":"SUPER-1.20190531","name":"SUPER","version":"1.20190531"}
