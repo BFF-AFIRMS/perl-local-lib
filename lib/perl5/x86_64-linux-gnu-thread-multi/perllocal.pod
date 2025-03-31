@@ -11108,3 +11108,91 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Sat Mar 29 11:19:43 2025: C<Module> L<Imager::QRCode|Imager::QRCode>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/sgn/../local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.035>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
+=head2 Sat Mar 29 11:20:59 2025: C<Module> L<String::Approx|String::Approx>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/sgn/../local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 3.28>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
+=head2 Sat Mar 29 11:22:06 2025: C<Module> L<String::CRC|String::CRC>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/sgn/../local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.0>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
+=head2 Sat Mar 29 11:23:11 2025: C<Module> L<Algorithm::Combinatorics|Algorithm::Combinatorics>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/sgn/../local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.27>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
