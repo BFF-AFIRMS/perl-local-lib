@@ -10448,3 +10448,25 @@ C<EXE_FILES: exiftool>
 
 =back
 
+=head2 Mon Sep  8 12:06:02 2025: C<Module> L<Image::ExifTool|Image::ExifTool>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 13.35>
+
+=item *
+
+C<EXE_FILES: exiftool>
+
+=back
+
