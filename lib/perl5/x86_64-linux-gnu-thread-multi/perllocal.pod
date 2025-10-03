@@ -10533,6 +10533,11 @@ C<VERSION: 0.39>
 =item *
 
 C<EXE_FILES: >
+C<VERSION: 13.35>
+
+=item *
+
+C<EXE_FILES: exiftool>
 
 =back
 
