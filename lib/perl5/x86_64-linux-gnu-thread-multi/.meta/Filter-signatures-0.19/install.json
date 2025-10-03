@@ -1,0 +1,1 @@
+{"name":"Filter::signatures","pathname":"C/CO/CORION/Filter-signatures-0.19.tar.gz","dist":"Filter-signatures-0.19","target":"Filter::signatures","version":"0.19","provides":{"Filter::signatures":{"version":"0.19","file":"lib/Filter/signatures.pm"}}}

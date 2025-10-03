@@ -10448,7 +10448,7 @@ C<EXE_FILES: exiftool>
 
 =back
 
-=head2 Mon Sep  8 12:06:02 2025: C<Module> L<Image::ExifTool|Image::ExifTool>
+=head2 Tue Sep 30 20:02:36 2025: C<Module> L<Filter::signatures|Filter::signatures>
 
 =over 4
 
@@ -10462,6 +10462,77 @@ C<LINKTYPE: dynamic>
 
 =item *
 
+C<VERSION: 0.19>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
+=head2 Tue Sep 30 20:02:38 2025: C<Module> L<PerlIO::gzip|PerlIO::gzip>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.20>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
+=head2 Tue Sep 30 20:02:38 2025: C<Module> L<PerlX::Maybe|PerlX::Maybe>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 1.202>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
+=head2 Tue Sep 30 20:02:44 2025: C<Module> L<Spreadsheet::ReadSXC|Spreadsheet::ReadSXC>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.39>
+
+=item *
+
+C<EXE_FILES: >
 C<VERSION: 13.35>
 
 =item *
