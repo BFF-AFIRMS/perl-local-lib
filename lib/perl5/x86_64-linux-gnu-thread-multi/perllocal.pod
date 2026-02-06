@@ -10541,3 +10541,69 @@ C<EXE_FILES: exiftool>
 
 =back
 
+=head2 Fri Feb  6 01:59:51 2026: C<Module> L<Crypt::JWT|Crypt::JWT>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/sgn/../local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.037>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
+=head2 Fri Feb  6 02:00:51 2026: C<Module> L<CryptX|CryptX>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/sgn/../local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.087>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
+=head2 Fri Feb  6 02:01:01 2026: C<Module> L<MIME::Base64::URLSafe|MIME::Base64::URLSafe>
+
+=over 4
+
+=item *
+
+C<installed into: /home/production/cxgn/sgn/../local-lib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.01>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
