@@ -1,14 +1,11 @@
 package Net::DNS::RR::HINFO;
 
-#
-# $Id: HINFO.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: HINFO.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,56 +13,54 @@ Net::DNS::RR::HINFO - DNS HINFO resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::Text;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
-	( $self->{cpu}, $offset ) = decode Net::DNS::Text( $data, $offset );
-	( $self->{os},	$offset ) = decode Net::DNS::Text( $data, $offset );
+	( $self->{cpu}, $offset ) = Net::DNS::Text->decode( $data, $offset );
+	( $self->{os},	$offset ) = Net::DNS::Text->decode( $data, $offset );
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
-	join '', $self->{cpu}->encode, $self->{os}->encode;
+	return join '', $self->{cpu}->encode, $self->{os}->encode;
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	join ' ', $self->{cpu}->string, $self->{os}->string;
+	return join ' ', $self->{cpu}->string, $self->{os}->string;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->cpu(shift);
-	$self->os(@_);
+	$self->cpu( shift @argument );
+	$self->os(@argument);
+	return;
 }
 
 
 sub cpu {
-	my $self = shift;
-
-	$self->{cpu} = new Net::DNS::Text(shift) if scalar @_;
-	$self->{cpu}->value if $self->{cpu};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{cpu} = Net::DNS::Text->new($_) }
+	return $self->{cpu} ? $self->{cpu}->value : undef;
 }
 
 
 sub os {
-	my $self = shift;
-
-	$self->{os} = new Net::DNS::Text(shift) if scalar @_;
-	$self->{os}->value if $self->{os};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{os} = Net::DNS::Text->new($_) }
+	return $self->{os} ? $self->{os}->value : undef;
 }
 
 
@@ -75,8 +70,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name HINFO cpu os');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name HINFO cpu os');
 
 =head1 DESCRIPTION
 
@@ -94,15 +89,15 @@ other unpredictable behaviour.
 
 =head2 cpu
 
-    $cpu = $rr->cpu;
-    $rr->cpu( $cpu );
+	$cpu = $rr->cpu;
+	$rr->cpu( $cpu );
 
 Returns the CPU type for this RR.
 
 =head2 os
 
-    $os = $rr->os;
-    $rr->os( $os );
+	$os = $rr->os;
+	$rr->os( $os );
 
 Returns the operating system type for this RR.
 
@@ -120,7 +115,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -137,6 +132,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1035 Section 3.3.2
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1035(3.3.2)|https://iana.org/go/rfc1035#section-3.3.2>
 
 =cut

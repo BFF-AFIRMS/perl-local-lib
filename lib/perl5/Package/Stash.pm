@@ -1,10 +1,10 @@
-package Package::Stash; # git description: 5468b00
+package Package::Stash; # git description: v0.39-2-ga9a8cce
 use strict;
 use warnings;
 use 5.008001;
-# ABSTRACT: routines for manipulating stashes
+# ABSTRACT: Routines for manipulating stashes
 
-our $VERSION = '0.38';
+our $VERSION = '0.40';
 our $IMPLEMENTATION;
 
 use Module::Implementation 0.06;
@@ -32,9 +32,6 @@ BEGIN {
     $IMPLEMENTATION = Module::Implementation::implementation_for(__PACKAGE__);
 }
 
-
-1;
-
 __END__
 
 =pod
@@ -43,11 +40,11 @@ __END__
 
 =head1 NAME
 
-Package::Stash - routines for manipulating stashes
+Package::Stash - Routines for manipulating stashes
 
 =head1 VERSION
 
-version 0.38
+version 0.40
 
 =head1 SYNOPSIS
 
@@ -113,11 +110,6 @@ hash is updated to record the values of C<filename>, C<first_line_num>, and
 C<last_line_num> for the subroutine. If these are not passed, their values are
 inferred (as much as possible) from C<caller> information.
 
-This is especially useful for debuggers and profilers, which use C<%DB::sub> to
-determine where the source code for a subroutine can be found.  See
-L<http://perldoc.perl.org/perldebguts.html#Debugger-Internals> for more
-information about C<%DB::sub>.
-
 =head2 remove_glob $name
 
 Removes all package variables with the given name, regardless of sigil.
@@ -156,6 +148,13 @@ Returns a hashref, keyed by the variable names in the package. If
 C<$type_filter> is passed, the hash will contain every variable of that type in
 the package as values, otherwise, it will contain the typeglobs corresponding
 to the variable names (basically, a clone of the stash).
+
+=for stopwords profilers
+
+This is especially useful for debuggers and profilers, which use C<%DB::sub> to
+determine where the source code for a subroutine can be found.  See
+L<http://perldoc.perl.org/perldebguts.html#Debugger-Internals> for more
+information about C<%DB::sub>.
 
 =head1 WORKING WITH VARIABLES
 
@@ -206,49 +205,6 @@ variables:
   # No problem, modifying a copy, not the original
   $Some::Namespace::name .= " world";
 
-=head1 SEE ALSO
-
-=over 4
-
-=item * L<Class::MOP::Package>
-
-This module is a factoring out of code that used to live here
-
-=back
-
-=head1 SUPPORT
-
-You can find this documentation for this module with the perldoc command.
-
-    perldoc Package::Stash
-
-You can also look for information at:
-
-=over 4
-
-=item * MetaCPAN
-
-L<https://metacpan.org/release/Package-Stash>
-
-=item * Github
-
-L<https://github.com/moose/Package-Stash>
-
-=item * RT: CPAN's request tracker
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Package-Stash>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/Package-Stash>
-
-=back
-
-=head1 HISTORY
-
-Based on code from L<Class::MOP::Package>, by Stevan Little and the Moose
-Cabal.
-
 =head1 BUGS / CAVEATS
 
 =over 4
@@ -264,16 +220,43 @@ L<perlref/Making References> point 7 for more information.
 
 =back
 
+=head1 SEE ALSO
+
+=over 4
+
+=item * L<Class::MOP::Package>
+
+This module is a factoring out of code that used to live here
+
+=back
+
+=head1 HISTORY
+
+Based on code from L<Class::MOP::Package>, by Stevan Little and the Moose
+Cabal.
+
+=head1 SUPPORT
+
 Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=Package-Stash>
 (or L<bug-Package-Stash@rt.cpan.org|mailto:bug-Package-Stash@rt.cpan.org>).
 
-=head1 AUTHOR
+=head1 AUTHORS
+
+=over 4
+
+=item *
+
+Stevan Little <stevan.little@iinteractive.com>
+
+=item *
 
 Jesse Luehrs <doy@tozt.net>
 
+=back
+
 =head1 CONTRIBUTORS
 
-=for stopwords Karen Etheridge Carlos Lima Kent Fredric Justin Hunter Christian Walde Dave Rolsky Niko Tyni Renee Tim Bunce
+=for stopwords Karen Etheridge Carlos Lima Christian Walde Dave Rolsky Justin Hunter Kent Fredric Niko Tyni Renee Tim Bunce
 
 =over 4
 
@@ -287,7 +270,11 @@ Carlos Lima <carlos@multi>
 
 =item *
 
-Kent Fredric <kentfredric@gmail.com>
+Christian Walde <walde.christian@googlemail.com>
+
+=item *
+
+Dave Rolsky <autarch@urth.org>
 
 =item *
 
@@ -295,11 +282,7 @@ Justin Hunter <justin.d.hunter@gmail.com>
 
 =item *
 
-Christian Walde <walde.christian@googlemail.com>
-
-=item *
-
-Dave Rolsky <autarch@urth.org>
+Kent Fredric <kentfredric@gmail.com>
 
 =item *
 
@@ -317,7 +300,7 @@ Tim Bunce <Tim.Bunce@pobox.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2018 by Jesse Luehrs.
+This software is copyright (c) 2022 by Jesse Luehrs.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

@@ -1,14 +1,11 @@
 package Net::DNS::RR::KEY;
 
-#
-# $Id: KEY.pm 1528 2017-01-18 21:44:58Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1528 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: KEY.pm 2002 2025-01-07 09:57:46Z willem $)[2];
+
 use base qw(Net::DNS::RR::DNSKEY);
+
 
 =head1 NAME
 
@@ -23,6 +20,7 @@ sub _defaults {				## specify RR attribute default values
 	$self->algorithm(1);
 	$self->flags(0);
 	$self->protocol(3);
+	return;
 }
 
 
@@ -32,8 +30,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name KEY flags protocol algorithm publickey');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name KEY flags protocol algorithm publickey');
 
 =head1 DESCRIPTION
 
@@ -68,7 +66,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -85,6 +83,12 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, L<Net::DNS::RR::DNSKEY>, RFC3755, RFC2535
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<Net::DNS::RR::DNSKEY>
+L<RFC2535(3)|https://iana.org/go/rfc2535#section-3>
+L<RFC2936|https://iana.org/go/rfc2936>
+L<RFC2931|https://iana.org/go/rfc2931>
+L<RFC3110|https://iana.org/go/rfc3110>
+L<RFC4034|https://iana.org/go/rfc4034>
 
 =cut

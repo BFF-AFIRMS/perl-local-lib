@@ -1,14 +1,11 @@
 package Net::DNS::RR::CDNSKEY;
 
-#
-# $Id: CDNSKEY.pm 1586 2017-08-15 09:01:57Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1586 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: CDNSKEY.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR::DNSKEY);
+
 
 =head1 NAME
 
@@ -16,22 +13,23 @@ Net::DNS::RR::CDNSKEY - DNS CDNSKEY resource record
 
 =cut
 
-
 use integer;
+
+
+sub _format_rdata {			## format rdata portion of RR string.
+	my $self = shift;
+
+	return $self->SUPER::_format_rdata() if $self->algorithm;
+	return my @rdata = @{$self}{qw(flags protocol algorithm)}, "AA==";
+}
 
 
 sub algorithm {
 	my ( $self, $arg ) = @_;
 	return $self->SUPER::algorithm($arg) if $arg;
 	return $self->SUPER::algorithm() unless defined $arg;
-	@{$self}{qw(flags protocol algorithm)} = ( 0, 3, 0 );
-}
-
-
-sub key {
-	my $self = shift;
-	return $self->SUPER::key(@_) unless defined( $_[0] ) && length( $_[0] ) < 2;
-	return $self->SUPER::keybin( $_[0] ? '' : chr(0) );
+	@{$self}{qw(flags protocol algorithm keybin)} = ( 0, 3, 0, chr(0) );
+	return;
 }
 
 
@@ -41,8 +39,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name CDNSKEY flags protocol algorithm publickey');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name CDNSKEY flags protocol algorithm publickey');
 
 =head1 DESCRIPTION
 
@@ -77,7 +75,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -94,6 +92,8 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, L<Net::DNS::RR::DNSKEY>, RFC7344, RFC8078(erratum 5049)
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<Net::DNS::RR::DNSKEY>
+L<RFC7344|https://iana.org/go/rfc7344>
 
 =cut

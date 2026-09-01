@@ -3,11 +3,11 @@ package Specio::Constraint::AnyDoes;
 use strict;
 use warnings;
 
-our $VERSION = '0.43';
+our $VERSION = '0.53';
 
-use B ();
 use Role::Tiny::With;
-use Scalar::Util ();
+use Scalar::Util    ();
+use Specio::Helpers qw( perlstring );
 use Specio::Library::Builtins;
 use Specio::OO;
 
@@ -24,7 +24,7 @@ with 'Specio::Constraint::Role::DoesType';
         my $self = shift;
         my $val  = shift;
 
-        return sprintf( <<'EOF', ($val) x 8, B::perlstring( $self->role ) );
+        return sprintf( <<'EOF', ($val) x 8, perlstring( $self->role ) );
 (
     (
         Scalar::Util::blessed(%s) || (
@@ -71,7 +71,7 @@ Specio::Constraint::AnyDoes - A class for constraints which require a class name
 
 =head1 VERSION
 
-version 0.43
+version 0.53
 
 =head1 SYNOPSIS
 
@@ -115,8 +115,6 @@ L<MooseX::Clone> roles.
 
 Bugs may be submitted at L<https://github.com/houseabsolute/Specio/issues>.
 
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
-
 =head1 SOURCE
 
 The source code repository for Specio can be found at L<https://github.com/houseabsolute/Specio>.
@@ -127,7 +125,7 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2012 - 2018 by Dave Rolsky.
+This software is Copyright (c) 2012 - 2025 by Dave Rolsky.
 
 This is free software, licensed under:
 

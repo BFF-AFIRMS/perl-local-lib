@@ -3,11 +3,11 @@ package Specio::Library::Structured::Tuple;
 use strict;
 use warnings;
 
-our $VERSION = '0.43';
+our $VERSION = '0.53';
 
-use Carp qw( confess );
-use List::Util ();
-use Scalar::Util qw( blessed );
+use Carp            qw( confess );
+use List::Util 1.33 ();
+use Scalar::Util    qw( blessed );
 use Specio::Library::Builtins;
 use Specio::TypeChecks qw( does_role );
 
@@ -21,7 +21,7 @@ sub _inline {
 }
 
 sub _parameterization_args_builder {
-    my $self = shift;
+    shift;
     my $args = shift;
 
     my $saw_slurpy;
@@ -96,7 +96,7 @@ sub _name_builder {
 }
 
 sub _structured_inline_generator {
-    my $self = shift;
+    shift;
     my $val  = shift;
     my %args = @_;
 
@@ -133,7 +133,7 @@ sub _structured_inline_generator {
     }
 
     for my $i ( 0 .. $#of ) {
-        my $p = $of[$i];
+        my $p      = $of[$i];
         my $access = sprintf( '%s->[%d]', $val, $i );
 
         if ( !blessed($p) ) {
@@ -182,7 +182,7 @@ Specio::Library::Structured::Tuple - Guts of Tuple structured type
 
 =head1 VERSION
 
-version 0.43
+version 0.53
 
 =head1 DESCRIPTION
 
@@ -194,8 +194,6 @@ There are no user facing parts here.
 
 Bugs may be submitted at L<https://github.com/houseabsolute/Specio/issues>.
 
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
-
 =head1 SOURCE
 
 The source code repository for Specio can be found at L<https://github.com/houseabsolute/Specio>.
@@ -206,7 +204,7 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2012 - 2018 by Dave Rolsky.
+This software is Copyright (c) 2012 - 2025 by Dave Rolsky.
 
 This is free software, licensed under:
 

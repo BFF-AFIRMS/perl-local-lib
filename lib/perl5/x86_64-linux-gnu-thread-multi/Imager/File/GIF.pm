@@ -1,10 +1,10 @@
 package Imager::File::GIF;
+use 5.006;
 use strict;
 use Imager;
-use vars qw($VERSION @ISA);
 
 BEGIN {
-  $VERSION = "0.95";
+  our $VERSION = "1.005";
 
   require XSLoader;
   XSLoader::load('Imager::File::GIF', $VERSION);

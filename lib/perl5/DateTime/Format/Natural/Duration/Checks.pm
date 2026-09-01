@@ -4,9 +4,9 @@ use strict;
 use warnings;
 use boolean qw(true false);
 
-our $VERSION = '0.04';
+our $VERSION = '0.07';
 
-sub for
+sub _for
 {
     my ($duration, $date_strings, $present) = @_;
 
@@ -21,7 +21,7 @@ sub for
     }
 }
 
-sub first_to_last
+sub _first_to_last
 {
     my ($duration, $date_strings, $extract) = @_;
 
@@ -83,11 +83,15 @@ my $has_timespan_sep = sub
     }
 };
 
+# invoked from Extract.pm
 sub _first_to_last_extract
 {
-    my ($self, $duration, $date_strings, $indexes, $tokens, $chunks) = @_;
+    my $self = shift;
+    my ($date_strings, $indexes, $tokens, $chunks) = @_;
 
     return false unless @$date_strings == 2;
+
+    my $duration = $self->{data}->{duration};
 
     my %regexes = %{$duration->{first_to_last}{regexes}};
 
@@ -170,7 +174,7 @@ my $duration_matches = sub
     }
 };
 
-sub from_count_to_count
+sub _from_count_to_count
 {
     my ($duration, $date_strings, $extract, $adjust, $indexes) = @_;
 
@@ -240,11 +244,15 @@ sub from_count_to_count
     return false;
 }
 
+# invoked from Extract.pm
 sub _from_count_to_count_extract
 {
-    my ($self, $duration, $date_strings, $indexes, $tokens, $chunks) = @_;
+    my $self = shift;
+    my ($date_strings, $indexes, $tokens, $chunks) = @_;
 
     return false unless @$date_strings == 2;
+
+    my $duration = $self->{data}->{duration};
 
     my ($entry, $target);
     return false unless $duration_matches->($duration, $date_strings, \$entry, \$target);
@@ -311,3 +319,34 @@ sub _from_count_to_count_extract
 }
 
 1;
+__END__
+
+=head1 NAME
+
+DateTime::Format::Natural::Duration::Checks - Duration checks
+
+=head1 SYNOPSIS
+
+ Please see the DateTime::Format::Natural documentation.
+
+=head1 DESCRIPTION
+
+The C<DateTime::Format::Natural::Duration::Checks> class contains functions
+for matching a duration type (called from C<::Duration> and C<::Extract>).
+
+=head1 SEE ALSO
+
+L<DateTime::Format::Natural>
+
+=head1 AUTHOR
+
+Steven Schubiger <schubiger@cpan.org>
+
+=head1 LICENSE
+
+This program is free software; you may redistribute it and/or
+modify it under the same terms as Perl itself.
+
+See L<http://dev.perl.org/licenses/>
+
+=cut

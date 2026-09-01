@@ -1,5 +1,5 @@
 package Class::MOP::Mixin::HasMethods;
-our $VERSION = '2.2011';
+our $VERSION = '2.4000';
 
 use strict;
 use warnings;
@@ -7,7 +7,7 @@ use warnings;
 use Class::MOP::Method::Meta;
 
 use Scalar::Util 'blessed', 'reftype';
-use Sub::Name 'subname';
+use Sub::Util 1.40 'set_subname';
 
 use parent 'Class::MOP::Mixin';
 
@@ -72,7 +72,7 @@ sub add_method {
 
     my ($current_package, $current_name) = Class::MOP::get_code_info($body);
 
-    subname($package_name . '::' . $method_name, $body)
+    set_subname($package_name . '::' . $method_name, $body)
         unless defined $current_name && $current_name !~ /^__ANON__/;
 
     $self->add_package_symbol("&$method_name", $body);
@@ -240,7 +240,7 @@ Class::MOP::Mixin::HasMethods - Methods for metaclasses which have methods
 
 =head1 VERSION
 
-version 2.2011
+version 2.4000
 
 =head1 DESCRIPTION
 
@@ -254,7 +254,7 @@ API details.
 
 =item *
 
-Stevan Little <stevan.little@iinteractive.com>
+Stevan Little <stevan@cpan.org>
 
 =item *
 
@@ -262,11 +262,11 @@ Dave Rolsky <autarch@urth.org>
 
 =item *
 
-Jesse Luehrs <doy@tozt.net>
+Jesse Luehrs <doy@cpan.org>
 
 =item *
 
-Shawn M Moore <code@sartak.org>
+Shawn M Moore <sartak@cpan.org>
 
 =item *
 
@@ -282,7 +282,7 @@ Florian Ragwitz <rafl@debian.org>
 
 =item *
 
-Hans Dieter Pearcey <hdp@weftsoar.net>
+Hans Dieter Pearcey <hdp@cpan.org>
 
 =item *
 
@@ -290,7 +290,7 @@ Chris Prather <chris@prather.org>
 
 =item *
 
-Matt S Trout <mst@shadowcat.co.uk>
+Matt S Trout <mstrout@cpan.org>
 
 =back
 

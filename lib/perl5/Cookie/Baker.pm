@@ -7,7 +7,7 @@ use base qw/Exporter/;
 use URI::Escape;
 
 BEGIN {
-    our $VERSION = "0.10";
+    our $VERSION = "0.12";
     our @EXPORT = qw/bake_cookie crush_cookie/;
     my $use_pp = $ENV{COOKIE_BAKER_PP};
     if (!$use_pp) {
@@ -33,17 +33,26 @@ sub bake_cookie {
 
     return '' unless defined $val;
     my %args = ref $val ? %{$val} : (value => $val);
+    if ($args{partitioned}) {
+        # enforce SameSite=None; and secure; on CHIPS (Cookies Having Independent Partitioned State)
+        $args{samesite} = 'none';
+        $args{secure} = 1;
+    }
     $name = URI::Escape::uri_escape($name) if $name =~ m![^a-zA-Z\-\._~]!;
     my $cookie = "$name=" . URI::Escape::uri_escape($args{value}) . '; ';
     $cookie .= 'domain=' . $args{domain} . '; '  if $args{domain};
     $cookie .= 'path='. $args{path} . '; '       if $args{path};
     $cookie .= 'expires=' . _date($args{expires}) . '; ' if exists $args{expires} && defined $args{expires};
     $cookie .= 'max-age=' . $args{"max-age"} . '; ' if exists $args{"max-age"};
-    if (exists $args{samesite} && $args{samesite} =~ m/^(?:lax|strict)/i) {
-        $cookie .= 'SameSite=' . ucfirst(lc($args{samesite})) . '; '
+    if (exists $args{samesite} && $args{samesite} =~ m/^(?:lax|strict|none)/i) {
+        $cookie .= 'SameSite=' . ucfirst(lc($args{samesite})) . '; ';
+        # secure flag must be set when SameSite=None
+        $args{secure} = 1 if $cookie =~ m/SameSite=None; /;
     }
     $cookie .= 'secure; '                     if $args{secure};
     $cookie .= 'HttpOnly; '                   if $args{httponly};
+    $cookie .= 'Partitioned; '                if $args{partitioned};
+
     substr($cookie,-2,2,'');
     $cookie;
 }
@@ -168,6 +177,11 @@ Cookie's value.
 
 Cookie's domain.
 
+=item partitioned
+
+If true, sets Partitioned flag, and also enforces secure, SameSite=None. false by default.
+L<Cookies Having Independent Partitioned State specification|https://www.ietf.org/archive/id/draft-cutler-httpbis-partitioned-cookies-00.html>
+
 =item expires
 
 Cookie's expires date time. Several formats are supported:
@@ -200,9 +214,9 @@ If true, sets secure flag. false by default.
 
 =item samesite
 
-If defined as 'lax' or 'strict' (case-insensitive), sets the SameSite restriction for the cookie as described in the
+If defined as 'lax' or 'strict' or 'none' (case-insensitive), sets the SameSite restriction for the cookie as described in the
 L<draft proposal|https://tools.ietf.org/html/draft-west-first-party-cookies-07>, which is already implemented in
-Chrome (v51), Opera (v38) and Firefox (v60).
+Chrome (v51), Safari (v12), Edge (v16),  Opera (v38) and Firefox (v60).
 
 =back
 

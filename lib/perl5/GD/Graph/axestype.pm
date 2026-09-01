@@ -43,9 +43,6 @@ my %Defaults = (
     x_label_skip        => 1,
     y_label_skip        => 1,
 
-    # When skipping labels, also skip the last one.
-    x_last_label_skip	=> 0,
-
     # Do we want ticks on the x axis?
     x_ticks             => 1,
     x_all_ticks         => 0,
@@ -113,7 +110,6 @@ my %Defaults = (
 
     # Display the y values above the bar or point in the graph.
     show_values             => undef,
-    hide_overlapping_values => 0,
     values_vertical         => undef,   # vertical?
     values_space            => 4,       # extra spacing
     values_format           => undef,   # how to format the value
@@ -828,7 +824,7 @@ sub create_x_labels
 # The drawing of labels for the axes. This is split up in the four
 # positions a label can appear in, depending on a few settings. These
 # settings are all dealt with in the draw_x_labels and draw_y_labels
-# subroutines, which in turn call the appropriate directional label
+# subroutines, which in turn call the approriate directional label
 # drawer
 #
 sub draw_left_label
@@ -1122,13 +1118,12 @@ sub draw_x_ticks_h
 
         $x = $self->{left} unless $self->{zero_axis_only};
 
-	# Skip unwanted axis ticks
-        next unless 
-	    $self->{x_all_ticks} or 
-	    ($i - $self->{x_tick_offset}) % $self->{x_label_skip} == 0 or
-	    $i == $self->{_data}->num_points - 1 && !$self->{x_last_label_skip};
+        # CONTRIB  Damon Brodie for x_tick_offset
+        next if (!$self->{x_all_ticks} and 
+                ($i - $self->{x_tick_offset}) % $self->{x_label_skip} and 
+                $i != $self->{_data}->num_points - 1 
+            );
 
-	# Draw the tick on the X axis
         if ($self->{x_ticks})
         {
             if ($self->{x_long_ticks})
@@ -1143,17 +1138,16 @@ sub draw_x_ticks_h
             }
         }
 
-	# Skip unwanted axis tick labels.
-        next unless 
-	    ($i - $self->{x_tick_offset}) % $self->{x_label_skip} == 0 or
-	    $i == $self->{_data}->num_points - 1 && !$self->{x_last_label_skip};
+        # CONTRIB Damon Brodie for x_tick_offset
+        next if 
+            ($i - $self->{x_tick_offset}) % ($self->{x_label_skip}) and 
+            $i != $self->{_data}->num_points - 1;
 
         my $text = $self->{_data}->get_x($i);
         if (defined $text)
         {
             $self->{gdta_x_axis}->set_text($text);
 
-	# Draw the tick label
             my $angle = 0;
             if ($self->{x_labels_vertical})
             {
@@ -1185,11 +1179,11 @@ sub draw_x_ticks_v
 
         $y = $self->{bottom} unless $self->{zero_axis_only};
 
-	# Skip unwanted axis ticks
-        next unless 
-	    $self->{x_all_ticks} or 
-	    ($i - $self->{x_tick_offset}) % $self->{x_label_skip} == 0 or
-	    $i == $self->{_data}->num_points - 1 && !$self->{x_last_label_skip};
+        # CONTRIB  Damon Brodie for x_tick_offset
+        next if (!$self->{x_all_ticks} and 
+                ($i - $self->{x_tick_offset}) % $self->{x_label_skip} and 
+                $i != $self->{_data}->num_points - 1 
+            );
 
         if ($self->{x_ticks})
         {
@@ -1205,10 +1199,10 @@ sub draw_x_ticks_v
             }
         }
 
-	# Skip unwanted axis tick labels.
-        next unless 
-	    ($i - $self->{x_tick_offset}) % $self->{x_label_skip} == 0 or
-	    $i == $self->{_data}->num_points - 1 && !$self->{x_last_label_skip};
+        # CONTRIB Damon Brodie for x_tick_offset
+        next if 
+            ($i - $self->{x_tick_offset}) % ($self->{x_label_skip}) and 
+            $i != $self->{_data}->num_points - 1;
 
         my $text = $self->{_data}->get_x($i);
         if (defined $text)
@@ -1327,8 +1321,7 @@ sub draw_x_ticks_number
 
         # If we have to skip labels, we'll do it here.
         # Make sure to always draw the last one.
-        next if $i % $self->{x_label_skip} and
-		    $i != $self->{_data}->num_points - 1;
+        next if $i % $self->{x_label_skip} && $i != $self->{x_tick_number};
 
         $self->{gdta_x_axis}->set_text($self->{x_labels}[$i]);
 
@@ -1520,13 +1513,13 @@ sub set_max_min
 
     # First, calculate some decent values
     if ( $self->{two_axes} ) 
-    {
-        my $min_range_1 = defined($self->{y1_min_range})
-                ? $self->{y1_min_range}
-                : $self->{y_min_range};
-        my $min_range_2 = defined($self->{y2_min_range})
-                ? $self->{y2_min_range}
-                : $self->{y_min_range};
+    {   # XXX this is almost certainly a bug: this key is not set anywhere
+        my $min_range_1 = defined($self->{min_range_1})
+                ? $self->{min_range_1}
+                : $self->{min_range};
+        my $min_range_2 = defined($self->{min_range_2})
+                ? $self->{min_range_2}
+                : $self->{min_range};
 
         my(@y_min, @y_max);
         for my $nd (1 .. $self->{_data}->num_sets)
@@ -1584,10 +1577,11 @@ sub set_max_min
         {
             ($self->{true_x_min}, $self->{true_x_max}) = 
                 $self->{_data}->get_min_max_x;
+            ($self->{x_min}, $self->{x_max}, $self->{x_tick_number}) =
+                _best_ends($self->{true_x_min}, $self->{true_x_max},
+                        @$self{'x_tick_number','x_min_range'});
+ 
         }
-        ($self->{x_min}, $self->{x_max}, $self->{x_tick_number}) =
-            _best_ends($self->{true_x_min}, $self->{true_x_max},
-                    @$self{'x_tick_number','x_min_range'});
     }
 
     # Overwrite these with any user supplied ones
@@ -1606,10 +1600,7 @@ sub set_max_min
     $self->{x_min}    = $self->{x_min_value}  if defined $self->{x_min_value};
     $self->{x_max}    = $self->{x_max_value}  if defined $self->{x_max_value};
 
-    if (
-        $self->{two_axes} && !defined $self->{y1_min_value} && !defined $self->{y2_min_value}
-        && !defined $self->{y1_max_value} && !defined $self->{y2_max_value}
-    )
+    if ($self->{two_axes})
     {
         # If we have two axes, we need to make sure that the zero is at
         # the same spot.

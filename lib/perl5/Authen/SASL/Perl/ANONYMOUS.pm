@@ -2,12 +2,12 @@
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
 
-package Authen::SASL::Perl::ANONYMOUS;
+package Authen::SASL::Perl::ANONYMOUS 2.2000;
 
 use strict;
-use vars qw($VERSION @ISA);
+use warnings;
+use vars qw(@ISA);
 
-$VERSION = "2.14";
 @ISA	 = qw(Authen::SASL::Perl);
 
 my %secflags = (
@@ -37,6 +37,10 @@ __END__
 =head1 NAME
 
 Authen::SASL::Perl::ANONYMOUS - Anonymous Authentication class
+
+=head1 VERSION
+
+version 2.2000
 
 =head1 SYNOPSIS
 

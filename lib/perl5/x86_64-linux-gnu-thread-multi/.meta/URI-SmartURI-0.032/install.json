@@ -1,1 +1,1 @@
-{"dist":"URI-SmartURI-0.032","pathname":"R/RK/RKITOVER/URI-SmartURI-0.032.tar.gz","target":"URI::SmartURI","provides":{"URI::SmartURI":{"version":"0.032","file":"lib/URI/SmartURI.pm"}},"name":"URI::SmartURI","version":"0.032"}
+{"target":"URI::SmartURI","version":"0.032","pathname":"R/RK/RKITOVER/URI-SmartURI-0.032.tar.gz","name":"URI::SmartURI","dist":"URI-SmartURI-0.032","provides":{"URI::SmartURI":{"file":"lib/URI/SmartURI.pm","version":"0.032"}}}

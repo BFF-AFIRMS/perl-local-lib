@@ -1,0 +1,1 @@
+{"target":"MooseX::App::Cmd","version":"0.34","name":"MooseX::App::Cmd","provides":{"MooseX::App::Cmd::Command":{"file":"lib/MooseX/App/Cmd/Command.pm","version":"0.34"},"MooseX::App::Cmd":{"file":"lib/MooseX/App/Cmd.pm","version":"0.34"}},"dist":"MooseX-App-Cmd-0.34","pathname":"E/ET/ETHER/MooseX-App-Cmd-0.34.tar.gz"}

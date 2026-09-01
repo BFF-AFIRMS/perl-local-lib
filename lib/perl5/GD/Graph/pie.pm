@@ -244,7 +244,6 @@ sub draw_data
 
     for (my $i = 0; $i < @values; $i++)
     {
-        next unless $values[$i];
         # Set the data colour
         my $dc = $self->set_clr_uniq($self->pick_data_clr($i + 1));
 
@@ -356,7 +355,7 @@ sub _get_pie_front_coords # (angle 1, angle 2)
             # Ah, but if this wraps all the way around the back
             # then both pieces of the front need to be filled.
             # sbonds.
-            if ($pa >= $pb ) 
+            if ($pa > $pb ) 
             {
                 # This takes care of the left bit on the front
                 # Since we know exactly where we are, and in which
@@ -392,8 +391,9 @@ sub _get_pie_front_coords # (angle 1, angle 2)
         }
         elsif ( # both in back, but wrapping around the front
                 # CONTRIB kedlubnowski, Dan Rosendorf 
-            $pa >= $pb && ($pa < 0 || $pb > 0)
-            or $pa < 0 && $pb > 0
+            $pa > 90 && $pb > 90 && $pa >= $pb
+            or $pa < -90 && $pb < -90 && $pa >= $pb
+            or $pa < -90 && $pb > 90
         ) 
         {   
             $pa=$ANGLE_OFFSET - 180;

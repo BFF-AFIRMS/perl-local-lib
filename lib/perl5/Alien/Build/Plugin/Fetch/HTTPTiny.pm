@@ -2,13 +2,14 @@ package Alien::Build::Plugin::Fetch::HTTPTiny;
 
 use strict;
 use warnings;
+use 5.008004;
 use Alien::Build::Plugin;
 use File::Basename ();
 use Alien::Build::Util qw( _ssl_reqs );
 use Carp ();
 
 # ABSTRACT: Plugin for fetching files using HTTP::Tiny
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
 has '+url' => '';
@@ -23,8 +24,9 @@ sub init
 {
   my($self, $meta) = @_;
 
-  $meta->add_requires('share' => 'HTTP::Tiny' => '0.044' );
-  $meta->add_requires('share' => 'URI' => 0 );
+  $meta->add_requires('share' => 'HTTP::Tiny'  => '0.044' );
+  $meta->add_requires('share' => 'URI'         => '0'     );
+  $meta->add_requires('share' => 'Mozilla::CA' => '0'     );
 
   $meta->prop->{start_url} ||= $self->url;
   $self->url($meta->prop->{start_url});
@@ -40,11 +42,40 @@ sub init
   }
 
   $meta->register_hook( fetch => sub {
-    my($build, $url) = @_;
+    my($build, $url, %options) = @_;
     $url ||= $self->url;
 
-    my $ua = HTTP::Tiny->new;
-    my $res = $ua->get($url);
+    $url = URI->new($url) unless ref($url) && $url->isa('URI');
+
+    my %headers;
+    if(my $headers = $options{http_headers})
+    {
+      if(ref $headers eq 'ARRAY')
+      {
+        my @headers = @$headers;
+        while(@headers)
+        {
+          my $key = shift @headers;
+          my $value = shift @headers;
+          unless(defined $key && defined $value)
+          {
+            $build->log("Fetch for $url with http_headers contains undef key or value");
+            next;
+          }
+          push @{ $headers{$key} }, $value;
+        }
+      }
+      else
+      {
+        $build->log("Fetch for $url with http_headers that is not an array reference");
+      }
+    }
+
+    my $ua = HTTP::Tiny->new(
+      agent      => "Alien-Build/@{[ $Alien::Build::VERSION || 'dev' ]} ",
+      verify_SSL => $build->download_rule =~ /encrypt/ ? 1 : 0,
+    );
+    my $res = $ua->get($url, { headers => \%headers });
 
     unless($res->{success})
     {
@@ -75,7 +106,7 @@ sub init
       die "error fetching $url: $status $reason";
     }
 
-    my($type) = split ';', $res->{headers}->{'content-type'};
+    my($type) = split /;/, $res->{headers}->{'content-type'};
     $type = lc $type;
     my $base            = URI->new($res->{url});
     my $filename        = File::Basename::basename do { my $name = $base->path; $name =~ s{/$}{}; $name };
@@ -94,9 +125,10 @@ sub init
     if($type eq 'text/html')
     {
       return {
-        type    => 'html',
-        base    => $base->as_string,
-        content => $res->{content},
+        type     => 'html',
+        base     => $base->as_string,
+        content  => $res->{content},
+        protocol => $url->scheme,
       };
     }
     else
@@ -105,6 +137,7 @@ sub init
         type     => 'file',
         filename => $filename || 'downloadedfile',
         content  => $res->{content},
+        protocol => $url->scheme,
       };
     }
 
@@ -127,7 +160,7 @@ Alien::Build::Plugin::Fetch::HTTPTiny - Plugin for fetching files using HTTP::Ti
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 SYNOPSIS
 
@@ -172,7 +205,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -206,7 +239,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -222,9 +255,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

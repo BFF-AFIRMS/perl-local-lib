@@ -1,0 +1,98 @@
+{
+   "abstract" : "printf extensions",
+   "author" : [
+      "Mark Overmeer <markov@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "ExtUtils::MakeMaker version 7.76, CPAN::Meta::Converter version 2.150010",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "String-Print",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "develop" : {
+         "requires" : {
+            "OODoc" : "3.04"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Date::Parse" : "2.3",
+            "Encode" : "0",
+            "HTML::Entities" : "0",
+            "Test::More" : "0.86",
+            "Unicode::GCString" : "0"
+         },
+         "x_optional" : {
+            "DateTime" : 1
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Test::More" : "1",
+            "Test::Pod" : "1"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/markov2/perl5-String-Print/issues"
+      },
+      "homepage" : "http://perl.overmeer.net/CPAN/",
+      "repository" : {
+         "type" : "git",
+         "url" : "https://github.com/markov2/perl5-String-Print.git",
+         "web" : "https://github.com/markov2/perl5-String-Print"
+      }
+   },
+   "version" : "1.02",
+   "x_oodist" : {
+      "email" : "markov@cpan.org",
+      "first_year" : 2016,
+      "generate" : [
+         {
+            "format" : "pod3",
+            "podtail" : null
+         }
+      ],
+      "include" : [],
+      "oodoc_version" : 3.04,
+      "parser" : {
+         "pmhead" : null,
+         "skip_links" : [
+            "Locale::TextDomain"
+         ],
+         "syntax" : "markov"
+      },
+      "raw" : {
+         "publish" : "../public_html/string-print/raw"
+      },
+      "release" : {
+         "publish" : "../public_html/string-print/source"
+      },
+      "tests" : {},
+      "use" : []
+   },
+   "x_serialization_backend" : "JSON::PP version 4.16"
+}

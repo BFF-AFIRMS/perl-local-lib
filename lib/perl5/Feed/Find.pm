@@ -1,14 +1,16 @@
 package Feed::Find;
 use strict;
+use warnings;
 use 5.008_001;
 
 use base qw( Class::ErrorHandler );
 use LWP::UserAgent;
 use HTML::Parser;
 use URI;
+use Carp;
 
-use vars qw( $VERSION );
-$VERSION = '0.07';
+use vars qw( $VERSION $ua );
+$VERSION = '0.13';
 
 use constant FEED_MIME_TYPES => [
     'application/x.atom+xml',
@@ -19,13 +21,13 @@ use constant FEED_MIME_TYPES => [
     'application/rdf+xml',
 ];
 
-our $FEED_EXT = qr/\.(?:rss|xml|rdf)$/;
-our %IsFeed = map { $_ => 1 } @{ FEED_MIME_TYPES() };
+my $FEED_EXT = qr/\.(?:rss|xml|rdf|atom)$/;
+my %IsFeed = map { $_ => 1 } @{ FEED_MIME_TYPES() };
 
 sub find {
     my $class = shift;
     my($uri) = @_;
-    my $ua = LWP::UserAgent->new;
+    $ua = LWP::UserAgent->new unless defined $ua;
     $ua->env_proxy;
     $ua->agent(join '/', $class, $class->VERSION);
     $ua->parse_head(0);   ## We're already basically doing this ourselves.
@@ -38,12 +40,12 @@ sub find {
         my($chunk, $res, $proto) = @_;
         if ($IsFeed{$res->content_type}) {
             push @{ $p->{feeds} }, $uri;
-            die "Done parsing";
+            croak 'Done parsing';
         }
-        $p->parse($chunk) or die "Done parsing";
+        $p->parse($chunk) or croak 'Done parsing';
     });
     return $class->error($res->status_line) unless $res->is_success;
-    @{ $p->{feeds} };
+    return @{ $p->{feeds} };
 }
 
 sub find_in_html {
@@ -54,23 +56,30 @@ sub find_in_html {
     $p->{base_uri} = $base_uri;
     $p->{feeds} = [];
     $p->parse($$html);
-    @{ $p->{feeds} };
+    return @{ $p->{feeds} };
 }
 
 sub _find_links {
     my($p, $tag, $attr) = @_;
+
+    my %head_tag = map { $_ => 1 }
+      qw[ meta isindex title script style head html ];
+
     my $base_uri = $p->{base_uri};
     if ($tag eq 'link') {
         return unless $attr->{rel};
         my %rel = map { $_ => 1 } split /\s+/, lc($attr->{rel});
-        (my $type = lc $attr->{type}) =~ s/^\s*//;
-        $type =~ s/\s*$//;
+        my $type = '';
+        if ($attr->{type}) {
+            ($type = lc $attr->{type}) =~ s/^\s*//;
+            $type =~ s/\s*$//;
+        }
         push @{ $p->{feeds} }, URI->new_abs($attr->{href}, $base_uri)->as_string
                 if $IsFeed{$type} &&
                    ($rel{alternate} || $rel{'service.feed'});
     } elsif ($tag eq 'base') {
         $p->{base_uri} = $attr->{href} if $attr->{href};
-    } elsif ($tag =~ /^(?:meta|isindex|title|script|style|head|html)$/) {
+    } elsif ($head_tag{$tag}) {
         ## Ignore other valid tags inside of <head>.
     } elsif ($tag eq 'a') {
         my $href = $attr->{href} or return;
@@ -82,6 +91,8 @@ sub _find_links {
         ## so we stop parsing.
         $p->eof if @{ $p->{feeds} };
     }
+
+    return;
 }
 
 1;

@@ -1,5 +1,5 @@
 package Moose::Meta::TypeConstraint;
-our $VERSION = '2.2011';
+our $VERSION = '2.4000';
 
 use strict;
 use warnings;
@@ -12,7 +12,7 @@ use overload '0+'     => sub { refaddr(shift) }, # id an object
 
 use Eval::Closure;
 use Scalar::Util qw(refaddr);
-use Sub::Name qw(subname);
+use Sub::Util qw(set_subname);
 use Try::Tiny;
 
 use parent 'Class::MOP::Object';
@@ -320,14 +320,16 @@ sub _compile_subtype {
         # general case, check all the constraints, from the first parent to ourselves
         my @checks = @parents;
         push @checks, $check if $check != $null_constraint;
-        return subname($self->name => sub {
-            my (@args) = @_;
-            local $_ = $args[0];
-            foreach my $check (@checks) {
-                return undef unless $check->(@args);
+        return set_subname(
+            $self->name => sub {
+                my (@args) = @_;
+                local $_ = $args[0];
+                foreach my $check (@checks) {
+                    return undef unless $check->(@args);
+                }
+                return 1;
             }
-            return 1;
-        });
+        );
     }
 }
 
@@ -336,11 +338,13 @@ sub _compile_type {
 
     return $check if $check == $null_constraint; # Item, Any
 
-    return subname($self->name => sub {
-        my (@args) = @_;
-        local $_ = $args[0];
-        $check->(@args);
-    });
+    return set_subname(
+        $self->name => sub {
+            my (@args) = @_;
+            local $_ = $args[0];
+            $check->(@args);
+        }
+    );
 }
 
 ## other utils ...
@@ -378,7 +382,7 @@ Moose::Meta::TypeConstraint - The Moose Type Constraint metaclass
 
 =head1 VERSION
 
-version 2.2011
+version 2.4000
 
 =head1 DESCRIPTION
 
@@ -553,7 +557,7 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =item *
 
-Stevan Little <stevan.little@iinteractive.com>
+Stevan Little <stevan@cpan.org>
 
 =item *
 
@@ -561,11 +565,11 @@ Dave Rolsky <autarch@urth.org>
 
 =item *
 
-Jesse Luehrs <doy@tozt.net>
+Jesse Luehrs <doy@cpan.org>
 
 =item *
 
-Shawn M Moore <code@sartak.org>
+Shawn M Moore <sartak@cpan.org>
 
 =item *
 
@@ -581,7 +585,7 @@ Florian Ragwitz <rafl@debian.org>
 
 =item *
 
-Hans Dieter Pearcey <hdp@weftsoar.net>
+Hans Dieter Pearcey <hdp@cpan.org>
 
 =item *
 
@@ -589,7 +593,7 @@ Chris Prather <chris@prather.org>
 
 =item *
 
-Matt S Trout <mst@shadowcat.co.uk>
+Matt S Trout <mstrout@cpan.org>
 
 =back
 

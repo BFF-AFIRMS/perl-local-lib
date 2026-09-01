@@ -351,6 +351,12 @@ Latvian Latvia locale.
    1995-12-22T09:05:02 = Piektd.
   -0010-09-15T04:44:23 = Sestd.
 
+=head3 EBh (E h B)
+
+   2008-02-05T18:30:30 = otrd. 6 B
+   1995-12-22T09:05:02 = piektd. 9 B
+  -0010-09-15T04:44:23 = sestd. 4 B
+
 =head3 EBhm (E, h:mm B)
 
    2008-02-05T18:30:30 = otrd., 6:30 B
@@ -381,23 +387,41 @@ Latvian Latvia locale.
    1995-12-22T09:05:02 = piektd., 22.
   -0010-09-15T04:44:23 = sestd., 15.
 
-=head3 Ehm (E, h:mm a)
+=head3 Eh (E h a)
 
-   2008-02-05T18:30:30 = otrd., 6:30 pēcp.
-   1995-12-22T09:05:02 = piektd., 9:05 priekšp.
-  -0010-09-15T04:44:23 = sestd., 4:44 priekšp.
+   2008-02-05T18:30:30 = otrd. 6 pēcp.
+   1995-12-22T09:05:02 = piektd. 9 priekšp.
+  -0010-09-15T04:44:23 = sestd. 4 priekšp.
 
-=head3 Ehms (E, h:mm:ss a)
+=head3 Ehm (E, h:mm a)
 
-   2008-02-05T18:30:30 = otrd., 6:30:30 pēcp.
-   1995-12-22T09:05:02 = piektd., 9:05:02 priekšp.
-  -0010-09-15T04:44:23 = sestd., 4:44:23 priekšp.
+   2008-02-05T18:30:30 = otrd., 6:30 pēcp.
+   1995-12-22T09:05:02 = piektd., 9:05 priekšp.
+  -0010-09-15T04:44:23 = sestd., 4:44 priekšp.
+
+=head3 Ehms (E, h:mm:ss a)
+
+   2008-02-05T18:30:30 = otrd., 6:30:30 pēcp.
+   1995-12-22T09:05:02 = piektd., 9:05:02 priekšp.
+  -0010-09-15T04:44:23 = sestd., 4:44:23 priekšp.
 
 =head3 Gy (G y. 'g'.)
 
    2008-02-05T18:30:30 = m.ē. 2008. g.
    1995-12-22T09:05:02 = m.ē. 1995. g.
   -0010-09-15T04:44:23 = p.m.ē. -10. g.
+
+=head3 GyM (G y-MM)
+
+   2008-02-05T18:30:30 = m.ē. 2008-02
+   1995-12-22T09:05:02 = m.ē. 1995-12
+  -0010-09-15T04:44:23 = p.m.ē. -10-09
+
+=head3 GyMEd (G y-MM-dd, E)
+
+   2008-02-05T18:30:30 = m.ē. 2008-02-05, otrd.
+   1995-12-22T09:05:02 = m.ē. 1995-12-22, piektd.
+  -0010-09-15T04:44:23 = p.m.ē. -10-09-15, sestd.
 
 =head3 GyMMM (G y. 'g'. MMM)
 
@@ -416,6 +440,12 @@ Latvian Latvia locale.
    2008-02-05T18:30:30 = m.ē. 2008. g. 5. febr.
    1995-12-22T09:05:02 = m.ē. 1995. g. 22. dec.
   -0010-09-15T04:44:23 = p.m.ē. -10. g. 15. sept.
+
+=head3 GyMd (GGGGG dd-MM-y)
+
+   2008-02-05T18:30:30 = m.ē. 05-02-2008
+   1995-12-22T09:05:02 = m.ē. 22-12-1995
+  -0010-09-15T04:44:23 = p.m.ē. 15-09--10
 
 =head3 H (HH)
 
@@ -447,6 +477,12 @@ Latvian Latvia locale.
    1995-12-22T09:05:02 = 09:05 UTC
   -0010-09-15T04:44:23 = 04:44 UTC
 
+=head3 Hv (HH v)
+
+   2008-02-05T18:30:30 = 18 UTC
+   1995-12-22T09:05:02 = 09 UTC
+  -0010-09-15T04:44:23 = 04 UTC
+
 =head3 M (L)
 
    2008-02-05T18:30:30 = 2
@@ -477,23 +513,23 @@ Latvian Latvia locale.
    1995-12-22T09:05:02 = piektd., 22. decembris
   -0010-09-15T04:44:23 = sestd., 15. septembris
 
-=head3 MMMMW-count-one (MMMM W. 'nedēļa')
+=head3 MMMMW-count-one (MMMM, W. 'nedēļa')
 
-   2008-02-05T18:30:30 = februāris 1. nedēļa
-   1995-12-22T09:05:02 = decembris 3. nedēļa
-  -0010-09-15T04:44:23 = septembris 2. nedēļa
+   2008-02-05T18:30:30 = februāris, 1. nedēļa
+   1995-12-22T09:05:02 = decembris, 3. nedēļa
+  -0010-09-15T04:44:23 = septembris, 2. nedēļa
 
-=head3 MMMMW-count-other (MMMM W. 'nedēļa')
+=head3 MMMMW-count-other (MMMM, W. 'nedēļa')
 
-   2008-02-05T18:30:30 = februāris 1. nedēļa
-   1995-12-22T09:05:02 = decembris 3. nedēļa
-  -0010-09-15T04:44:23 = septembris 2. nedēļa
+   2008-02-05T18:30:30 = februāris, 1. nedēļa
+   1995-12-22T09:05:02 = decembris, 3. nedēļa
+  -0010-09-15T04:44:23 = septembris, 2. nedēļa
 
-=head3 MMMMW-count-zero (MMMM W. 'nedēļa')
+=head3 MMMMW-count-zero (MMMM, W. 'nedēļa')
 
-   2008-02-05T18:30:30 = februāris 1. nedēļa
-   1995-12-22T09:05:02 = decembris 3. nedēļa
-  -0010-09-15T04:44:23 = septembris 2. nedēļa
+   2008-02-05T18:30:30 = februāris, 1. nedēļa
+   1995-12-22T09:05:02 = decembris, 3. nedēļa
+  -0010-09-15T04:44:23 = septembris, 2. nedēļa
 
 =head3 MMMMd (d. MMMM)
 
@@ -519,35 +555,41 @@ Latvian Latvia locale.
    1995-12-22T09:05:02 = 22
   -0010-09-15T04:44:23 = 15
 
-=head3 h (h a)
+=head3 h (h a)
 
-   2008-02-05T18:30:30 = 6 pēcp.
-   1995-12-22T09:05:02 = 9 priekšp.
-  -0010-09-15T04:44:23 = 4 priekšp.
+   2008-02-05T18:30:30 = 6 pēcp.
+   1995-12-22T09:05:02 = 9 priekšp.
+  -0010-09-15T04:44:23 = 4 priekšp.
 
-=head3 hm (h:mm a)
+=head3 hm (h:mm a)
 
-   2008-02-05T18:30:30 = 6:30 pēcp.
-   1995-12-22T09:05:02 = 9:05 priekšp.
-  -0010-09-15T04:44:23 = 4:44 priekšp.
+   2008-02-05T18:30:30 = 6:30 pēcp.
+   1995-12-22T09:05:02 = 9:05 priekšp.
+  -0010-09-15T04:44:23 = 4:44 priekšp.
 
-=head3 hms (h:mm:ss a)
+=head3 hms (h:mm:ss a)
 
-   2008-02-05T18:30:30 = 6:30:30 pēcp.
-   1995-12-22T09:05:02 = 9:05:02 priekšp.
-  -0010-09-15T04:44:23 = 4:44:23 priekšp.
+   2008-02-05T18:30:30 = 6:30:30 pēcp.
+   1995-12-22T09:05:02 = 9:05:02 priekšp.
+  -0010-09-15T04:44:23 = 4:44:23 priekšp.
 
-=head3 hmsv (h:mm:ss a v)
+=head3 hmsv (h:mm:ss a v)
 
-   2008-02-05T18:30:30 = 6:30:30 pēcp. UTC
-   1995-12-22T09:05:02 = 9:05:02 priekšp. UTC
-  -0010-09-15T04:44:23 = 4:44:23 priekšp. UTC
+   2008-02-05T18:30:30 = 6:30:30 pēcp. UTC
+   1995-12-22T09:05:02 = 9:05:02 priekšp. UTC
+  -0010-09-15T04:44:23 = 4:44:23 priekšp. UTC
 
-=head3 hmv (h:mm a v)
+=head3 hmv (h:mm a v)
 
-   2008-02-05T18:30:30 = 6:30 pēcp. UTC
-   1995-12-22T09:05:02 = 9:05 priekšp. UTC
-  -0010-09-15T04:44:23 = 4:44 priekšp. UTC
+   2008-02-05T18:30:30 = 6:30 pēcp. UTC
+   1995-12-22T09:05:02 = 9:05 priekšp. UTC
+  -0010-09-15T04:44:23 = 4:44 priekšp. UTC
+
+=head3 hv (h a v)
+
+   2008-02-05T18:30:30 = 6 pēcp. UTC
+   1995-12-22T09:05:02 = 9 priekšp. UTC
+  -0010-09-15T04:44:23 = 4 priekšp. UTC
 
 =head3 mmss (mm:ss)
 
@@ -573,11 +615,11 @@ Latvian Latvia locale.
    1995-12-22T09:05:02 = 12.1995.
   -0010-09-15T04:44:23 = 09.-10.
 
-=head3 yMEd (E, d.M.y.)
+=head3 yMEd (E, d.MM.y.)
 
-   2008-02-05T18:30:30 = otrd., 5.2.2008.
+   2008-02-05T18:30:30 = otrd., 5.02.2008.
    1995-12-22T09:05:02 = piektd., 22.12.1995.
-  -0010-09-15T04:44:23 = sestd., 15.9.-10.
+  -0010-09-15T04:44:23 = sestd., 15.09.-10.
 
 =head3 yMMM (y. 'g'. MMM)
 
@@ -603,11 +645,11 @@ Latvian Latvia locale.
    1995-12-22T09:05:02 = 1995. g. 22. dec.
   -0010-09-15T04:44:23 = -10. g. 15. sept.
 
-=head3 yMd (y.MM.d.)
+=head3 yMd (d.MM.y.)
 
-   2008-02-05T18:30:30 = 2008.02.5.
-   1995-12-22T09:05:02 = 1995.12.22.
-  -0010-09-15T04:44:23 = -10.09.15.
+   2008-02-05T18:30:30 = 5.02.2008.
+   1995-12-22T09:05:02 = 22.12.1995.
+  -0010-09-15T04:44:23 = 15.09.-10.
 
 =head3 yQQQ (y. 'g'. QQQ)
 
@@ -649,6 +691,26 @@ Yes
 =head3 Local first day of the week
 
 1 (Pirmdiena)
+
+=head2 Strftime Patterns
+
+=head3 %c (%A, %Y. gada %e. %B, %H:%M:%S) - date time format
+
+   2008-02-05T18:30:30 = otrdiena, 2008. gada  5. februāris, 18:30:30
+   1995-12-22T09:05:02 = piektdiena, 1995. gada 22. decembris, 09:05:02
+  -0010-09-15T04:44:23 = sestdiena, -10. gada 15. septembris, 04:44:23
+
+=head3 %x (%Y.%m.%d.) - date format
+
+   2008-02-05T18:30:30 = 2008.02.05.
+   1995-12-22T09:05:02 = 1995.12.22.
+  -0010-09-15T04:44:23 = -10.09.15.
+
+=head3 %X (%T) - time format
+
+   2008-02-05T18:30:30 = 18:30:30
+   1995-12-22T09:05:02 = 09:05:02
+  -0010-09-15T04:44:23 = 04:44:23
 
 =head1 SUPPORT
 

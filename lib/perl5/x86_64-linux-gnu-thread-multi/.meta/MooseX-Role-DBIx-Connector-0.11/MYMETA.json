@@ -1,0 +1,48 @@
+{
+   "abstract" : "Generic Moose parameterized role to give your class DBIx::Connector powers",
+   "author" : [
+      "Robert Buels, <rmb32@cornell.edu>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Module::Build version 0.4234",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "MooseX-Role-DBIx-Connector",
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "Moose" : 0,
+            "Test::Exception" : "0.27"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "DBIx::Connector" : 0,
+            "MooseX::Role::Parameterized" : 0,
+            "perl" : "v5.8.0"
+         }
+      }
+   },
+   "provides" : {
+      "MooseX::Role::DBIx::Connector" : {
+         "file" : "lib/MooseX/Role/DBIx/Connector.pm",
+         "version" : "0.11"
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "license" : [
+         "http://dev.perl.org/licenses/"
+      ],
+      "repository" : {
+         "url" : "http://github.com/rbuels/MooseX-Role-DBIx-Connector"
+      }
+   },
+   "version" : "0.11",
+   "x_serialization_backend" : "JSON::PP version 4.16"
+}

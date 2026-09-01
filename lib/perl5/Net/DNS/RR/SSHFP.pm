@@ -1,14 +1,11 @@
 package Net::DNS::RR::SSHFP;
 
-#
-# $Id: SSHFP.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: SSHFP.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,27 +13,26 @@ Net::DNS::RR::SSHFP - DNS SSHFP resource record
 
 =cut
 
-
 use integer;
 
 use Carp;
 
-use constant BABBLE => defined eval 'require Digest::BubbleBabble';
+use constant BABBLE => defined eval { require Digest::BubbleBabble };
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	my $size = $self->{rdlength} - 2;
 	@{$self}{qw(algorithm fptype fpbin)} = unpack "\@$offset C2 a$size", $$data;
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
-	pack 'C2 a*', @{$self}{qw(algorithm fptype fpbin)};
+	return pack 'C2 a*', @{$self}{qw(algorithm fptype fpbin)};
 }
 
 
@@ -45,47 +41,46 @@ sub _format_rdata {			## format rdata portion of RR string.
 
 	$self->_annotation( $self->babble ) if BABBLE;
 	my @fprint = split /(\S{64})/, $self->fp;
-	my @rdata = ( $self->algorithm, $self->fptype, @fprint );
+	my @rdata  = ( $self->algorithm, $self->fptype, @fprint );
+	return @rdata;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->algorithm(shift);
-	$self->fptype(shift);
-	$self->fp(@_);
+	for (qw(algorithm fptype)) { $self->$_( shift @argument ) }
+	$self->fp(@argument);
+	return;
 }
 
 
 sub algorithm {
-	my $self = shift;
-
-	$self->{algorithm} = 0 + shift if scalar @_;
-	$self->{algorithm} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{algorithm} = 0 + $_ }
+	return $self->{algorithm} || 0;
 }
 
 
 sub fptype {
-	my $self = shift;
-
-	$self->{fptype} = 0 + shift if scalar @_;
-	$self->{fptype} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{fptype} = 0 + $_ }
+	return $self->{fptype} || 0;
 }
 
 
 sub fp {
-	my $self = shift;
-	return unpack "H*", $self->fpbin() unless scalar @_;
-	$self->fpbin( pack "H*", map /[^\dA-F]/i ? croak "corrupt hex" : $_, join "", @_ );
+	my ( $self, @value ) = @_;
+	return unpack "H*", $self->fpbin() unless scalar @value;
+	my @hex = map { /^"*([\dA-Fa-f]*)"*$/ || croak("corrupt hex"); $1 } @value;
+	return $self->fpbin( pack "H*", join "", @hex );
 }
 
 
 sub fpbin {
-	my $self = shift;
-
-	$self->{fpbin} = shift if scalar @_;
-	$self->{fpbin} || "";
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{fpbin} = $_ }
+	return $self->{fpbin} || "";
 }
 
 
@@ -94,7 +89,7 @@ sub babble {
 }
 
 
-sub fingerprint { &fp; }		## historical
+sub fingerprint { return &fp; }		## historical
 
 
 1;
@@ -103,8 +98,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name SSHFP algorithm fptype fp');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name SSHFP algorithm fptype fp');
 
 =head1 DESCRIPTION
 
@@ -122,16 +117,16 @@ other unpredictable behaviour.
 
 =head2 algorithm
 
-    $algorithm = $rr->algorithm;
-    $rr->algorithm( $algorithm );
+	$algorithm = $rr->algorithm;
+	$rr->algorithm( $algorithm );
 
 The 8-bit algorithm number describes the algorithm used to
 construct the public key.
 
 =head2 fptype
 
-    $fptype = $rr->fptype;
-    $rr->fptype( $fptype );
+	$fptype = $rr->fptype;
+	$rr->fptype( $fptype );
 
 The 8-bit fingerprint type number describes the message-digest
 algorithm used to calculate the fingerprint of the public key.
@@ -140,21 +135,21 @@ algorithm used to calculate the fingerprint of the public key.
 
 =head2 fp
 
-    $fp = $rr->fp;
-    $rr->fp( $fp );
+	$fp = $rr->fp;
+	$rr->fp( $fp );
 
 Hexadecimal representation of the fingerprint digest.
 
 =head2 fpbin
 
-    $fpbin = $rr->fpbin;
-    $rr->fpbin( $fpbin );
+	$fpbin = $rr->fpbin;
+	$rr->fpbin( $fpbin );
 
 Returns opaque octet string representing the fingerprint digest.
 
 =head2 babble
 
-    print $rr->babble;
+	print $rr->babble;
 
 The babble() method returns the 'BabbleBubble' representation of
 the fingerprint if the Digest::BubbleBabble package is available,
@@ -186,7 +181,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -203,6 +198,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC4255
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC4255|https://iana.org/go/rfc4255>
 
 =cut

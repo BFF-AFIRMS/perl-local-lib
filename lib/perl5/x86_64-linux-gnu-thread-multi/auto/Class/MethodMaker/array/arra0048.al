@@ -3,7 +3,7 @@
 # See AutoSplit.pm.
 package Class::MethodMaker::array;
 
-#line 38820 "blib/lib/Class/MethodMaker/array.pm (autosplit into blib/lib/auto/Class/MethodMaker/array/arra0048.al)"
+#line 1920 "blib/lib/Class/MethodMaker/array.pm (autosplit into blib/lib/auto/Class/MethodMaker/array/arra0048.al)"
 #------------------
 # array default_ctor - read_cb
 

@@ -9,325 +9,337 @@
 package XML::Parser;
 
 use strict;
+use warnings;
 
-use vars qw($VERSION $LWP_load_failed);
+our ( $VERSION, $LWP_load_failed );
 
 use Carp;
 
 BEGIN {
-  require XML::Parser::Expat;
-  $VERSION = '2.44';
-  die "Parser.pm and Expat.pm versions don't match"
-    unless $VERSION eq $XML::Parser::Expat::VERSION;
+    require XML::Parser::Expat;
+    $VERSION = '2.59';
+    die "Parser.pm and Expat.pm versions don't match"
+      unless $VERSION eq $XML::Parser::Expat::VERSION;
 }
 
 $LWP_load_failed = 0;
 
 sub new {
-  my ($class, %args) = @_;
-  my $style = $args{Style};
-  
-  my $nonexopt = $args{Non_Expat_Options} ||= {};
-  
-  $nonexopt->{Style}             = 1;
-  $nonexopt->{Non_Expat_Options} = 1;
-  $nonexopt->{Handlers}          = 1;
-  $nonexopt->{_HNDL_TYPES}       = 1;
-  $nonexopt->{NoLWP}             = 1;
-  
-  $args{_HNDL_TYPES} = {%XML::Parser::Expat::Handler_Setters};
-  $args{_HNDL_TYPES}->{Init} = 1;
-  $args{_HNDL_TYPES}->{Final} = 1;
-  
-  $args{Handlers} ||= {};
-  my $handlers = $args{Handlers};
-  
-  if (defined($style)) {
-    my $stylepkg = $style;
-    
-    if ($stylepkg !~ /::/) {
-      $stylepkg = "\u$style";
-      
-      eval {
-          my $fullpkg = 'XML::Parser::Style::' . $stylepkg;
-          my $stylefile = $fullpkg;
-          $stylefile =~ s/::/\//g;
-          require "$stylefile.pm";
-          $stylepkg = $fullpkg;
-      };
-      if ($@) {
-          # fallback to old behaviour
-          $stylepkg = 'XML::Parser::' . $stylepkg;
-      }
-    }
-    
-    my $htype;
-    foreach $htype (keys %{$args{_HNDL_TYPES}}) {
-      # Handlers explicitly given override
-      # handlers from the Style package
-      unless (defined($handlers->{$htype})) {
-        
-        # A handler in the style package must either have
-        # exactly the right case as the type name or a
-        # completely lower case version of it.
-        
-        my $hname = "${stylepkg}::$htype";
-        if (defined(&$hname)) {
-          $handlers->{$htype} = \&$hname;
-          next;
+    my ( $class, %args ) = @_;
+    my $style = $args{Style};
+
+    my $nonexopt = $args{Non_Expat_Options} ||= {};
+
+    $nonexopt->{Style}             = 1;
+    $nonexopt->{Non_Expat_Options} = 1;
+    $nonexopt->{Handlers}          = 1;
+    $nonexopt->{_HNDL_TYPES}       = 1;
+    $nonexopt->{NoLWP}             = 1;
+
+    $args{_HNDL_TYPES}          = {%XML::Parser::Expat::Handler_Setters};
+    $args{_HNDL_TYPES}->{Init}  = 1;
+    $args{_HNDL_TYPES}->{Final} = 1;
+
+    $args{Handlers} ||= {};
+    my $handlers = $args{Handlers};
+
+    if ( defined($style) ) {
+        my $stylepkg = $style;
+
+        if ( $stylepkg !~ /::/ ) {
+            $stylepkg = "\u$style";
+
+            eval {
+                my $fullpkg   = "XML::Parser::Style::$stylepkg";
+                my $stylefile = $fullpkg;
+                $stylefile =~ s/::/\//g;
+                require "$stylefile.pm";
+                $stylepkg = $fullpkg;
+            };
+            if ($@) {
+
+                # fallback to old behaviour
+                $stylepkg = "XML::Parser::$stylepkg";
+            }
         }
-        
-        $hname = "${stylepkg}::\L$htype";
-        if (defined(&$hname)) {
-          $handlers->{$htype} = \&$hname;
-          next;
+
+        foreach my $htype ( keys %{ $args{_HNDL_TYPES} } ) {
+
+            # Handlers explicitly given override
+            # handlers from the Style package
+            unless ( defined( $handlers->{$htype} ) ) {
+
+                # A handler in the style package must either have
+                # exactly the right case as the type name or a
+                # completely lower case version of it.
+
+                my $hname = "${stylepkg}::$htype";
+                if ( defined(&$hname) ) {
+                    $handlers->{$htype} = \&$hname;
+                    next;
+                }
+
+                $hname = "${stylepkg}::\L$htype";
+                if ( defined(&$hname) ) {
+                    $handlers->{$htype} = \&$hname;
+                    next;
+                }
+            }
         }
-      }
     }
-  }
-  
-  unless (defined($handlers->{ExternEnt})
-          or defined ($handlers->{ExternEntFin})) {
-    
-    if ($args{NoLWP} or $LWP_load_failed) {
-      $handlers->{ExternEnt} = \&file_ext_ent_handler;
-      $handlers->{ExternEntFin} = \&file_ext_ent_cleanup;
+
+    unless ( defined( $handlers->{ExternEnt} )
+        or defined( $handlers->{ExternEntFin} ) ) {
+
+        if ( $args{NoLWP} or $LWP_load_failed ) {
+            $handlers->{ExternEnt}    = \&file_ext_ent_handler;
+            $handlers->{ExternEntFin} = \&file_ext_ent_cleanup;
+        }
+        else {
+            # The following just bootstraps the real LWP external entity
+            # handler
+
+            $handlers->{ExternEnt} = \&initial_ext_ent_handler;
+
+            # No cleanup function available until LWPExternEnt.pl loaded
+        }
     }
-    else {
-      # The following just bootstraps the real LWP external entity
-      # handler
 
-      $handlers->{ExternEnt} = \&initial_ext_ent_handler;
-
-      # No cleanup function available until LWPExternEnt.pl loaded
-    }
-  }
-
-  $args{Pkg} ||= caller;
-  bless \%args, $class;
-}                                # End of new
+    $args{Pkg} ||= caller;
+    bless \%args, $class;
+}    # End of new
 
 sub setHandlers {
-  my ($self, @handler_pairs) = @_;
-  
-  croak("Uneven number of arguments to setHandlers method")
-    if (int(@handler_pairs) & 1);
-  
-  my @ret;
-  while (@handler_pairs) {
-    my $type = shift @handler_pairs;
-    my $handler = shift @handler_pairs;
-    unless (defined($self->{_HNDL_TYPES}->{$type})) {
-      my @types = sort keys %{$self->{_HNDL_TYPES}};
-      
-      croak("Unknown Parser handler type: $type\n Valid types: @types");
-    }
-    push(@ret, $type, $self->{Handlers}->{$type});
-    $self->{Handlers}->{$type} = $handler;
-  }
+    my ( $self, @handler_pairs ) = @_;
 
-  return @ret;
+    croak('Uneven number of arguments to setHandlers method')
+      if ( int(@handler_pairs) & 1 );
+
+    my @ret;
+    while (@handler_pairs) {
+        my $type    = shift @handler_pairs;
+        my $handler = shift @handler_pairs;
+        unless ( defined( $self->{_HNDL_TYPES}->{$type} ) ) {
+            my @types = sort keys %{ $self->{_HNDL_TYPES} };
+
+            croak("Unknown Parser handler type: $type\n Valid types: @types");
+        }
+        push( @ret, $type, $self->{Handlers}->{$type} );
+        $self->{Handlers}->{$type} = $handler;
+    }
+
+    return @ret;
 }
 
 sub parse_start {
-  my $self = shift;
-  my @expat_options = ();
+    my $self          = shift;
+    my @expat_options = ();
 
-  my ($key, $val);
-  while (($key, $val) = each %{$self}) {
-    push (@expat_options, $key, $val)
-      unless exists $self->{Non_Expat_Options}->{$key};
-  }
+    for my $key ( keys %{$self} ) {
+        push( @expat_options, $key, $self->{$key} )
+          unless exists $self->{Non_Expat_Options}->{$key};
+    }
 
-  my %handlers = %{$self->{Handlers}};
-  my $init = delete $handlers{Init};
-  my $final = delete $handlers{Final};
+    my %handlers = %{ $self->{Handlers} };
+    my $init     = delete $handlers{Init};
+    my $final    = delete $handlers{Final};
 
-  my $expatnb = XML::Parser::ExpatNB->new(@expat_options, @_);
-  $expatnb->setHandlers(%handlers);
+    my $expatnb = XML::Parser::ExpatNB->new( @expat_options, @_ );
+    $expatnb->setHandlers(%handlers);
 
-  &$init($expatnb)
-    if defined($init);
+    if (defined($init)) {
+        eval { &$init($expatnb) };
+        if ($@) {
+            $expatnb->release;
+            die $@;
+        }
+    }
 
-  $expatnb->{_State_} = 1;
+    $expatnb->{_State_} = 1;
 
-  $expatnb->{FinalHandler} = $final
-    if defined($final);
+    $expatnb->{FinalHandler} = $final
+      if defined($final);
 
-  return $expatnb;
+    return $expatnb;
 }
 
 sub parse {
-  my $self = shift;
-  my $arg  = shift;
-  my @expat_options = ();
-  my ($key, $val);
-  while (($key, $val) = each %{$self}) {
-    push(@expat_options, $key, $val)
-      unless exists $self->{Non_Expat_Options}->{$key};
-  }
-  
-  my $expat = XML::Parser::Expat->new(@expat_options, @_);
-  my %handlers = %{$self->{Handlers}};
-  my $init = delete $handlers{Init};
-  my $final = delete $handlers{Final};
-  
-  $expat->setHandlers(%handlers);
-  
-  if ($self->{Base}) {
-    $expat->base($self->{Base});
-  }
+    my $self          = shift;
+    my $arg           = shift;
+    my @expat_options = ();
+    for my $key ( keys %{$self} ) {
+        push( @expat_options, $key, $self->{$key} )
+          unless exists $self->{Non_Expat_Options}->{$key};
+    }
 
-  &$init($expat)
-    if defined($init);
-  
-  my @result = ();
-  my $result;
-  eval {
-    $result = $expat->parse($arg);
-  };
-  my $err = $@;
-  if ($err) {
+    my $expat    = XML::Parser::Expat->new( @expat_options, @_ );
+    my %handlers = %{ $self->{Handlers} };
+    my $init     = delete $handlers{Init};
+    my $final    = delete $handlers{Final};
+
+    $expat->setHandlers(%handlers);
+
+    if ( $self->{Base} ) {
+        $expat->base( $self->{Base} );
+    }
+
+    if (defined($init)) {
+        eval { &$init($expat) };
+        if ($@) {
+            $expat->release;
+            die $@;
+        }
+    }
+
+    my @result = ();
+    my $result;
+    eval { $result = $expat->parse($arg); };
+    my $err = $@;
+    if ($err) {
+        $expat->release;
+        die $err;
+    }
+
+    if ( $result and defined($final) ) {
+        my $want = wantarray;
+        eval {
+            if ($want) {
+                @result = &$final($expat);
+            }
+            else {
+                $result = &$final($expat);
+            }
+        };
+        $err = $@;
+    }
+
     $expat->release;
-    die $err;
-  }
-  
-  if ($result and defined($final)) {
-    if (wantarray) {
-      @result = &$final($expat);
-    }
-    else {
-      $result = &$final($expat);
-    }
-  }
-  
-  $expat->release;
 
-  return unless defined wantarray;
-  return wantarray ? @result : $result;
+    die $err if $err;
+
+    return unless defined wantarray;
+    return wantarray ? @result : $result;
 }
 
 sub parsestring {
-  my $self = shift;
-  $self->parse(@_);
+    my $self = shift;
+    $self->parse(@_);
 }
 
 sub parsefile {
-  my $self = shift;
-  my $file = shift;
-  local(*FILE);
-  open(FILE, $file) or  croak "Couldn't open $file:\n$!";
-  binmode(FILE);
-  my @ret;
-  my $ret;
+    my $self = shift;
+    my $file = shift;
 
-  $self->{Base} = $file;
+    open( my $fh, '<', $file ) or croak "Couldn't open $file:\n$!";
+    binmode($fh);
+    my @ret;
+    my $ret;
 
-  if (wantarray) {
-    eval {
-      @ret = $self->parse(*FILE, @_);
-    };
-  }
-  else {
-    eval {
-      $ret = $self->parse(*FILE, @_);
-    };
-  }
-  my $err = $@;
-  close(FILE);
-  die $err if $err;
-  
-  return unless defined wantarray;
-  return wantarray ? @ret : $ret;
+    my $old_base = $self->{Base};
+    $self->{Base} = $file;
+
+    if (wantarray) {
+        eval { @ret = $self->parse( $fh, @_ ); };
+    }
+    else {
+        eval { $ret = $self->parse( $fh, @_ ); };
+    }
+    my $err = $@;
+    $self->{Base} = $old_base;
+    close($fh);
+    die $err if $err;
+
+    return unless defined wantarray;
+    return wantarray ? @ret : $ret;
 }
 
 sub initial_ext_ent_handler {
-  # This just bootstraps in the real lwp_ext_ent_handler which
-  # also loads the URI and LWP modules.
 
-  unless ($LWP_load_failed) {
-    local($^W) = 0;
+    # This just bootstraps in the real lwp_ext_ent_handler which
+    # also loads the URI and LWP modules.
 
-    my $stat =
-      eval {
-        require('XML/Parser/LWPExternEnt.pl');
-      };
-      
-    if ($stat) {
-      $_[0]->setHandlers(ExternEnt    => \&lwp_ext_ent_handler,
-                         ExternEntFin => \&lwp_ext_ent_cleanup);
-                       
-      goto &lwp_ext_ent_handler;
+    unless ($LWP_load_failed) {
+        my $stat = do {
+            no warnings;
+            eval { require('XML/Parser/LWPExternEnt.pl'); };
+        };
+
+        if ($stat) {
+            $_[0]->setHandlers(
+                ExternEnt    => \&lwp_ext_ent_handler,
+                ExternEntFin => \&lwp_ext_ent_cleanup
+            );
+
+            goto &lwp_ext_ent_handler;
+        }
+
+        # Failed to load lwp handler, act as if NoLWP
+
+        $LWP_load_failed = 1;
+
+        my $cmsg = "Couldn't load LWP based external entity handler\n" . "Switching to file-based external entity handler\n" . " (To avoid this message, use NoLWP option to XML::Parser)\n";
+        warn($cmsg);
     }
 
-    # Failed to load lwp handler, act as if NoLWP
-
-    $LWP_load_failed = 1;
-
-    my $cmsg = "Couldn't load LWP based external entity handler\n";
-    $cmsg .= "Switching to file-based external entity handler\n";
-    $cmsg .= " (To avoid this message, use NoLWP option to XML::Parser)\n";
-    warn($cmsg);
-  }
-
-  $_[0]->setHandlers(ExternEnt    => \&file_ext_ent_handler,
-                     ExternEntFin => \&file_ext_ent_cleanup);
-  goto &file_ext_ent_handler;
+    $_[0]->setHandlers(
+        ExternEnt    => \&file_ext_ent_handler,
+        ExternEntFin => \&file_ext_ent_cleanup
+    );
+    goto &file_ext_ent_handler;
 
 }
 
 sub file_ext_ent_handler {
-  my ($xp, $base, $path) = @_;
+    my ( $xp, $base, $path ) = @_;
 
-  # Prepend base only for relative paths
+    # Prepend base only for relative paths
 
-  if (defined($base)
-      and not ($path =~ m!^(?:[\\/]|\w+:)!))
-    {
-      my $newpath = $base;
-      $newpath =~ s![^\\/:]*$!$path!;
-      $path = $newpath;
+    if ( defined($base)
+        and not( $path =~ m!^(?:[\\/]|\w+:)! ) ) {
+        my $newpath = $base;
+        $newpath =~ s![^\\/:]*$!$path!;
+        $path = $newpath;
     }
 
-  if ($path =~ /^\s*[|>+]/
-      or $path =~ /\|\s*$/) {
-    $xp->{ErrorMessage}
-        .= "System ID ($path) contains Perl IO control characters";
-    return undef;
-  }
+    if (   $path =~ /^\s*[|>+]/
+        or $path =~ /\|\s*$/ ) {
+        $xp->{ErrorMessage} .= "System ID ($path) contains Perl IO control characters";
+        return undef;
+    }
 
-  require IO::File;
-  my $fh = IO::File->new($path);
-  unless (defined $fh) {
-    $xp->{ErrorMessage}
-      .= "Failed to open $path:\n$!";
-    return undef;
-  }
+    require IO::File;
+    my $fh = IO::File->new($path, '<');
+    unless ( defined $fh ) {
+        $xp->{ErrorMessage} .= "Failed to open $path:\n$!";
+        return undef;
+    }
 
-  $xp->{_BaseStack} ||= [];
-  $xp->{_FhStack} ||= [];
+    $xp->{_BaseStack} ||= [];
+    $xp->{_FhStack}   ||= [];
 
-  push(@{$xp->{_BaseStack}}, $base);
-  push(@{$xp->{_FhStack}}, $fh);
+    push( @{ $xp->{_BaseStack} }, $base );
+    push( @{ $xp->{_FhStack} },   $fh );
 
-  $xp->base($path);
-  
-  return $fh;
+    $xp->base($path);
+
+    return $fh;
 }
 
 sub file_ext_ent_cleanup {
-  my ($xp) = @_;
+    my ($xp) = @_;
 
-  my $fh = pop(@{$xp->{_FhStack}});
-  $fh->close;
+    my $fh = pop( @{ $xp->{_FhStack} } );
+    $fh->close;
 
-  my $base = pop(@{$xp->{_BaseStack}});
-  $xp->base($base);
+    my $base = pop( @{ $xp->{_BaseStack} } );
+    $xp->base($base);
 }
 
 1;
 
 __END__
+
+=for markdown [![Build Status](https://github.com/cpan-authors/XML-Parser/actions/workflows/testsuite.yml/badge.svg)](https://github.com/cpan-authors/XML-Parser/actions/workflows/testsuite.yml) [![Coverage](https://codecov.io/gh/cpan-authors/XML-Parser/graph/badge.svg)](https://codecov.io/gh/cpan-authors/XML-Parser)
 
 =head1 NAME
 
@@ -353,9 +365,9 @@ XML::Parser - A perl module for parsing XML documents
   $p3->setHandlers(Char    => \&text,
                    Default => \&other);
 
-  open(FOO, 'xmlgenerator |');
-  $p3->parse(*FOO, ProtocolEncoding => 'ISO-8859-1');
-  close(FOO);
+  open(my $fh, 'xmlgenerator |');
+  $p3->parse($fh, ProtocolEncoding => 'ISO-8859-1');
+  close($fh);
 
   $p3->parsefile('junk.xml', ErrorContext => 3);
 
@@ -465,13 +477,64 @@ This is an Expat option. Unless standalone is set to "yes" in the XML
 declaration, setting this to a true value allows the external DTD to be read,
 and parameter entities to be parsed and expanded.
 
+B<Implicit vs explicit parameter entity parsing:> When C<ParseParamEnt> is
+not set, parameter entity references (e.g. C<%foo;>) in the internal DTD
+subset are passed through to the B<Default> handler as literal text. This is
+the mode that XML::Twig and other DTD round-tripping tools rely on.
+
+When C<ParseParamEnt> is set to a true value, or when a declaration handler
+(B<Entity>, B<Element>, or B<Attlist>) is registered, parameter entity parsing
+is activated. In this mode, PE references are resolved by expat (via the
+B<ExternEnt> handler) and subsequent declarations are routed to their
+dedicated declaration handlers instead of the Default handler.
+
 =item * NoLWP
 
 This option has no effect if the ExternEnt or ExternEntFin handlers are
 directly set. Otherwise, if true, it forces the use of a file based external
 entity handler.
 
-=item * Non-Expat-Options
+=item * BillionLaughsAttackProtectionMaximumAmplification
+
+Sets the maximum amplification factor for the Billion Laughs attack
+protection.  See L<"SECURITY"> below for details.
+
+This is an Expat option.
+Requires libexpat E<gt>= 2.4.0 built with C<XML_DTD> or C<XML_GE>.
+
+=item * BillionLaughsAttackProtectionActivationThreshold
+
+Sets the activation threshold (in bytes) for the Billion Laughs attack
+protection.  See L<"SECURITY"> below for details.
+
+This is an Expat option.
+Requires libexpat E<gt>= 2.4.0 built with C<XML_DTD> or C<XML_GE>.
+
+=item * AllocTrackerMaximumAmplification
+
+Sets the maximum amplification factor for the allocation tracker.
+See L<"SECURITY"> below for details.
+
+This is an Expat option.
+Requires libexpat E<gt>= 2.7.2 built with C<XML_DTD> or C<XML_GE>.
+
+=item * AllocTrackerActivationThreshold
+
+Sets the activation threshold (in bytes) for the allocation tracker.
+See L<"SECURITY"> below for details.
+
+This is an Expat option.
+Requires libexpat E<gt>= 2.7.2 built with C<XML_DTD> or C<XML_GE>.
+
+=item * ReparseDeferralEnabled
+
+Enables or disables reparse deferral, a security mechanism that prevents
+certain token-boundary attacks.  See L<"SECURITY"> below for details.
+
+This is an Expat option.
+Requires libexpat E<gt>= 2.6.0.
+
+=item * Non_Expat_Options
 
 If provided, this should be an anonymous hash whose keys are options that
 shouldn't be passed to Expat. This should only be of concern to those
@@ -504,6 +567,8 @@ A die call is thrown if a parse error occurs. Otherwise it will return 1
 or whatever is returned from the B<Final> handler, if one is installed.
 In other words, what parse may return depends on the style.
 
+See L<"ERROR HANDLING"> below for how to catch and handle parse errors.
+
 =item parsestring
 
 This is just an alias for parse for backwards compatibility.
@@ -511,7 +576,8 @@ This is just an alias for parse for backwards compatibility.
 =item parsefile(FILE [, OPT => OPT_VALUE [...]])
 
 Open FILE for reading, then call parse with the open handle. The file
-is closed no matter how parse returns. Returns what parse returns.
+is closed no matter how parse returns. A die call is thrown if the file
+cannot be opened or if a parse error occurs. Returns what parse returns.
 
 =item parse_start([ OPT => OPT_VALUE [...]])
 
@@ -564,6 +630,20 @@ sequence of characters is in String. A single non-markup sequence of
 characters may generate multiple calls to this handler. Whatever the
 encoding of the string in the original document, this is given to the
 handler in UTF-8.
+
+B<Important:> Because the underlying expat library parses in fixed-size
+chunks, character data that spans a buffer boundary will arrive as two or
+more consecutive Char events. This typically occurs with files larger than
+about 32 KiB and is not a bug. To obtain the complete text of an element,
+accumulate the strings delivered between Start and End events:
+
+  my $current_text;
+  sub start_handler { $current_text = ''; }
+  sub char_handler  { $current_text .= $_[1]; }
+  sub end_handler   { print "complete text: $current_text\n"; }
+
+The Stream style (C<< XML::Parser::Style::Stream >>) already performs this
+accumulation automatically.
 
 =head2 Proc                (Expat, Target, Data)
 
@@ -685,16 +765,11 @@ If Fixed is true, then this is a fixed attribute.
 This handler is called for DOCTYPE declarations. Name is the document type
 name. Sysid is the system id of the document type, if it was provided,
 otherwise it's undefined. Pubid is the public id of the document type,
-which will be undefined if no public id was given. Internal is the internal
-subset, given as a string. If there was no internal subset, it will be
-undefined. Internal will contain all whitespace, comments, processing
-instructions, and declarations seen in the internal subset. The declarations
-will be there whether or not they have been processed by another handler
-(except for unparsed entities processed by the Unparsed handler). However,
-comments and processing instructions will not appear if they've been processed
-by their respective handlers.
+which will be undefined if no public id was given. Internal will be
+true or false, indicating whether or not the doctype declaration contains
+an internal subset.
 
-=head2 * DoctypeFin                (Parser)
+=head2 * DoctypeFin                (Expat)
 
 This handler is called after parsing of the DOCTYPE declaration has finished,
 including any internal or external DTD declarations.
@@ -827,6 +902,121 @@ finds, it loads.
 If you wish to build your own encoding maps, check out the XML::Encoding
 module from CPAN.
 
+=head1 ERROR HANDLING
+
+XML::Parser throws an exception (dies) when it encounters a parse error.
+This includes malformed XML, encoding errors, and other problems detected
+by the underlying expat library.
+
+The C<parse>, C<parsefile>, and C<parse_done> methods may all throw
+exceptions. To handle parse errors gracefully in your application, wrap
+the parse call in an C<eval> block:
+
+  my $parser = XML::Parser->new(Style => 'Tree');
+
+  my $tree = eval { $parser->parsefile('data.xml') };
+  if ($@) {
+    # Handle the parse error
+    warn "Parse failed: $@";
+  }
+
+The error message (in C<$@>) will include the line number, column number,
+and byte position where the error was detected. For additional context
+around the error location, set the B<ErrorContext> option when constructing
+the parser:
+
+  my $parser = XML::Parser->new(
+    Style        => 'Tree',
+    ErrorContext  => 2,
+  );
+
+This will include 2 lines of context on either side of the error in the
+error message.
+
+=head1 SECURITY
+
+XML::Parser relies on the expat C library for parsing. Modern versions of
+expat include several security mechanisms that can be tuned through
+constructor options passed to C<new()>. These options are forwarded directly
+to L<XML::Parser::Expat> and take effect for every subsequent C<parse>,
+C<parsefile>, or C<parse_start> call on the parser instance.
+
+All of these options will C<croak> at runtime if the underlying libexpat does
+not support them.
+
+=head2 Billion Laughs Attack Protection
+
+The Billion Laughs attack (also known as an XML bomb) uses deeply nested
+entity definitions to cause exponential expansion, consuming memory and CPU.
+Expat E<gt>= 2.4.0 (built with C<XML_DTD> or C<XML_GE>) includes built-in
+protection controlled by two parameters:
+
+=over 4
+
+=item B<BillionLaughsAttackProtectionMaximumAmplification>
+
+The maximum ratio between the size of the expanded output and the size of
+the input.  For example, a value of C<100.0> means the parser will abort if
+entity expansion would produce output more than 100 times the size of the
+input.
+
+=item B<BillionLaughsAttackProtectionActivationThreshold>
+
+The number of bytes of expanded output before the amplification limit takes
+effect.  This prevents false positives on small documents that happen to
+have a high amplification ratio.
+
+=back
+
+=head2 Allocation Tracker
+
+Expat E<gt>= 2.7.2 (built with C<XML_DTD> or C<XML_GE>) adds a second layer
+of amplification tracking through the allocation tracker, which measures
+memory allocation rather than output size:
+
+=over 4
+
+=item B<AllocTrackerMaximumAmplification>
+
+The maximum ratio of allocated memory to input size.
+
+=item B<AllocTrackerActivationThreshold>
+
+The number of bytes of allocation before the limit takes effect.
+
+=back
+
+=head2 Reparse Deferral
+
+Expat E<gt>= 2.6.0 includes reparse deferral, which prevents attacks that
+exploit token boundaries.  Rather than reparsing incomplete tokens
+immediately, the parser defers until more input arrives.
+
+=over 4
+
+=item B<ReparseDeferralEnabled>
+
+A boolean.  Set to a true value to enable reparse deferral, or C<0> to
+disable it.
+
+=back
+
+For full details on each option, see L<XML::Parser::Expat/"new">.
+
+  # Example: tighten Billion Laughs limits
+  my $parser = XML::Parser->new(
+    Style => 'Tree',
+    BillionLaughsAttackProtectionMaximumAmplification => 50,
+    BillionLaughsAttackProtectionActivationThreshold  => 1024,
+  );
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<https://dev.perl.org/licenses/> for more information.
+
 =head1 AUTHORS
 
 Larry Wall <F<larry@wall.org>> wrote version 1.0.
@@ -835,6 +1025,12 @@ Clark Cooper <F<coopercc@netheaven.com>> picked up support, changed the API
 for this version (2.x), provided documentation,
 and added some standard package features.
 
-Matt Sergeant <F<matt@sergeant.org>> is now maintaining XML::Parser
+Matt Sergeant <F<matt@sergeant.org>> was maintaining XML::Parser from 2003 to 2007.
+
+Alexandr Ciornii <F<alexchorny@gmail.com>> was maintaining XML::Parser from 2007 to 2013.
+
+Todd Rinaldo <F<toddr@cpan.org>> has been maintaining XML::Parser since 2013.
+
+The project started making use of Claude Code <F<https://claude.ai/code>> in January 2026.
 
 =cut

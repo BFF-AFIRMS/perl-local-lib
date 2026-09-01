@@ -1,7 +1,7 @@
 use strict; use warnings;
 
 package YAML::XS;
-our $VERSION = '0.79';
+our $VERSION = 'v0.910.0'; # VERSION
 
 use base 'Exporter';
 
@@ -10,7 +10,16 @@ use base 'Exporter';
 %YAML::XS::EXPORT_TAGS = (
     all => [qw(Dump Load LoadFile DumpFile)],
 );
-our ($UseCode, $DumpCode, $LoadCode, $Boolean, $LoadBlessed, $Indent);
+our (
+    $Boolean,
+    $DumpCode,
+    $ForbidDuplicateKeys,
+    $Indent,
+    $LoadBlessed,
+    $LoadCode,
+    $UseCode,
+);
+$ForbidDuplicateKeys = 0;
 # $YAML::XS::UseCode = 0;
 # $YAML::XS::DumpCode = 0;
 # $YAML::XS::LoadCode = 0;
@@ -45,7 +54,7 @@ sub LoadFile {
         $IN = $filename;
     }
     else {
-        open $IN, $filename
+        open $IN, '<', $filename
           or die "Can't open '$filename' for input:\n$!";
     }
     return YAML::XS::LibYAML::Load(do { local $/; local $_ = <$IN> });

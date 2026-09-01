@@ -12,7 +12,7 @@
 #   Andy Wardley <abw@wardley.org>
 #
 # COPYRIGHT
-#   Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+#   Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 #
 #   This module is free software; you can redistribute it and/or
 #   modify it under the same terms as Perl itself.
@@ -46,7 +46,7 @@ use constant ACCEPT   => 1;
 use constant ERROR    => 2;
 use constant ABORT    => 3;
 
-our $VERSION = 2.89;
+our $VERSION = '3.106';
 our $DEBUG   = 0 unless defined $DEBUG;
 our $ERROR   = '';
 
@@ -283,8 +283,9 @@ sub text_splitter {
             (?:
               (?:
               ^$out           # outline tag at start of line
-              (.*?)           # $2 - content of that line
-              (?:\n|$)        # end of that line or file
+              (.*?            # $2 - content of that line
+                (?:\n|$)      # end of that line or file
+              )
               )
               |
               (?:
@@ -336,8 +337,7 @@ sub parse {
     my ($self, $text, $info) = @_;
     my ($tokens, $block);
 
-    $info->{ DEBUG } = $self->{ DEBUG_DIRS }
-        unless defined $info->{ DEBUG };
+    $info->{ DEBUG } //= $self->{ DEBUG_DIRS };
 
 #    print "info: { ", join(', ', map { "$_ => $info->{ $_ }" } keys %$info), " }\n";
 
@@ -399,10 +399,8 @@ sub split_text {
 
     # extract all directives from the text
     while ($text =~ s/$split//) {
-        $pre = $1;
-        $dir = defined($2) ? $2 : $3;
-        $pre = '' unless defined $pre;
-        $dir = '' unless defined $dir;
+        $pre = $1 // '';
+        $dir = $2 // $3 // '';
 
         $prelines  = ($pre =~ tr/\n//);  # newlines in preceding text
         $dirlines  = ($dir =~ tr/\n//);  # newlines in directive tag
@@ -411,16 +409,30 @@ sub split_text {
         for ($dir) {
             if (/^\#/) {
                 # comment out entire directive except for any end chomp flag
+                #
+                # Handle comments containing nested tag pairs, e.g.:
+                #   [%# [% foo %] %]
+                # The tokenizer splits at the first END_TAG, so the
+                # directive text may contain unbalanced START_TAGs.
+                # For each one, consume the matching END_TAG from
+                # the remaining template text.
+                my $nested = () = /$start/g;
+                while ($nested > 0 && $text =~ s/\A(.*?)$end//s) {
+                    my $extra = $1;
+                    $dirlines += ($extra =~ tr/\n//);
+                    $nested--;
+                    $nested += () = $extra =~ /$start/g;
+                }
                 $dir = ($dir =~ /($CHOMP_FLAGS)$/o) ? $1 : '';
             }
             else {
 
                 if(s/^($CHOMP_FLAGS)?(\s*)//so && $2) {
-                  my $chomped = $2;
-                  my $linecount = ($chomped =~ tr/\n//); # newlines in chomped whitespace
-                  $linecount ||= 0;
-                  $prelines += $linecount;
-                  $dirlines -= $linecount;
+                    my $chomped = $2;
+                    my $linecount = ($chomped =~ tr/\n//); # newlines in chomped whitespace
+                    $linecount ||= 0;
+                    $prelines += $linecount;
+                    $dirlines -= $linecount;
                 }
                 # PRE_CHOMP: process whitespace before tag
                 $chomp = $1 ? $1 : $prechomp;
@@ -918,7 +930,7 @@ sub _parse {
             };
             # clear undefined token to avoid 'undefined variable blah blah'
             # warnings and let the parser logic pick it up in a minute
-            $token = '' unless defined $token;
+            $token //= '';
 
             # get the next state for the current lookahead token
             $action = defined ($lookup = $state->{'ACTIONS'}->{ $token })
@@ -1028,32 +1040,6 @@ sub _parse_error {
 
     return $self->error("line $line: $msg");
 }
-
-
-#------------------------------------------------------------------------
-# _dump()
-#
-# Debug method returns a string representing the internal state of the
-# object.
-#------------------------------------------------------------------------
-
-sub _dump {
-    my $self = shift;
-    my $output = "[Template::Parser] {\n";
-    my $format = "    %-16s => %s\n";
-    my $key;
-
-    foreach $key (qw( START_TAG END_TAG TAG_STYLE ANYCASE INTERPOLATE
-                      PRE_CHOMP POST_CHOMP V1DOLLAR )) {
-        my $val = $self->{ $key };
-        $val = '<undef>' unless defined $val;
-        $output .= sprintf($format, $key, $val);
-    }
-
-    $output .= '}';
-    return $output;
-}
-
 
 1;
 
@@ -1206,7 +1192,7 @@ Andy Wardley E<lt>abw@wardley.orgE<gt> L<http://wardley.org/>
 
 =head1 COPYRIGHT
 
-Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

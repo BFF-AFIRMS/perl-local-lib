@@ -1,8 +1,8 @@
-use strict;
+use v5.12.0;
 use warnings;
-package Config::INI;
+package Config::INI 0.029;
 # ABSTRACT: simple .ini-file format
-$Config::INI::VERSION = '0.025';
+
 #pod =head1 SYNOPSIS
 #pod
 #pod Config-INI comes with code for reading F<.ini> files:
@@ -93,7 +93,7 @@ Config::INI - simple .ini-file format
 
 =head1 VERSION
 
-version 0.025
+version 0.029
 
 =head1 SYNOPSIS
 
@@ -106,6 +106,16 @@ Config-INI comes with code for reading F<.ini> files:
   Config::INI::Writer->write_file({ somekey => 'somevalue' }, 'config.ini');
 
 See L<Config::INI::Writer> and L<Config::INI::Reader> for more examples.
+
+=head1 PERL VERSION
+
+This library should run on perls released even a long time ago.  It should work
+on any version of perl released in the last five years.
+
+Although it may work on older versions of perl, no guarantee is made that the
+minimum required version will not be increased.  The version may be increased
+for any reason, and there is no promise that patches will be accepted to lower
+the minimum required perl.
 
 =head1 GRAMMAR
 
@@ -171,7 +181,47 @@ Originaly derived from L<Config::Tiny>, by Adam Kennedy.
 
 =head1 AUTHOR
 
-Ricardo Signes <rjbs@cpan.org>
+Ricardo Signes <cpan@semiotic.systems>
+
+=head1 CONTRIBUTORS
+
+=for stopwords castaway David Steinbrunner Florian Ragwitz George Hartzell Graham Knop Ricardo SIGNES Signes Smylers
+
+=over 4
+
+=item *
+
+castaway <castaway@desert-island.me.uk>
+
+=item *
+
+David Steinbrunner <dsteinbrunner@pobox.com>
+
+=item *
+
+Florian Ragwitz <rafl@debian.org>
+
+=item *
+
+George Hartzell <hartzell@alerce.com>
+
+=item *
+
+Graham Knop <haarg@haarg.org>
+
+=item *
+
+Ricardo SIGNES <com.github@rjbs.manxome.org>
+
+=item *
+
+Ricardo Signes <rjbs@semiotic.systems>
+
+=item *
+
+Smylers <Smylers@stripey.com>
+
+=back
 
 =head1 COPYRIGHT AND LICENSE
 

@@ -302,15 +302,15 @@ Breton locale.
 
 =head3 Full
 
-   2008-02-05T18:30:30 = Meurzh 5 Cʼhwevrer 2008 da 18:30:30 UTC
-   1995-12-22T09:05:02 = Gwener 22 Kerzu 1995 da 09:05:02 UTC
-  -0010-09-15T04:44:23 = Sadorn 15 Gwengolo -10 da 04:44:23 UTC
+   2008-02-05T18:30:30 = Meurzh 5 Cʼhwevrer 2008, 18:30:30 UTC
+   1995-12-22T09:05:02 = Gwener 22 Kerzu 1995, 09:05:02 UTC
+  -0010-09-15T04:44:23 = Sadorn 15 Gwengolo -10, 04:44:23 UTC
 
 =head3 Long
 
-   2008-02-05T18:30:30 = 5 Cʼhwevrer 2008 da 18:30:30 UTC
-   1995-12-22T09:05:02 = 22 Kerzu 1995 da 09:05:02 UTC
-  -0010-09-15T04:44:23 = 15 Gwengolo -10 da 04:44:23 UTC
+   2008-02-05T18:30:30 = 5 Cʼhwevrer 2008, 18:30:30 UTC
+   1995-12-22T09:05:02 = 22 Kerzu 1995, 09:05:02 UTC
+  -0010-09-15T04:44:23 = 15 Gwengolo -10, 04:44:23 UTC
 
 =head3 Medium
 
@@ -351,6 +351,12 @@ Breton locale.
    1995-12-22T09:05:02 = Gwe.
   -0010-09-15T04:44:23 = Sad.
 
+=head3 EBh (E h B)
+
+   2008-02-05T18:30:30 = Meu. 6 B
+   1995-12-22T09:05:02 = Gwe. 9 B
+  -0010-09-15T04:44:23 = Sad. 4 B
+
 =head3 EBhm (E h:mm B)
 
    2008-02-05T18:30:30 = Meu. 6:30 B
@@ -381,23 +387,41 @@ Breton locale.
    1995-12-22T09:05:02 = Gwe. 22
   -0010-09-15T04:44:23 = Sad. 15
 
-=head3 Ehm (E h:mm a)
+=head3 Eh (E h a)
 
-   2008-02-05T18:30:30 = Meu. 6:30 G.M.
-   1995-12-22T09:05:02 = Gwe. 9:05 A.M.
-  -0010-09-15T04:44:23 = Sad. 4:44 A.M.
+   2008-02-05T18:30:30 = Meu. 6 G.M.
+   1995-12-22T09:05:02 = Gwe. 9 A.M.
+  -0010-09-15T04:44:23 = Sad. 4 A.M.
 
-=head3 Ehms (E h:mm:ss a)
+=head3 Ehm (E h:mm a)
 
-   2008-02-05T18:30:30 = Meu. 6:30:30 G.M.
-   1995-12-22T09:05:02 = Gwe. 9:05:02 A.M.
-  -0010-09-15T04:44:23 = Sad. 4:44:23 A.M.
+   2008-02-05T18:30:30 = Meu. 6:30 G.M.
+   1995-12-22T09:05:02 = Gwe. 9:05 A.M.
+  -0010-09-15T04:44:23 = Sad. 4:44 A.M.
+
+=head3 Ehms (E h:mm:ss a)
+
+   2008-02-05T18:30:30 = Meu. 6:30:30 G.M.
+   1995-12-22T09:05:02 = Gwe. 9:05:02 A.M.
+  -0010-09-15T04:44:23 = Sad. 4:44:23 A.M.
 
 =head3 Gy (y G)
 
    2008-02-05T18:30:30 = 2008 goude J.K.
    1995-12-22T09:05:02 = 1995 goude J.K.
   -0010-09-15T04:44:23 = -10 a-raok J.K.
+
+=head3 GyM (MM/y G)
+
+   2008-02-05T18:30:30 = 02/2008 goude J.K.
+   1995-12-22T09:05:02 = 12/1995 goude J.K.
+  -0010-09-15T04:44:23 = 09/-10 a-raok J.K.
+
+=head3 GyMEd (E, dd/MM/y G)
+
+   2008-02-05T18:30:30 = Meu., 05/02/2008 goude J.K.
+   1995-12-22T09:05:02 = Gwe., 22/12/1995 goude J.K.
+  -0010-09-15T04:44:23 = Sad., 15/09/-10 a-raok J.K.
 
 =head3 GyMMM (MMM y G)
 
@@ -416,6 +440,12 @@ Breton locale.
    2008-02-05T18:30:30 = 5 Cʼhwe. 2008 goude J.K.
    1995-12-22T09:05:02 = 22 Kzu. 1995 goude J.K.
   -0010-09-15T04:44:23 = 15 Gwen. -10 a-raok J.K.
+
+=head3 GyMd (dd/MM/y G)
+
+   2008-02-05T18:30:30 = 05/02/2008 goude J.K.
+   1995-12-22T09:05:02 = 22/12/1995 goude J.K.
+  -0010-09-15T04:44:23 = 15/09/-10 a-raok J.K.
 
 =head3 H (HH)
 
@@ -447,6 +477,12 @@ Breton locale.
    1995-12-22T09:05:02 = 09:05 UTC
   -0010-09-15T04:44:23 = 04:44 UTC
 
+=head3 Hv (HH'e' v)
+
+   2008-02-05T18:30:30 = 18e UTC
+   1995-12-22T09:05:02 = 09e UTC
+  -0010-09-15T04:44:23 = 04e UTC
+
 =head3 M (MM)
 
    2008-02-05T18:30:30 = 02
@@ -471,35 +507,35 @@ Breton locale.
    1995-12-22T09:05:02 = Gwe. 22 Kzu.
   -0010-09-15T04:44:23 = Sad. 15 Gwen.
 
-=head3 MMMMW-count-few ('sizhun' W MMMM)
+=head3 MMMMW-count-few ('sizhun' W 'miz' MMMM)
 
-   2008-02-05T18:30:30 = sizhun 1 Cʼhwevrer
-   1995-12-22T09:05:02 = sizhun 3 Kerzu
-  -0010-09-15T04:44:23 = sizhun 2 Gwengolo
+   2008-02-05T18:30:30 = sizhun 1 miz Cʼhwevrer
+   1995-12-22T09:05:02 = sizhun 3 miz Kerzu
+  -0010-09-15T04:44:23 = sizhun 2 miz Gwengolo
 
-=head3 MMMMW-count-many ('sizhun' W MMMM)
+=head3 MMMMW-count-many ('sizhun' W 'miz' MMMM)
 
-   2008-02-05T18:30:30 = sizhun 1 Cʼhwevrer
-   1995-12-22T09:05:02 = sizhun 3 Kerzu
-  -0010-09-15T04:44:23 = sizhun 2 Gwengolo
+   2008-02-05T18:30:30 = sizhun 1 miz Cʼhwevrer
+   1995-12-22T09:05:02 = sizhun 3 miz Kerzu
+  -0010-09-15T04:44:23 = sizhun 2 miz Gwengolo
 
-=head3 MMMMW-count-one ('sizhun' W MMMM)
+=head3 MMMMW-count-one ('sizhun' W 'miz' MMMM)
 
-   2008-02-05T18:30:30 = sizhun 1 Cʼhwevrer
-   1995-12-22T09:05:02 = sizhun 3 Kerzu
-  -0010-09-15T04:44:23 = sizhun 2 Gwengolo
+   2008-02-05T18:30:30 = sizhun 1 miz Cʼhwevrer
+   1995-12-22T09:05:02 = sizhun 3 miz Kerzu
+  -0010-09-15T04:44:23 = sizhun 2 miz Gwengolo
 
-=head3 MMMMW-count-other ('sizhun' W MMMM)
+=head3 MMMMW-count-other ('sizhun' W 'miz' MMMM)
 
-   2008-02-05T18:30:30 = sizhun 1 Cʼhwevrer
-   1995-12-22T09:05:02 = sizhun 3 Kerzu
-  -0010-09-15T04:44:23 = sizhun 2 Gwengolo
+   2008-02-05T18:30:30 = sizhun 1 miz Cʼhwevrer
+   1995-12-22T09:05:02 = sizhun 3 miz Kerzu
+  -0010-09-15T04:44:23 = sizhun 2 miz Gwengolo
 
-=head3 MMMMW-count-two ('sizhun' W MMMM)
+=head3 MMMMW-count-two ('sizhun' W 'miz' MMMM)
 
-   2008-02-05T18:30:30 = sizhun 1 Cʼhwevrer
-   1995-12-22T09:05:02 = sizhun 3 Kerzu
-  -0010-09-15T04:44:23 = sizhun 2 Gwengolo
+   2008-02-05T18:30:30 = sizhun 1 miz Cʼhwevrer
+   1995-12-22T09:05:02 = sizhun 3 miz Kerzu
+  -0010-09-15T04:44:23 = sizhun 2 miz Gwengolo
 
 =head3 MMMMd (d MMMM)
 
@@ -525,35 +561,41 @@ Breton locale.
    1995-12-22T09:05:02 = 22
   -0010-09-15T04:44:23 = 15
 
-=head3 h (h a)
+=head3 h (h a)
 
-   2008-02-05T18:30:30 = 6 G.M.
-   1995-12-22T09:05:02 = 9 A.M.
-  -0010-09-15T04:44:23 = 4 A.M.
+   2008-02-05T18:30:30 = 6 G.M.
+   1995-12-22T09:05:02 = 9 A.M.
+  -0010-09-15T04:44:23 = 4 A.M.
 
-=head3 hm (h:mm a)
+=head3 hm (h:mm a)
 
-   2008-02-05T18:30:30 = 6:30 G.M.
-   1995-12-22T09:05:02 = 9:05 A.M.
-  -0010-09-15T04:44:23 = 4:44 A.M.
+   2008-02-05T18:30:30 = 6:30 G.M.
+   1995-12-22T09:05:02 = 9:05 A.M.
+  -0010-09-15T04:44:23 = 4:44 A.M.
 
-=head3 hms (h:mm:ss a)
+=head3 hms (h:mm:ss a)
 
-   2008-02-05T18:30:30 = 6:30:30 G.M.
-   1995-12-22T09:05:02 = 9:05:02 A.M.
-  -0010-09-15T04:44:23 = 4:44:23 A.M.
+   2008-02-05T18:30:30 = 6:30:30 G.M.
+   1995-12-22T09:05:02 = 9:05:02 A.M.
+  -0010-09-15T04:44:23 = 4:44:23 A.M.
 
-=head3 hmsv (h:mm:ss a v)
+=head3 hmsv (h:mm:ss a v)
 
-   2008-02-05T18:30:30 = 6:30:30 G.M. UTC
-   1995-12-22T09:05:02 = 9:05:02 A.M. UTC
-  -0010-09-15T04:44:23 = 4:44:23 A.M. UTC
+   2008-02-05T18:30:30 = 6:30:30 G.M. UTC
+   1995-12-22T09:05:02 = 9:05:02 A.M. UTC
+  -0010-09-15T04:44:23 = 4:44:23 A.M. UTC
 
-=head3 hmv (h:mm a v)
+=head3 hmv (h:mm a v)
 
-   2008-02-05T18:30:30 = 6:30 G.M. UTC
-   1995-12-22T09:05:02 = 9:05 A.M. UTC
-  -0010-09-15T04:44:23 = 4:44 A.M. UTC
+   2008-02-05T18:30:30 = 6:30 G.M. UTC
+   1995-12-22T09:05:02 = 9:05 A.M. UTC
+  -0010-09-15T04:44:23 = 4:44 A.M. UTC
+
+=head3 hv (h a v)
+
+   2008-02-05T18:30:30 = 6 G.M. UTC
+   1995-12-22T09:05:02 = 9 A.M. UTC
+  -0010-09-15T04:44:23 = 4 A.M. UTC
 
 =head3 ms (mm:ss)
 
@@ -661,6 +703,26 @@ Yes
 =head3 Local first day of the week
 
 1 (Lun)
+
+=head2 Strftime Patterns
+
+=head3 %c (%a %b %e %H:%M:%S %Y) - date time format
+
+   2008-02-05T18:30:30 = Meu. Cʼhwe.  5 18:30:30 2008
+   1995-12-22T09:05:02 = Gwe. Kzu. 22 09:05:02 1995
+  -0010-09-15T04:44:23 = Sad. Gwen. 15 04:44:23 -10
+
+=head3 %x (%m/%d/%y) - date format
+
+   2008-02-05T18:30:30 = 02/05/08
+   1995-12-22T09:05:02 = 12/22/95
+  -0010-09-15T04:44:23 = 09/15/10
+
+=head3 %X (%H:%M:%S) - time format
+
+   2008-02-05T18:30:30 = 18:30:30
+   1995-12-22T09:05:02 = 09:05:02
+  -0010-09-15T04:44:23 = 04:44:23
 
 =head1 SUPPORT
 

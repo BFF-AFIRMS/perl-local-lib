@@ -1,5 +1,5 @@
 package Moose::Exporter;
-our $VERSION = '2.2011';
+our $VERSION = '2.4000';
 
 use strict;
 use warnings;
@@ -8,9 +8,9 @@ use Class::Load qw(is_class_loaded);
 use Class::MOP;
 use List::Util 1.45 qw( uniq );
 use Moose::Util::MetaRole;
-use Scalar::Util 1.11 qw(reftype);
+use Scalar::Util 1.40 qw(reftype);
 use Sub::Exporter 0.980;
-use Sub::Name qw(subname);
+use Sub::Util 1.40 qw(set_subname);
 
 use Moose::Util 'throw_exception';
 
@@ -90,9 +90,8 @@ sub build_import_methods {
                 && !$package->has_package_symbol($symbol);
         $package->add_package_symbol(
             $symbol,
-            subname(
-                $exporting_package . '::' . $to_install, $methods{$to_install}
-            )
+            set_subname( $exporting_package . '::'
+                    . $to_install => $methods{$to_install} )
         );
     }
 
@@ -225,7 +224,7 @@ sub _parse_trait_aliases {
         else {
             ($name = $alias) =~ s/.*:://;
         }
-        push @ret, subname "${package}::${name}" => sub () { $alias };
+        push @ret, set_subname( "${package}::${name}" => sub () {$alias} );
     }
 
     return @ret;
@@ -358,7 +357,7 @@ sub _make_wrapped_sub {
 
         my $wrapper = $self->_curry_wrapper( $sub, $fq_name, $caller );
 
-        my $sub = subname( $fq_name => $wrapper );
+        my $sub = set_subname( $fq_name => $wrapper );
 
         $export_recorder->{$sub} = 1;
 
@@ -381,7 +380,7 @@ sub _make_wrapped_sub_with_meta {
             $meta_lookup => $caller
         );
 
-        my $sub = subname( $fq_name => $wrapper );
+        my $sub = set_subname( $fq_name => $wrapper );
 
         $export_recorder->{$sub} = 1;
 
@@ -796,7 +795,7 @@ Moose::Exporter - make an import() and unimport() just like Moose.pm
 
 =head1 VERSION
 
-version 2.2011
+version 2.4000
 
 =head1 SYNOPSIS
 
@@ -999,7 +998,7 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =item *
 
-Stevan Little <stevan.little@iinteractive.com>
+Stevan Little <stevan@cpan.org>
 
 =item *
 
@@ -1007,11 +1006,11 @@ Dave Rolsky <autarch@urth.org>
 
 =item *
 
-Jesse Luehrs <doy@tozt.net>
+Jesse Luehrs <doy@cpan.org>
 
 =item *
 
-Shawn M Moore <code@sartak.org>
+Shawn M Moore <sartak@cpan.org>
 
 =item *
 
@@ -1027,7 +1026,7 @@ Florian Ragwitz <rafl@debian.org>
 
 =item *
 
-Hans Dieter Pearcey <hdp@weftsoar.net>
+Hans Dieter Pearcey <hdp@cpan.org>
 
 =item *
 
@@ -1035,7 +1034,7 @@ Chris Prather <chris@prather.org>
 
 =item *
 
-Matt S Trout <mst@shadowcat.co.uk>
+Matt S Trout <mstrout@cpan.org>
 
 =back
 

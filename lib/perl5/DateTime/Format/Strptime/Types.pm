@@ -3,7 +3,7 @@ package DateTime::Format::Strptime::Types;
 use strict;
 use warnings;
 
-our $VERSION = '1.76';
+our $VERSION = '1.80';
 
 use parent 'Specio::Exporter';
 
@@ -30,8 +30,25 @@ coerce(
     inline => sub {"DateTime::Locale->load( $_[1] )"},
 );
 
-object_isa_type( 'TimeZone', class => 'DateTime::TimeZone' );
 object_isa_type('DateTime');
+
+my $time_zone_object = object_can_type(
+    'TZObject',
+    methods => [
+        qw(
+            is_floating
+            is_utc
+            name
+            offset_for_datetime
+            short_name_for_datetime
+        )
+    ],
+);
+
+declare(
+    'TimeZone',
+    of => [ t('NonEmptySimpleStr'), $time_zone_object ],
+);
 
 coerce(
     t('TimeZone'),
@@ -63,7 +80,7 @@ DateTime::Format::Strptime::Types - Types used for parameter checking in DateTim
 
 =head1 VERSION
 
-version 1.76
+version 1.80
 
 =head1 DESCRIPTION
 
@@ -77,8 +94,6 @@ Bugs may be submitted at L<https://github.com/houseabsolute/DateTime-Format-Strp
 
 There is a mailing list available for users of this distribution,
 L<mailto:datetime@perl.org>.
-
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
 
 =head1 SOURCE
 
@@ -100,7 +115,7 @@ Rick Measham <rickm@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2015 - 2019 by Dave Rolsky.
+This software is Copyright (c) 2015 - 2025 by Dave Rolsky.
 
 This is free software, licensed under:
 

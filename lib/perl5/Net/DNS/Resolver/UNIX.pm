@@ -1,9 +1,8 @@
 package Net::DNS::Resolver::UNIX;
 
-#
-# $Id: UNIX.pm 1573 2017-06-12 11:03:59Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1573 $)[1];
+use strict;
+use warnings;
+our $VERSION = (qw$Id: UNIX.pm 2059 2026-08-28 10:04:18Z willem $)[2];
 
 
 =head1 NAME
@@ -13,37 +12,45 @@ Net::DNS::Resolver::UNIX - Unix resolver class
 =cut
 
 
-use strict;
-use warnings;
-use base qw(Net::DNS::Resolver::Base);
+my @config_file = grep { -f $_ && -r $_ } '/etc/resolv.conf';
 
-
-my @config_file = grep -f $_ && -r _, '/etc/resolv.conf';
-
+my $homedir = $ENV{HOME};
 my $dotfile = '.resolv.conf';
-my @dotpath = grep defined, $ENV{HOME}, '.';
-my @dotfile = grep -f $_ && -o _, map "$_/$dotfile", @dotpath;
+my @dotfile = grep { -f $_ && -o $_ } map {"$_/$dotfile"} grep {$_} $homedir, '.';
 
-
-local $ENV{PATH} = '/bin:/usr/bin';
-my $uname = eval {`uname -n 2>/dev/null`} || '';
-chomp $uname;
-my ( $host, @domain ) = split /\./, $uname, 2;
-__PACKAGE__->domain(@domain);
+my ($name) = _nosh(qw(uname -n));
+chomp $name;
+my ( undef, @domain ) = split /\./, $name, 2;
 
 
 sub _init {
 	my $defaults = shift->_defaults;
 
-	map $defaults->_read_config_file($_), @config_file;
+	$defaults->domain(@domain);
+	$defaults->_read_config_file($_) foreach @config_file;
 
 	%$defaults = Net::DNS::Resolver::Base::_untaint(%$defaults);
 
-	map $defaults->_read_config_file($_), @dotfile;
+	$defaults->_read_config_file($_) foreach @dotfile;
 
 	$defaults->_read_env;
+	return;
 }
 
+sub _nosh {				## shell-free backtick emulation
+	my ( $prog, @arg ) = @_;
+	if ( open( my $pipe, '-|' ) ) {
+		my @retval = ( <$pipe>, '' );
+		close $pipe;
+		return @retval;
+	} else {
+		local %ENV = ( PATH => '/bin:/usr/bin' );
+		local $SIG{__WARN__} = sub { };
+		warn 'child process fails without warning';
+		eval { exec {$prog} $prog, @arg };
+		exit;			## uncoverable statement
+	}
+}
 
 1;
 __END__
@@ -51,7 +58,7 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS::Resolver;
+	use Net::DNS::Resolver;
 
 =head1 DESCRIPTION
 
@@ -70,7 +77,7 @@ All rights reserved.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific

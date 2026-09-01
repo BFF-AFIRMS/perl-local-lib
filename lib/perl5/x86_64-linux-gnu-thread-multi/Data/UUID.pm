@@ -15,7 +15,7 @@ our @EXPORT = qw(
    NameSpace_URL
    NameSpace_X500
 );
-our $VERSION = '1.224';
+our $VERSION = '1.227';
 
 bootstrap Data::UUID $VERSION;
 
@@ -31,7 +31,7 @@ Data::UUID - Globally/Universally Unique Identifiers (GUIDs/UUIDs)
 The module L<Data::GUID> provides another interface for generating GUIDs.
 Right now, it relies on Data::UUID, but it may not in the future.  Its
 interface may be just a little more straightforward for the average Perl
-programer.
+programmer.
 
 =head1 SYNOPSIS
 
@@ -106,7 +106,7 @@ This modules provides several methods to create a UUID.  In all methods, C<<
    # convert to Base64-encoded string
    $ug->to_b64string(<uuid>);
 
-   Conversly, string UUIDs can be converted back to binary form:
+   Conversely, string UUIDs can be converted back to binary form:
 
    # recreate binary UUID from string
    $ug->from_string(<uuid>);

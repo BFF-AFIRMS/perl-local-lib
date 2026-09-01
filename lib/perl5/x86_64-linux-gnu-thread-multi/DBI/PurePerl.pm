@@ -17,15 +17,9 @@ package		# hide from PAUSE
 ########################################################################
 
 use strict;
+use warnings;
 use Carp;
 require Symbol;
-
-require utf8;
-*utf8::is_utf8 = sub { # hack for perl 5.6
-    require bytes;
-    return unless defined $_[0];
-    return !(length($_[0]) == bytes::length($_[0]))
-} unless defined &utf8::is_utf8;
 
 $DBI::PurePerl = $ENV{DBI_PUREPERL} || 1;
 $DBI::PurePerl::VERSION = "2.014286";
@@ -116,7 +110,7 @@ use constant IMA_HAS_USAGE	=> 0x0001; #/* check parameter usage	*/
 use constant IMA_FUNC_REDIRECT	=> 0x0002; #/* is $h->func(..., "method")*/
 use constant IMA_KEEP_ERR	=> 0x0004; #/* don't reset err & errstr	*/
 use constant IMA_KEEP_ERR_SUB	=> 0x0008; #/*  '' if in nested call */
-use constant IMA_NO_TAINT_IN   	=> 0x0010; #/* don't check for tainted args*/
+use constant IMA_NO_TAINT_IN	=> 0x0010; #/* don't check for tainted args*/
 use constant IMA_NO_TAINT_OUT   => 0x0020; #/* don't taint results	*/
 use constant IMA_COPY_UP_STMT   => 0x0040; #/* copy sth Statement to dbh */
 use constant IMA_END_WORK	=> 0x0080; #/* set on commit & rollback	*/
@@ -149,6 +143,7 @@ my %is_flag_attribute = map {$_ =>1 } qw(
 	PrintError
 	PrintWarn
 	RaiseError
+	RaiseWarn
 	ShowErrorStatement
 	Warn
 );
@@ -304,7 +299,7 @@ sub  _install_method {
 
     push @pre_call_frag, q{
         if (($DBI::dbi_debug & 0xF) >= 2) {
-	    local $^W;
+	    no warnings;
 	    my $args = join " ", map { DBI::neat($_) } ($h, @_);
 	    printf $DBI::tfh "    > $method_name in $imp ($args) [$@]\n";
 	}
@@ -363,11 +358,11 @@ sub  _install_method {
 	&& ($call_depth <= 1 && !$h->{dbi_pp_parent}{dbi_pp_call_depth})
 	) {
 
-	    my($pe,$pw,$re,$he) = @{$h}{qw(PrintError PrintWarn RaiseError HandleError)};
+	    my($pe,$pw,$re,$rw,$he) = @{$h}{qw(PrintError PrintWarn RaiseError RaiseWarn HandleError)};
 	    my $msg;
 
 	    if ($err && ($pe || $re || $he)	# error
-	    or (!$err && length($err) && $pw)	# warning
+	    or (!$err && length($err) && ($pw || $rw))	# warning
 	    ) {
 		my $last = ($DBI::last_method_except{$method_name})
 		    ? ($h->{'dbi_pp_last_method'}||$method_name) : $method_name;
@@ -388,6 +383,11 @@ sub  _install_method {
 		}
 		if ($err eq "0") { # is 'warning' (not info)
 		    carp $msg if $pw;
+		    my $do_croak = $rw;
+		    if ((my $subsub = $h->{'HandleError'}) && $do_croak) {
+			$do_croak = 0 if &$subsub($msg,$h,$ret[0]);
+		    }
+		    die $msg if $do_croak;
 		}
 		else {
 		    my $do_croak = 1;
@@ -490,7 +490,7 @@ sub _setup_handle {
     my($h, $imp_class, $parent, $imp_data) = @_;
     my $h_inner = tied(%$h) || $h;
     if (($DBI::dbi_debug & 0xF) >= 4) {
-	local $^W;
+	no warnings;
 	print $DBI::tfh "      _setup_handle(@_)\n";
     }
     $h_inner->{"imp_data"} = $imp_data;
@@ -498,7 +498,7 @@ sub _setup_handle {
     $h_inner->{"Kids"} = $h_inner->{"ActiveKids"} = 0;	# XXX not maintained
     if ($parent) {
 	foreach (qw(
-	    RaiseError PrintError PrintWarn HandleError HandleSetErr
+	    RaiseError PrintError RaiseWarn PrintWarn HandleError HandleSetErr
 	    Warn LongTruncOk ChopBlanks AutoCommit ReadOnly
 	    ShowErrorStatement FetchHashKeyName LongReadLen CompatMode
 	)) {
@@ -858,7 +858,7 @@ sub FETCH {
             Carp::carp( sprintf "Can't determine Type for %s",$h );
         }
 	if (!$is_valid_attribute{$key} and $key =~ m/^[A-Z]/) {
-	    local $^W; # hide undef warnings
+	    no warnings; # hide undef warnings
 	    Carp::carp( sprintf "Can't get %s->{%s}: unrecognised attribute (@{[ %$h ]})",$h,$key )
 	}
     }
@@ -959,7 +959,7 @@ sub set_err {
 }
 sub trace_msg {
     my ($h, $msg, $minlevel)=@_;
-    $minlevel = 1 unless defined $minlevel;
+    $minlevel //= 1;
     return unless $minlevel <= ($DBI::dbi_debug & 0xF);
     print $DBI::tfh $msg;
     return 1;

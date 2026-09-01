@@ -1,0 +1,5 @@
+/home/production/cxgn/local-lib/lib/perl5/Bio/ASN1/EntrezGene.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/ASN1/EntrezGene/Indexer.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/ASN1/Sequence.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/ASN1/Sequence/Indexer.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/SeqIO/entrezgene.pm

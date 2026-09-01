@@ -16,16 +16,17 @@
 #  DBD AUTHORS - see the comments in the code
 #
 #######################################################################
-require 5.008;
+require 5.012;
 use strict;
+use warnings;
 
 #################
 package DBD::DBM;
 #################
 use base qw( DBD::File );
-use vars qw($VERSION $ATTRIBUTION $drh $methods_already_installed);
-$VERSION     = '0.08';
-$ATTRIBUTION = 'DBD::DBM by Jens Rehsack';
+our ($drh,$methods_already_installed);
+our $VERSION     = '0.08';
+our $ATTRIBUTION = 'DBD::DBM by Jens Rehsack';
 
 # no need to have driver() unless you need private methods
 #
@@ -61,8 +62,8 @@ sub CLONE
 #####################
 package DBD::DBM::dr;
 #####################
-$DBD::DBM::dr::imp_data_size = 0;
-@DBD::DBM::dr::ISA           = qw(DBD::File::dr);
+our $imp_data_size = 0;
+our @ISA           = qw(DBD::File::dr);
 
 # you could put some :dr private methods here
 
@@ -73,8 +74,8 @@ $DBD::DBM::dr::imp_data_size = 0;
 #####################
 package DBD::DBM::db;
 #####################
-$DBD::DBM::db::imp_data_size = 0;
-@DBD::DBM::db::ISA           = qw(DBD::File::db);
+our $imp_data_size = 0;
+our @ISA           = qw(DBD::File::db);
 
 use Carp qw/carp/;
 
@@ -137,6 +138,7 @@ sub init_valid_attributes
                                 dbm_readonly_attrs => 1,    # DBD::DBM::db r/o attrs
                                 dbm_meta           => 1,    # DBD::DBM public access for f_meta
                                 dbm_tables         => 1,    # DBD::DBM public access for f_meta
+                                dbm_updatable_key  => 1,
                               };
     $dbh->{dbm_readonly_attrs} = {
                                    dbm_version        => 1,    # verbose DBD::DBM version
@@ -207,8 +209,8 @@ sub get_dbm_versions
 #####################
 package DBD::DBM::st;
 #####################
-$DBD::DBM::st::imp_data_size = 0;
-@DBD::DBM::st::ISA           = qw(DBD::File::st);
+our $imp_data_size = 0;
+our @ISA           = qw(DBD::File::st);
 
 sub FETCH
 {
@@ -245,7 +247,7 @@ sub dbm_schema
 package DBD::DBM::Statement;
 ############################
 
-@DBD::DBM::Statement::ISA = qw(DBD::File::Statement);
+our @ISA = qw(DBD::File::Statement);
 
 ########################
 package DBD::DBM::Table;
@@ -253,7 +255,7 @@ package DBD::DBM::Table;
 use Carp;
 use Fcntl;
 
-@DBD::DBM::Table::ISA = qw(DBD::File::Table);
+our @ISA = qw(DBD::File::Table);
 
 my $dirfext = $^O eq 'VMS' ? '.sdbm_dir' : '.dir';
 
@@ -279,8 +281,7 @@ sub bootstrap_table_meta
     $meta->{dbm_mldbm} ||= $dbh->{dbm_mldbm} if ( $dbh->{dbm_mldbm} );
     $meta->{dbm_berkeley_flags} ||= $dbh->{dbm_berkeley_flags};
 
-    defined $meta->{f_ext}
-      or $meta->{f_ext} = $dbh->{f_ext};
+    $meta->{f_ext} //= $dbh->{f_ext};
     unless ( defined( $meta->{f_ext} ) )
     {
         my $ext;
@@ -340,6 +341,11 @@ sub init_table_meta
     unless ( defined( $meta->{col_names} ) )
     {
         defined( $dbh->{dbm_cols} ) and $meta->{col_names} = $dbh->{dbm_cols};
+    }
+
+    unless ( defined( $meta->{dbm_updatable_key} ) )
+    {
+        defined( $dbh->{dbm_updatable_key} ) and $meta->{dbm_updatable_key} = $dbh->{dbm_updatable_key};
     }
 
     $self->SUPER::init_table_meta( $dbh, $meta, $table );
@@ -568,6 +574,14 @@ sub update_specific_row ($$$$)
     my $key    = shift @$origary;
     my $newkey = shift @$aryref;
     return unless ( defined $key );
+
+    if ( my $mode = $meta->{dbm_updatable_key} ) {
+        my $method = $mode == 1 ? \&carp : \&croak;
+        my $exists;
+        eval { $exists = $key ne $newkey && exists( $meta->{hash}->{$newkey} ); };
+        $exists and $method->("Row with PK '$newkey' already exists");
+    }
+
     $key eq $newkey or delete $meta->{hash}->{$key};
     my $row = ( ref($aryref) eq 'ARRAY' ) ? $aryref : [$aryref];
     $meta->{hash}->{$newkey} = $meta->{dbm_mldbm} ? $row : $row->[0];
@@ -1020,6 +1034,26 @@ SQL::Statement can benefit from the key field optimizations on
 updating and deleting rows - and here the improved where clause
 evaluation of SQL::Statement might beat DBI::SQL::Nano every time the
 where clause contains not only the key field (or more than one).
+
+=head2 Updatable Keys
+
+The default behavior is that updating a key to the same value of an
+existing key will succeed, and the existing row will be overwritten.
+
+There may be cases where this is undesirable.
+
+This behavior can now be configured, by setting C<dbm_updatable_key>
+attribute.  To emit a warning when this happens, set it to C<1>:
+
+  $dbh = DBI->connect('dbi:DBM:', undef, undef, {
+      dbm_updatable_key => 1,
+  } );
+
+To instead die when that happens, set it to C<2>:
+
+  $dbh = DBI->connect('dbi:DBM:', undef, undef, {
+      dbm_updatable_key => 2,
+  } );
 
 =head2 Supported SQL syntax
 

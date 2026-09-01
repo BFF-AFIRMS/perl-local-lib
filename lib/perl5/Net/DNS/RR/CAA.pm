@@ -1,14 +1,11 @@
 package Net::DNS::RR::CAA;
 
-#
-# $Id: CAA.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: CAA.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,45 +13,44 @@ Net::DNS::RR::CAA - DNS CAA resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::Text;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	my $limit = $offset + $self->{rdlength};
 	$self->{flags} = unpack "\@$offset C", $$data;
-	( $self->{tag}, $offset ) = decode Net::DNS::Text( $data, $offset + 1 );
-	$self->{value} = decode Net::DNS::Text( $data, $offset, $limit - $offset );
+	( $self->{tag}, $offset ) = Net::DNS::Text->decode( $data, $offset + 1 );
+	$self->{value} = Net::DNS::Text->decode( $data, $offset, $limit - $offset );
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
-	my $tag = $self->{tag};
-	pack 'C a* a*', $self->flags, $tag->encode, $self->{value}->raw;
+	return pack 'C a* a*', $self->flags, $self->{tag}->encode, $self->{value}->raw;
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	my $tag = $self->{tag};
-	my @rdata = ( $self->flags, $tag->string, $self->{value}->string );
+	my @rdata = ( $self->flags, $self->{tag}->string, $self->{value}->string );
+	return @rdata;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->flags(shift);
-	$self->tag(shift);
-	$self->value(shift);
+	$self->flags( shift @argument );
+	$self->tag( lc shift @argument );
+	$self->value( shift @argument );
+	return;
 }
 
 
@@ -62,40 +58,39 @@ sub _defaults {				## specify RR attribute default values
 	my $self = shift;
 
 	$self->flags(0);
+	return;
 }
 
 
 sub flags {
-	my $self = shift;
-
-	$self->{flags} = 0 + shift if scalar @_;
-	$self->{flags} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{flags} = 0 + $_ }
+	return $self->{flags} || 0;
 }
 
 
 sub critical {
-	my $bit = 0x0080;
-	for ( shift->{flags} ) {
-		my $set = $bit | ( $_ ||= 0 );
-		$_ = (shift) ? $set : ( $set ^ $bit ) if scalar @_;
-		return $_ & $bit;
+	my ( $self, @value ) = @_;
+	if ( scalar @value ) {
+		for ( $self->{flags} |= 0x80 ) {
+			$_ ^= 0x80 unless shift @value;
+		}
 	}
+	return $self->{flags} & 0x80;
 }
 
 
 sub tag {
-	my $self = shift;
-
-	$self->{tag} = new Net::DNS::Text(shift) if scalar @_;
-	$self->{tag}->value if $self->{tag};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{tag} = Net::DNS::Text->new($_) }
+	return $self->{tag} ? $self->{tag}->value : undef;
 }
 
 
 sub value {
-	my $self = shift;
-
-	$self->{value} = new Net::DNS::Text(shift) if scalar @_;
-	$self->{value}->value if $self->{value};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{value} = Net::DNS::Text->new($_) }
+	return $self->{value} ? $self->{value}->value : undef;
 }
 
 
@@ -105,8 +100,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name IN CAA flags tag value');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name IN CAA flags tag value');
 
 =head1 DESCRIPTION
 
@@ -124,8 +119,8 @@ other unpredictable behaviour.
 
 =head2 flags
 
-    $flags = $rr->flags;
-    $rr->flags( $flags );
+	$flags = $rr->flags;
+	$rr->flags( $flags );
 
 Unsigned 8-bit number representing Boolean flags.
 
@@ -133,11 +128,11 @@ Unsigned 8-bit number representing Boolean flags.
 
 =item critical
 
- $rr->critical(1);
+	$rr->critical(1);
 
- if ( $rr->critical ) {
-	...
- }
+	if ( $rr->critical ) {
+		...
+	}
 
 Issuer critical flag.
 
@@ -145,19 +140,17 @@ Issuer critical flag.
 
 =head2 tag
 
-    $tag = $rr->tag;
-    $rr->tag( $tag );
+	$tag = $rr->tag;
+	$rr->tag( $tag );
 
-The property identifier, a sequence of ASCII characters.
-
-Tag values may contain ASCII characters a-z, A-Z, and 0-9.
-Tag values should not contain any other characters.
-Matching of tag values is not case sensitive.
+Property identifier which may contain the characters a-z, A-Z, and 0-9.
+The tag field must not contain any other characters.
+Matching of tags is not case sensitive.
 
 =head2 value
 
-    $value = $rr->value;
-    $rr->value( $value );
+	$value = $rr->value;
+	$rr->value( $value );
 
 A sequence of octets representing the property value.
 Property values are encoded as binary values and may employ
@@ -177,7 +170,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -194,6 +187,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC6844
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC8659|https://iana.org/go/rfc8659>
 
 =cut

@@ -2,6 +2,7 @@ package Alien::Build::Plugin::PkgConfig::Negotiate;
 
 use strict;
 use warnings;
+use 5.008004;
 use Alien::Build::Plugin;
 use Alien::Build::Plugin::PkgConfig::PP;
 use Alien::Build::Plugin::PkgConfig::LibPkgConf;
@@ -10,7 +11,7 @@ use Alien::Build::Util qw( _perl_config );
 use Carp ();
 
 # ABSTRACT: Package configuration negotiation plugin
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
 has '+pkg_name' => sub {
@@ -118,7 +119,7 @@ Alien::Build::Plugin::PkgConfig::Negotiate - Package configuration negotiation p
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 SYNOPSIS
 
@@ -136,7 +137,11 @@ the best C<PkgConfig> plugin depending your platform and environment.
 
 =head2 pkg_name
 
-The package name.
+The package name.  If this is a list reference then .pc files with all those package
+names must be present.  The first name will be the primary and used by default once
+installed.  For the subsequent C<.pc> files you can use the
+L<Alien::Base alt method|Alien::Base/alt> to retrieve the alternate configurations
+once the L<Alien> is installed.
 
 =head2 atleast_version
 
@@ -158,7 +163,7 @@ Alias for C<atleast_version> for backward compatibility.
 
 =head2 pick
 
- my $name = Alien::Build::Plugijn::PkgConfig::Negotiate->pick;
+ my $name = Alien::Build::Plugin::PkgConfig::Negotiate->pick;
 
 Returns the name of the negotiated plugin.
 
@@ -185,7 +190,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -219,7 +224,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -235,9 +240,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

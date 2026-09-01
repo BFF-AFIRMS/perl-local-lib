@@ -1,14 +1,18 @@
 package Imager;
+use 5.006;
 
 use strict;
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS %formats $DEBUG %filters %DSOs $ERRSTR %OPCODES $I2P $FORMATGUESS $warn_obsolete);
-use IO::File;
 use Scalar::Util;
 use Imager::Color;
+use Imager::Color::Float;
 use Imager::Font;
-use Config;
+use Imager::TrimColorList;
+use POSIX qw(INT_MIN INT_MAX);
+use if $] >= 5.014, "warnings::register" => qw(tagcodes channelmask);
 
-@EXPORT_OK = qw(
+our $ERRSTR;
+
+our @EXPORT_OK = qw(
 		init
 		init_log
 		DSO_open
@@ -89,10 +93,10 @@ use Config;
                 NCF
 );
 
-@EXPORT=qw(
+our @EXPORT=qw(
 	  );
 
-%EXPORT_TAGS=
+our %EXPORT_TAGS=
   (handy => [qw(
 		newfont
 		newcolor
@@ -138,13 +142,15 @@ $combine_types{sat}  = $combine_types{saturation};
 # this will be used to store global defaults at some point
 my %defaults;
 
+our $VERSION;
+
 BEGIN {
   require Exporter;
   my $ex_version = eval $Exporter::VERSION;
   if ($ex_version < 5.57) {
-    @ISA = qw(Exporter);
+    our @ISA = qw(Exporter);
   }
-  $VERSION = '1.011';
+  $VERSION = '1.035';
   require XSLoader;
   XSLoader::load(Imager => $VERSION);
 }
@@ -161,7 +167,16 @@ my %format_classes =
    t1 => "Imager::Font::T1",
   );
 
+our %formats;
+
 tie %formats, "Imager::FORMATS", \%formats_low, \%format_classes;
+
+our %filters;
+
+our $DEBUG;
+our %OPCODES;
+our $FORMATGUESS;
+our $warn_obsolete;
 
 BEGIN {
   for(i_list_formats()) { $formats_low{$_}++; }
@@ -278,6 +293,11 @@ BEGIN {
                         callseq => [ 'image', 'stddev' ],
                         defaults => { },
                         callsub => sub { my %hsh = @_; i_gaussian($hsh{image}, $hsh{stddev}); },
+                       };
+  $filters{gaussian2} = {
+                        callseq => [ 'image', 'stddevX', 'stddevY' ],
+                        defaults => { },
+                        callsub => sub { my %hsh = @_; i_gaussian2($hsh{image}, $hsh{stddevX}, $hsh{stddevY}); },
                        };
   $filters{mosaic} =
     {
@@ -521,7 +541,9 @@ END {
   }
 }
 
-# Load a filter plugin 
+# Load a filter plugin
+
+our %DSOs;
 
 sub load_plugin {
   my ($filename)=@_;
@@ -891,6 +913,87 @@ sub crop {
   return $dst;
 }
 
+my $empty_trim_colors = Imager::TrimColorList->new();
+
+sub _trim_rect {
+  my ($self, $name, %hsh) = @_;
+
+  $self->_valid_image($name)
+    or return;
+
+  my $auto = delete $hsh{auto};
+  my $colors = delete $hsh{colors} || $empty_trim_colors;
+  my $alpha = delete $hsh{alpha} || 0;
+  my $tolerance = delete $hsh{tolerance};
+  defined $tolerance or $tolerance = 0.01;
+
+  if (keys %hsh) {
+    $self->_set_error("$name: unexpected arguments:".join(", ", sort keys %hsh));
+    return;
+  }
+
+  if ($auto) {
+    if ($colors != $empty_trim_colors) {
+      $self->_set_error("$name: only one of auto and colors can be supplied");
+      return;
+    }
+    if ($tolerance < 0) {
+      $self->_set_error("$name: tolerance must be non-negative");
+      return;
+    }
+
+    $colors = Imager::TrimColorList->auto
+      (
+       auto => $auto,
+       tolerance => $tolerance,
+       name => $name,
+       image => $self,
+      );
+    unless ($colors) {
+      $self->_set_error(Imager->errstr);
+      return;
+    }
+  }
+
+  unless (ref $colors) {
+    $self->_set_error("$name: colors must be an arrayref or an Imager::TrimColorList object");
+    return;
+  }
+  unless (UNIVERSAL::isa($colors, "Imager::TrimColorList")) {
+    unless (Scalar::Util::reftype($colors) eq "ARRAY") {
+      $self->_set_error("$name: colors must be an arrayref or an Imager::TrimColorList object");
+      return;
+    }
+    $colors = Imager::TrimColorList->new(@$colors);
+  }
+
+  return i_trim_rect($self->{IMG}, $alpha, $colors);
+}
+
+sub trim_rect {
+  my ($self, %hsh) = @_;
+
+  return $self->_trim_rect("trim_rect", %hsh);
+}
+
+sub trim {
+  my ($self, %hsh) = @_;
+
+  my ($left, $top, $right, $bottom) = $self->_trim_rect("trim", %hsh)
+    or return;
+
+  if ($left == $self->getwidth) {
+    # the whole image would be trimmed, but we don't support zero
+    # width or height images.
+    return $self->crop(width => 1, height => 1);
+  }
+  else {
+    my ($w, $h) = i_img_info($self->{IMG});
+    return $self->crop(left => $left, right => $w - $right,
+                       top => $top,   bottom => $h - $bottom);
+  }
+}
+
 sub _sametype {
   my ($self, %opts) = @_;
 
@@ -981,10 +1084,22 @@ sub masked {
               @_);
   my $mask = $opts{mask} ? $opts{mask}{IMG} : undef;
 
+  my ($left, $top, $right, $bottom) = @opts{qw(left top right bottom)};
+  for my $val ($left, $right) {
+    if ($val < 0) {
+      $val = $self->getwidth() + $val;
+    }
+  }
+  for my $val ($top, $bottom) {
+    if ($val < 0) {
+      $val = $self->getheight() + $val;
+    }
+  }
+
   my $result = Imager->new;
-  $result->{IMG} = i_img_masked_new($self->{IMG}, $mask, $opts{left}, 
-                                    $opts{top}, $opts{right} - $opts{left},
-                                    $opts{bottom} - $opts{top});
+  $result->{IMG} = i_img_masked_new($self->{IMG}, $mask, $left,
+                                    $top, $right - $left,
+                                    $bottom - $top);
   unless ($result->{IMG}) {
     $self->_set_error(Imager->_error_as_msg);
     return;
@@ -1292,6 +1407,8 @@ sub tags {
   }
 }
 
+my $int_re = qr/^(?:0|-[1-9][0-9]*|[1-9][0-9]*)$/;
+
 sub addtag {
   my $self = shift;
   my %opts = @_;
@@ -1299,14 +1416,15 @@ sub addtag {
   $self->_valid_image("addtag")
     or return;
 
+  my $value = $opts{value};
   if ($opts{name}) {
-    if (defined $opts{value}) {
-      if ($opts{value} =~ /^\d+$/) {
-        # add as a number
-        return i_tags_addn($self->{IMG}, $opts{name}, 0, $opts{value});
+    if (defined $value) {
+      if ($value =~ $int_re && $value >= INT_MIN && $value <= INT_MAX) {
+        # add as an int
+        return i_tags_addn($self->{IMG}, $opts{name}, 0, $value);
       }
       else {
-        return i_tags_add($self->{IMG}, $opts{name}, 0, $opts{value}, 0);
+        return i_tags_add($self->{IMG}, $opts{name}, 0, $value, 0);
       }
     }
     elsif (defined $opts{data}) {
@@ -1319,8 +1437,10 @@ sub addtag {
     }
   }
   elsif ($opts{code}) {
-    if (defined $opts{value}) {
-      if ($opts{value} =~ /^\d+$/) {
+    warnings::warnif("Imager::tagcodes", "addtag: code parameter is deprecated")
+        if $] >= 5.014;
+    if (defined $value) {
+      if ($value =~ $int_re && $value >= INT_MIN && $value <= INT_MAX) {
         # add as a number
         return i_tags_addn($self->{IMG}, $opts{code}, 0, $opts{value});
       }
@@ -1356,6 +1476,8 @@ sub deltag {
     return i_tags_delbyname($self->{IMG}, $opts{name});
   }
   elsif (defined $opts{code}) {
+    warnings::warnif("Imager::tagcodes", "deltag: code parameter is deprecated")
+        if $] >= 5.014;
     return i_tags_delbycode($self->{IMG}, $opts{code});
   }
   else {
@@ -1375,8 +1497,26 @@ sub settag {
     return $self->addtag(name=>$opts{name}, value=>$opts{value});
   }
   elsif (defined $opts{code}) {
-    $self->deltag(code=>$opts{code});
-    return $self->addtag(code=>$opts{code}, value=>$opts{value});
+    warnings::warnif("Imager::tagcodes", "settag: code parameter is deprecated")
+        if $] >= 5.014;
+    i_tags_delbycode($self->{IMG}, $opts{code});
+    if (defined $opts{value}) {
+      if ($opts{value} =~ /^\d+$/) {
+        # add as a number
+        return i_tags_addn($self->{IMG}, $opts{code}, 0, $opts{value});
+      }
+      else {
+        return i_tags_add($self->{IMG}, $opts{code}, 0, $opts{value}, 0);
+      }
+    }
+    elsif (defined $opts{data}) {
+      # force addition as a string
+      return i_tags_add($self->{IMG}, $opts{code}, 0, $opts{data}, 0);
+    }
+    else {
+      $self->{ERRSTR} = "No value supplied";
+      return undef;
+    }
   }
   else {
     return undef;
@@ -1401,8 +1541,8 @@ sub _get_reader_io {
     return Imager::IO->new_fh($input->{fh});
   }
   elsif ($input->{file}) {
-    my $file = IO::File->new($input->{file}, "r");
-    unless ($file) {
+    my $file;
+    unless (open $file, "<", $input->{file}) {
       $self->_set_error("Could not open $input->{file}: $!");
       return;
     }
@@ -1455,8 +1595,8 @@ sub _get_writer_io {
     $io = Imager::IO->new_fh($input->{fh});
   }
   elsif ($input->{file}) {
-    my $fh = new IO::File($input->{file},"w+");
-    unless ($fh) { 
+    my $fh;
+    unless (open $fh, "+>", $input->{file}) { 
       $self->_set_error("Could not open file $input->{file}: $!");
       return;
     }
@@ -2126,7 +2266,7 @@ sub filter {
 
   if (!$input{'type'}) { $self->{ERRSTR}='type parameter missing'; return undef; }
 
-  if ( (grep { $_ eq $input{'type'} } keys %filters) != 1) {
+  if (!exists $filters{$input{'type'}}) {
     $self->{ERRSTR}='type parameter not matching any filter'; return undef;
   }
 
@@ -2419,6 +2559,8 @@ sub scaleY {
 # this moves pixels to a new location in the returned image.
 # NOTE - should make a utility function to check transforms for
 # stack overruns
+
+our $I2P;
 
 sub transform {
   my $self=shift;
@@ -3920,6 +4062,26 @@ sub difference {
   return $result;
 }
 
+sub rgb_difference {
+  my ($self, %opts) = @_;
+
+  $self->_valid_image("rgb_difference")
+    or return;
+
+  defined $opts{other}
+    or return $self->_set_error("No 'other' parameter supplied");
+  unless ($opts{other}->_valid_image("rgb_difference")) {
+    $self->_set_error($opts{other}->errstr . " (other image)");
+    return;
+  }
+
+  my $result = Imager->new;
+  $result->{IMG} = i_rgbdiff_image($self->{IMG}, $opts{other}{IMG})
+    or return $self->_set_error($self->_error_as_msg());
+
+  return $result;
+}
+
 # destructive border - image is shrunk by one pixel all around
 
 sub border {
@@ -4009,6 +4171,9 @@ sub getmask {
 sub setmask {
   my $self = shift;
   my %opts = @_;
+
+  warnings::warnif("Imager::channelmask", "setmask: image channel masks are deprecated")
+      if $] >= 5.014;
 
   $self->_valid_image("setmask")
     or return;
@@ -4248,7 +4413,7 @@ sub _set_error {
 
 # Default guess for the type of an image from extension
 
-my @simple_types = qw(png tga gif raw ico cur xpm mng jng ilbm pcx psd eps webp xwd xpm dng ras);
+my @simple_types = qw(png tga gif raw ico cur xpm mng jng ilbm pcx psd eps webp xwd xpm dng ras qoi jxl);
 
 my %ext_types =
   (
@@ -4269,6 +4434,8 @@ my %ext_types =
    fit => "fits",
    fits => "fits",
    rle => "utah",
+   avifs => "avif", # AVIF image sequence
+   avif => "avif",
   );
 
 sub def_guess_type {
@@ -4277,8 +4444,15 @@ sub def_guess_type {
   my ($ext) = $name =~ /\.([^.]+)$/
     or return;
 
-  my $type = $ext_types{$ext}
-    or return;
+  my $type = $ext_types{$ext};
+  unless ($type) {
+    $type = $ext_types{lc $ext};
+  }
+
+  if (!defined $type && $ext =~ /\A[a-zA-Z0-9_]{2,}\z/) {
+    # maybe a reasonable assumption
+    $type = lc $ext;
+  }
 
   return $type;
 }
@@ -4369,8 +4543,8 @@ sub Inline {
   # Inline added a new argument at the beginning
   my $lang = $_[-1];
 
-  $lang eq 'C'
-    or die "Only C language supported";
+  $lang eq 'C' || $lang eq 'CPP'
+    or die "Only C or C++ (CPP) language supported";
 
   require Imager::ExtUtils;
   return Imager::ExtUtils->inline_config;
@@ -4551,7 +4725,6 @@ sub SCALAR {
 
 1;
 __END__
-# Below is the stub of documentation for your module. You better edit it!
 
 =head1 NAME
 
@@ -4888,7 +5061,7 @@ is_bilevel() - L<Imager::ImageTypes/is_bilevel()> - returns whether
 image write functions should write the image in their bilevel (blank
 and white, no gray levels) format
 
-is_logging() L<Imager::ImageTypes/is_logging()> - test if the debug
+is_logging() - L<Imager::ImageTypes/is_logging()> - test if the debug
 log is active.
 
 line() - L<Imager::Draw/line()> - draw an interval
@@ -4958,6 +5131,9 @@ register_reader() - L<Imager::Files/register_reader()>
 
 register_writer() - L<Imager::Files/register_writer()>
 
+rgb_difference() - L<Imager::Filters/rgb_difference()> - produce a difference
+images from two input images.
+
 rotate() - L<Imager::Transformations/rotate()>
 
 rubthrough() - L<Imager::Transformations/rubthrough()> - draw an image
@@ -5003,6 +5179,12 @@ transform() - L<Imager::Engines/"transform()">
 
 transform2() - L<Imager::Engines/"transform2()">
 
+trim() - L<Imager::Transformations/trim()> - return a cropped image
+based on border transparency or border colors.
+
+trim_rect() - L<Imager::Transformations/trim_rect()> - return how much
+trim() would remove.
+
 type() -  L<Imager::ImageTypes/type()> - type of image (direct vs paletted)
 
 unload_plugin() - L<Imager::Filters/unload_plugin()>
@@ -5028,7 +5210,7 @@ L<Imager::ImageTypes/"Common Tags">.
 blend - alpha blending one image onto another
 L<Imager::Transformations/rubthrough()>
 
-blur - L<Imager::Filters/gaussian>, L<Imager::Filters/conv>
+blur - L<< Imager::Filters/C<gaussian> >>, L<< Imager::Filters/C<conv> >>
 
 boxes, drawing - L<Imager::Draw/box()>
 
@@ -5044,11 +5226,11 @@ combine modes - L<Imager::Draw/"Combine Types">
 
 compare images - L<Imager::Filters/"Image Difference">
 
-contrast - L<Imager::Filters/contrast>, L<Imager::Filters/autolevels>
+contrast - L<< Imager::Filters/C<contrast> >>, L<< Imager::Filters/C<autolevels> >>
 
-convolution - L<Imager::Filters/conv>
+convolution - L<< Imager::Filters/C<conv> >>
 
-cropping - L<Imager::Transformations/crop()>
+cropping - L<Imager::Transformations/crop()>, L<Imager::Transformations/trim()>
 
 CUR files - L<Imager::Files/"ICO (Microsoft Windows Icon) and CUR (Microsoft Windows Cursor)">
 
@@ -5087,27 +5269,27 @@ fonts, metrics - L<Imager::Font/bounding_box()>, L<Imager::Font::BBox>
 fonts, multiple master - L<Imager::Font/"MULTIPLE MASTER FONTS">
 
 fountain fill - L<Imager::Fill/"Fountain fills">,
-L<Imager::Filters/fountain>, L<Imager::Fountain>,
-L<Imager::Filters/gradgen>
+L<< Imager::Filters/C<fountain> >>, L<Imager::Fountain>,
+L<< Imager::Filters/C<gradgen> >>
 
 GIF files - L<Imager::Files/"GIF">
 
 GIF files, animated - L<Imager::Files/"Writing an animated GIF">
 
 gradient fill - L<Imager::Fill/"Fountain fills">,
-L<Imager::Filters/fountain>, L<Imager::Fountain>,
-L<Imager::Filters/gradgen>
+L<< Imager::Filters/C<fountain> >>, L<Imager::Fountain>,
+L<< Imager::Filters/C<gradgen> >>
 
 gray scale, convert image to - L<Imager::Transformations/convert()>
 
-gaussian blur - L<Imager::Filters/gaussian>
+gaussian blur - L<< Imager::Filters/C<gaussian> >>, L<< Imager::Filters/C<gaussian2> >>
 
 hatch fills - L<Imager::Fill/"Hatched fills">
 
 ICO files - L<Imager::Files/"ICO (Microsoft Windows Icon) and CUR (Microsoft Windows Cursor)">
 
-invert image - L<Imager::Filters/hardinvert>,
-L<Imager::Filters/hardinvertall>
+invert image - L<< Imager::Filters/C<hardinvert> >>,
+L<< Imager::Filters/C<hardinvertall> >>
 
 JPEG - L<Imager::Files/"JPEG">
 
@@ -5121,12 +5303,12 @@ L<Imager::Font/transform()>
 
 metadata, image - L<Imager::ImageTypes/"Tags">, L<Image::ExifTool>
 
-mosaic - L<Imager::Filters/mosaic>
+mosaic - L<< Imager::Filters/C<mosaic> >>
 
-noise, filter - L<Imager::Filters/noise>
+noise, filter - L<< Imager::Filters/C<noise> >>
 
-noise, rendered - L<Imager::Filters/turbnoise>,
-L<Imager::Filters/radnoise>
+noise, rendered - L<< Imager::Filters/C<turbnoise> >>,
+L<< Imager::Filters/C<radnoise> >>
 
 paste - L<Imager::Transformations/paste()>,
 L<Imager::Transformations/rubthrough()>
@@ -5136,7 +5318,7 @@ L<Imager::ImageTypes/new()>
 
 =for stopwords posterize
 
-posterize - L<Imager::Filters/postlevels>
+posterize - L<< Imager::Filters/C<postlevels> >>
 
 PNG files - L<Imager::Files>, L<Imager::Files/"PNG">
 
@@ -5157,7 +5339,7 @@ security - L<Imager::Security>
 
 SGI files - L<Imager::Files/"SGI (RGB, BW)">
 
-sharpen - L<Imager::Filters/unsharpmask>, L<Imager::Filters/conv>
+sharpen - L<< Imager::Filters/C<unsharpmask> >>, L<< Imager::Filters/C<conv> >>
 
 size, image - L<Imager::ImageTypes/getwidth()>,
 L<Imager::ImageTypes/getheight()>
@@ -5175,16 +5357,16 @@ text, measuring - L<Imager::Font/bounding_box()>, L<Imager::Font::BBox>
 
 threads - L<Imager::Threads>
 
-tiles, color - L<Imager::Filters/mosaic>
+tiles, color - L<< Imager::Filters/C<mosaic> >>
 
 transparent images - L<Imager::ImageTypes>,
 L<Imager::Cookbook/"Transparent PNG">
 
 =for stopwords unsharp
 
-unsharp mask - L<Imager::Filters/unsharpmask>
+unsharp mask - L<< Imager::Filters/C<unsharpmask> >>
 
-watermark - L<Imager::Filters/watermark>
+watermark - L<< Imager::Filters/C<watermark> >>
 
 writing an image to a file - L<Imager::Files>
 
@@ -5206,7 +5388,15 @@ L<http://www.molar.is/en/lists/imager-devel/>
 
 where you can also find the mailing list archive.
 
-You can report bugs by pointing your browser at:
+You can report bugs either via github at:
+
+=over
+
+L<https://github.com/tonycoz/imager/issues>
+
+=back
+
+or at:
 
 =over
 
@@ -5226,29 +5416,13 @@ Please remember to include the versions of Imager, perl, supporting
 libraries, and any relevant code.  If you have specific images that
 cause the problems, please include those too.
 
-If you don't want to publish your email address on a mailing list you
-can use CPAN::Forum:
-
-  http://www.cpanforum.com/dist/Imager
-
-You will need to register to post.
-
 =head1 CONTRIBUTING TO IMAGER
 
 =head2 Feedback
 
 I like feedback.
 
-If you like or dislike Imager, you can add a public review of Imager
-at CPAN Ratings:
-
-  http://cpanratings.perl.org/dist/Imager
-
-=for stopwords Bitcard
-
-This requires a Bitcard account (http://www.bitcard.org).
-
-You can also send email to the maintainer below.
+You can send email to the maintainer below.
 
 If you send me a bug report via email, it will be copied to Request
 Tracker.
@@ -5264,13 +5438,16 @@ it will be delayed until I get a chance to write them.
 
 To browse Imager's git repository:
 
-  http://git.imager.perl.org/imager.git
+  https://github.com/tonycoz/imager.git
 
 To clone:
 
-  git clone git://git.imager.perl.org/imager.git
+  git clone git://github.com/tonycoz/imager.git
 
-My preference is that patches are provided in the format produced by
+Or you can create a fork as usual on github and submit a github pull
+request.
+
+Patches can either be submitted as a github pull request or by using
 C<git format-patch>, for example, if you made your changes in a branch
 from master you might do:
 
