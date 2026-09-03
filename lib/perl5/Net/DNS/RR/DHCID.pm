@@ -1,14 +1,11 @@
 package Net::DNS::RR::DHCID;
 
-#
-# $Id: DHCID.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: DHCID.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,41 +13,24 @@ Net::DNS::RR::DHCID - DNS DHCID resource record
 
 =cut
 
-
 use integer;
 
 use MIME::Base64;
 
 
-sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
-
-	my $size = $self->{rdlength} - 3;
-	@{$self}{qw(identifiertype digesttype digest)} = unpack "\@$offset nC a$size", $$data;
-}
-
-
-sub _encode_rdata {			## encode rdata as wire-format octet string
-	my $self = shift;
-
-	pack 'nC a*', map $self->$_, qw(identifiertype digesttype digest);
-}
-
-
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	my @base64 = split /\s+/, encode_base64( $self->_encode_rdata );
+	my @rdata = split /\s+/, encode_base64( $self->_encode_rdata );
+	return @rdata;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	my $data = MIME::Base64::decode( join "", @_ );
-	my $size = length($data) - 3;
-	@{$self}{qw(identifiertype digesttype digest)} = unpack "n C a$size", $data;
+	$self->rdata( MIME::Base64::decode( join "", @argument ) );
+	return;
 }
 
 
@@ -72,29 +52,11 @@ sub _parse_rdata {			## populate RR from rdata in argument list
 #	|      0xffff	   | Undefined; RESERVED.			    |
 #	+------------------+------------------------------------------------+
 
+sub identifiertype { return unpack 'n', shift->{rdata} || return }
 
-sub identifiertype {
-	my $self = shift;
+sub digesttype { return unpack 'x2C', shift->{rdata} || return }
 
-	$self->{identifiertype} = 0 + shift if scalar @_;
-	$self->{identifiertype} || 0;
-}
-
-
-sub digesttype {
-	my $self = shift;
-
-	$self->{digesttype} = 0 + shift if scalar @_;
-	$self->{digesttype} || 0;
-}
-
-
-sub digest {
-	my $self = shift;
-
-	$self->{digest} = shift if scalar @_;
-	$self->{digest} || "";
-}
+sub digest { return unpack 'x3a*', shift->{rdata} || return }
 
 
 1;
@@ -103,17 +65,17 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('client.example.com. DHCID ( AAAB
-	xLmlskllE0MVjd57zHcWmEH3pCQ6VytcKD//7es/deY=');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('client.example.com. DHCID ( AAAB
+		xLmlskllE0MVjd57zHcWmEH3pCQ6VytcKD//7es/deY= )');
 
-    $rr = new Net::DNS::RR(
-	name	       => 'client.example.com',
-	type	       => 'DHCID',
-	digest	       => 'ObfuscatedIdentityData',
-	digesttype     => 1,
-	identifiertype => 2,
-	);
+	$rr = Net::DNS::RR->new(
+		name		=> 'client.example.com',
+		type		=> 'DHCID',
+		digest		=> 'ObfuscatedIdentityData',
+		digesttype	=> 1,
+		identifiertype	=> 2,
+		);
 
 =head1 DESCRIPTION
 
@@ -131,24 +93,23 @@ other unpredictable behaviour.
 
 =head2 identifiertype
 
-    $identifiertype = $rr->identifiertype;
-    $rr->identifiertype( $identifiertype );
+	$identifiertype = $rr->identifiertype;
 
 The 16-bit identifier type describes the form of host identifier
 used to construct the DHCP identity information.
 
+
 =head2 digesttype
 
-    $digesttype = $rr->digesttype;
-    $rr->digesttype( $digesttype );
+	$digesttype = $rr->digesttype;
 
 The 8-bit digest type number describes the message-digest
 algorithm used to obfuscate the DHCP identity information.
 
+
 =head2 digest
 
-    $digest = $rr->digest;
-    $rr->digest( $digest );
+	$digest = $rr->digest;
 
 Binary representation of the digest of DHCP identity information.
 
@@ -166,7 +127,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -183,6 +144,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC4701
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC4701|https://iana.org/go/rfc4701>
 
 =cut

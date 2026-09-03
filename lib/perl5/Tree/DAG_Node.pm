@@ -5,9 +5,9 @@ use warnings;
 use warnings qw(FATAL utf8); # Fatalize encoding glitches.
 
 our $Debug   = 0;
-our $VERSION = '1.31';
+our $VERSION = '1.39';
 
-use File::Slurp::Tiny 'read_lines';
+use File::Slurper 'read_lines';
 
 # -----------------------------------------------
 
@@ -688,7 +688,7 @@ sub format_node
 {
 	my($self, $options, $node) = @_;
 	my($s) = $node -> name;
-	$s     .= '. Attributes: ' . $self -> hashref2string($node -> attributes) if (! $$options{no_attributes});
+	$s     .= $$options{no_attributes} ? '. Attributes: {}' : '. Attributes: ' . $self -> hashref2string($node -> attributes);
 
 	return $s;
 
@@ -723,7 +723,7 @@ sub hashref2string
 	my($self, $hashref) = @_;
 	$hashref ||= {};
 
-	return '{' . join(', ', map{qq|$_ => "$$hashref{$_}"|} sort keys %$hashref) . '}';
+	return '{' . join(', ', map{$_ = 'undef' if (! defined($_) ); $$hashref{$_} = 'undef' if (! defined($$hashref{$_}) ); qq|$_ => "$$hashref{$_}"|} sort keys %$hashref) . '}';
 
 } # End of hashref2string.
 
@@ -1113,8 +1113,12 @@ sub read_tree
 	my(@stack);
 	my($tos);
 
-	for my $line (read_lines($file_name, binmode => ':encoding(utf-8)', chomp => 1) )
+	for my $line (read_lines($file_name) )
 	{
+		# Ensure inter-OS compatability.
+
+		$line =~ s/\r$//g;
+
 		$count++;
 
 		if ($count == 1)
@@ -3084,7 +3088,7 @@ $daughter->walk_down($options) for each daughter (in order, of
 course), where options_hashref is the same hashref it was called with.
 When this returns, decrements I<_depth>.
 
-=item Callbackback
+=item o Callbackback
 
 If there's a I<callbackback>, call just it as with I<callback> (but
 tossing out the return value).  Note that I<callback> returning false
@@ -3245,7 +3249,7 @@ an arrayref as a stack:
 		callback =>
 		sub
 		{
-			my(@node, $options) = @_;
+			my($node, $options) = @_;
 
 			# Process $node, using $options...
 
@@ -3368,7 +3372,7 @@ L<https://github.com/ronsavage/Tree-DAG_Node>
 
 Email the author, or log a bug on RT:
 
-L<https://rt.cpan.org/Public/Dist/Display.html?Name=Tree-DAG_Node>.
+L<https://github.com/ronsavage/Tree-DAG_Node/issues>.
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -3391,10 +3395,7 @@ Sean M. Burke, C<< <sburke@cpan.org> >>
 
 Copyright 1998-2001, 2004, 2007 by Sean M. Burke and David Hand.
 
-This Program of ours is 'OSI Certified Open Source Software';
-you can redistribute it and/or modify it under the terms of
-The Perl License, a copy of which is available at:
-http://dev.perl.org/licenses/
+See the accompanying LICENSE file.
 
 This program is distributed in the hope that it will be useful, but
 without any warranty; without even the implied warranty of

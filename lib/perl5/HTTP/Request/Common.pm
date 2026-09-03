@@ -3,26 +3,30 @@ package HTTP::Request::Common;
 use strict;
 use warnings;
 
-our $VERSION = '6.18';
+our $VERSION = '7.04';
 
 our $DYNAMIC_FILE_UPLOAD ||= 0;  # make it defined (don't know why)
+our $READ_BUFFER_SIZE      = 8192;
 
 use Exporter 5.57 'import';
 
-our @EXPORT =qw(GET HEAD PUT PATCH POST);
-our @EXPORT_OK = qw($DYNAMIC_FILE_UPLOAD DELETE);
+our @EXPORT = qw(GET HEAD OPTIONS PATCH POST PUT);
+our @EXPORT_OK = qw($DYNAMIC_FILE_UPLOAD DELETE QUERY);
 
 require HTTP::Request;
 use Carp();
+use File::Spec;
 
 my $CRLF = "\015\012";   # "\r\n" is not portable
 
 sub GET  { _simple_req('GET',  @_); }
 sub HEAD { _simple_req('HEAD', @_); }
 sub DELETE { _simple_req('DELETE', @_); }
+sub OPTIONS { request_type_with_data('OPTIONS', @_); }
 sub PATCH { request_type_with_data('PATCH', @_); }
 sub POST { request_type_with_data('POST', @_); }
 sub PUT { request_type_with_data('PUT', @_); }
+sub QUERY { request_type_with_data('QUERY', @_); }
 
 sub request_type_with_data
 {
@@ -84,9 +88,6 @@ sub request_type_with_data
 	    my $url = URI->new('http:');
 	    $url->query_form(ref($content) eq "HASH" ? %$content : @$content);
 	    $content = $url->query;
-
-	    # HTML/4.01 says that line breaks are represented as "CR LF" pairs (i.e., `%0D%0A')
-	    $content =~ s/(?<!%0D)%0A/%0D%0A/g if defined($content);
 	}
     }
 
@@ -142,7 +143,7 @@ sub form_data   # RFC1867
 	    my($file, $usename, @headers) = @$v;
 	    unless (defined $usename) {
 		$usename = $file;
-		$usename =~ s,.*/,, if defined($usename);
+		$usename = (File::Spec->splitpath($usename))[-1] if defined($usename);
 	    }
             $k =~ s/([\\\"])/\\$1/g;
 	    my $disp = qq(form-data; name="$k");
@@ -251,7 +252,7 @@ sub form_data   # RFC1867
                     binmode($fh);
                 }
 		my $buflength = length $buf;
-		my $n = read($fh, $buf, 2048, $buflength);
+		my $n = read($fh, $buf, $READ_BUFFER_SIZE, $buflength);
 		if ($n) {
 		    $buflength += $n;
 		    unshift(@parts, ["", $fh]);
@@ -312,16 +313,21 @@ HTTP::Request::Common - Construct common HTTP::Request objects
 
 =head1 VERSION
 
-version 6.18
+version 7.04
 
 =head1 SYNOPSIS
 
   use HTTP::Request::Common;
   $ua = LWP::UserAgent->new;
   $ua->request(GET 'http://www.sn.no/');
-  $ua->request(POST 'http://somewhere/foo', [foo => bar, bar => foo]);
-  $ua->request(PATCH 'http://somewhere/foo', [foo => bar, bar => foo]);
-  $ua->request(PUT 'http://somewhere/foo', [foo => bar, bar => foo]);
+  $ua->request(POST 'http://somewhere/foo', foo => bar, bar => foo);
+  $ua->request(PATCH 'http://somewhere/foo', foo => bar, bar => foo);
+  $ua->request(PUT 'http://somewhere/foo', foo => bar, bar => foo);
+  $ua->request(OPTIONS 'http://somewhere/foo', foo => bar, bar => foo);
+
+  use HTTP::Request::Common qw(DELETE QUERY);
+  $ua->request(DELETE 'http://somewhere/foo', foo => bar, bar => foo);
+  $ua->request(QUERY 'http://somewhere/foo', foo => bar, bar => foo);
 
 =head1 DESCRIPTION
 
@@ -398,6 +404,22 @@ The same as C<POST> below, but the method in the request is C<PATCH>.
 
 The same as C<POST> below, but the method in the request is C<PUT>
 
+=item OPTIONS $url
+
+=item OPTIONS $url, Header => Value,...
+
+=item OPTIONS $url, $form_ref, Header => Value,...
+
+=item OPTIONS $url, Header => Value,..., Content => $form_ref
+
+=item OPTIONS $url, Header => Value,..., Content => $content
+
+The same as C<POST> below, but the method in the request is C<OPTIONS>
+
+This was added in version 6.21, so you should require that in your code:
+
+ use HTTP::Request::Common 6.21;
+
 =item POST $url
 
 =item POST $url, Header => Value,...
@@ -408,7 +430,7 @@ The same as C<POST> below, but the method in the request is C<PUT>
 
 =item POST $url, Header => Value,..., Content => $content
 
-C<POST>, C<PATCH> and C<PUT> all work with the same parameters.
+C<OPTIONS>, C<POST>, C<PATCH>, C<PUT> and C<QUERY> all work with the same parameters.
 
   %data = ( title => 'something', body => something else' );
   $ua = LWP::UserAgent->new();
@@ -527,10 +549,29 @@ the file is not a plain file, there will be no C<Content-Length> header
 defined for the request.  Not all servers (or server
 applications) like this.  Also, if the file(s) change in size between
 the time the C<Content-Length> is calculated and the time that the last
-chunk is delivered, the subroutine will C<Croak>.
+chunk is delivered, the subroutine will C<croak>.
 
 The C<post(...)>  method of L<LWP::UserAgent> exists as a shortcut for
 C<< $ua->request(POST ...) >>.
+
+=item QUERY $url
+
+=item QUERY $url, Header => Value,...
+
+=item QUERY $url, $form_ref, Header => Value,...
+
+=item QUERY $url, Header => Value,..., Content => $form_ref
+
+=item QUERY $url, Header => Value,..., Content => $content
+
+The same as C<POST> above, but the method in the request is C<QUERY>,
+the safe, idempotent method with content defined by
+L<RFC 10008|https://www.rfc-editor.org/rfc/rfc10008.html>.
+This function is not exported by default.
+
+This was added in version 7.04, so you should require that in your code:
+
+ use HTTP::Request::Common 7.04 qw(QUERY);
 
 =back
 
@@ -547,7 +588,7 @@ Gisle Aas <gisle@activestate.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 1994-2017 by Gisle Aas.
+This software is copyright (c) 1994 by Gisle Aas.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

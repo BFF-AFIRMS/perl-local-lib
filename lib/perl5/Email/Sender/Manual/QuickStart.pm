@@ -1,8 +1,8 @@
 use strict;
 use warnings;
-package Email::Sender::Manual::QuickStart;
+package Email::Sender::Manual::QuickStart 2.601;
 # ABSTRACT: how to start using Email::Sender right now
-$Email::Sender::Manual::QuickStart::VERSION = '1.300031';
+
 #pod =head1 QUICK START
 #pod
 #pod =head2 Let's Send Some Mail!
@@ -11,31 +11,24 @@ $Email::Sender::Manual::QuickStart::VERSION = '1.300031';
 #pod
 #pod   use strict;
 #pod   use Email::Sender::Simple qw(sendmail);
-#pod   use Email::Simple;
-#pod   use Email::Simple::Creator;
+#pod   use Email::MIME;
 #pod
-#pod   my $email = Email::Simple->create(
-#pod     header => [
-#pod       To      => '"Xavier Q. Ample" <x.ample@example.com>',
-#pod       From    => '"Bob Fishman" <orz@example.mil>',
-#pod       Subject => "don't forget to *enjoy the sauce*",
-#pod     ],
-#pod     body => "This message is short, but at least it's cheap.\n",
-#pod   );
+#pod   # You can make an email object in lots of ways.  Pick one you like!
+#pod   my $email = Email::MIME->create(...);
 #pod
 #pod   sendmail($email);
 #pod
 #pod That's it.  Your message goes out into the internet and tries to get delivered
 #pod to C<x.ample@example.com>.
 #pod
-#pod In the example above, C<$email> could be an Email::Simple object, a
-#pod MIME::Entity, a string containing an email message, or one of several other
-#pod types of input.  If C<Email::Abstract> can understand a value, it can be passed
-#pod to Email::Sender::Simple.  Email::Sender::Simple tries to make a good guess
-#pod about how to send the message.  It will usually try to use the F<sendmail>
-#pod program on unix-like systems and to use SMTP on Windows.  You can specify a
-#pod transport, if you need to, but normally that shouldn't be an issue.  (See
-#pod L</Picking a Transport>, though, for more information.)
+#pod In the example above, C<$email> could be an Email::MIME object, a MIME::Entity,
+#pod a string containing an email message, or one of several other types of input.
+#pod If C<Email::Abstract> can understand a value, it can be passed to
+#pod Email::Sender::Simple.  Email::Sender::Simple tries to make a good guess about
+#pod how to send the message.  It will usually try to use the F<sendmail> program on
+#pod unix-like systems and to use SMTP on Windows.  You can specify a transport, if
+#pod you need to, but normally that shouldn't be an issue.  (See L</Picking a
+#pod Transport>, though, for more information.)
 #pod
 #pod Also note that we imported and used a C<sendmail> routine in the example above.
 #pod This is exactly the same as saying:
@@ -48,9 +41,9 @@ $Email::Sender::Manual::QuickStart::VERSION = '1.300031';
 #pod
 #pod We didn't have to tell Email::Sender::Simple where to send the message.  If you
 #pod don't specify recipients, it will use all the email addresses it can find in
-#pod the F<To> and F<Cc> headers by default.  It will use L<Email::Address> to parse
-#pod those fields.  Similarly, if no sender is specified, it will use the first
-#pod address found in the F<From> header.
+#pod the F<To> and F<Cc> headers by default.  It will use L<Email::Address::XS> to
+#pod parse those fields.  Similarly, if no sender is specified, it will use the
+#pod first address found in the F<From> header.
 #pod
 #pod In most email transmission systems, though, the headers are not by necessity
 #pod tied to the addresses used as the sender and recipients.  For example, your
@@ -258,7 +251,17 @@ Email::Sender::Manual::QuickStart - how to start using Email::Sender right now
 
 =head1 VERSION
 
-version 1.300031
+version 2.601
+
+=head1 PERL VERSION
+
+This library should run on perls released even a long time ago.  It should
+work on any version of perl released in the last five years.
+
+Although it may work on older versions of perl, no guarantee is made that the
+minimum required version will not be increased.  The version may be increased
+for any reason, and there is no promise that patches will be accepted to
+lower the minimum required perl.
 
 =head1 QUICK START
 
@@ -268,31 +271,24 @@ No messing around, let's just send some mail.
 
   use strict;
   use Email::Sender::Simple qw(sendmail);
-  use Email::Simple;
-  use Email::Simple::Creator;
+  use Email::MIME;
 
-  my $email = Email::Simple->create(
-    header => [
-      To      => '"Xavier Q. Ample" <x.ample@example.com>',
-      From    => '"Bob Fishman" <orz@example.mil>',
-      Subject => "don't forget to *enjoy the sauce*",
-    ],
-    body => "This message is short, but at least it's cheap.\n",
-  );
+  # You can make an email object in lots of ways.  Pick one you like!
+  my $email = Email::MIME->create(...);
 
   sendmail($email);
 
 That's it.  Your message goes out into the internet and tries to get delivered
 to C<x.ample@example.com>.
 
-In the example above, C<$email> could be an Email::Simple object, a
-MIME::Entity, a string containing an email message, or one of several other
-types of input.  If C<Email::Abstract> can understand a value, it can be passed
-to Email::Sender::Simple.  Email::Sender::Simple tries to make a good guess
-about how to send the message.  It will usually try to use the F<sendmail>
-program on unix-like systems and to use SMTP on Windows.  You can specify a
-transport, if you need to, but normally that shouldn't be an issue.  (See
-L</Picking a Transport>, though, for more information.)
+In the example above, C<$email> could be an Email::MIME object, a MIME::Entity,
+a string containing an email message, or one of several other types of input.
+If C<Email::Abstract> can understand a value, it can be passed to
+Email::Sender::Simple.  Email::Sender::Simple tries to make a good guess about
+how to send the message.  It will usually try to use the F<sendmail> program on
+unix-like systems and to use SMTP on Windows.  You can specify a transport, if
+you need to, but normally that shouldn't be an issue.  (See L</Picking a
+Transport>, though, for more information.)
 
 Also note that we imported and used a C<sendmail> routine in the example above.
 This is exactly the same as saying:
@@ -305,9 +301,9 @@ This is exactly the same as saying:
 
 We didn't have to tell Email::Sender::Simple where to send the message.  If you
 don't specify recipients, it will use all the email addresses it can find in
-the F<To> and F<Cc> headers by default.  It will use L<Email::Address> to parse
-those fields.  Similarly, if no sender is specified, it will use the first
-address found in the F<From> header.
+the F<To> and F<Cc> headers by default.  It will use L<Email::Address::XS> to
+parse those fields.  Similarly, if no sender is specified, it will use the
+first address found in the F<From> header.
 
 In most email transmission systems, though, the headers are not by necessity
 tied to the addresses used as the sender and recipients.  For example, your
@@ -501,11 +497,11 @@ and the various Email::Sender::Transport classes.
 
 =head1 AUTHOR
 
-Ricardo Signes <rjbs@cpan.org>
+Ricardo Signes <cpan@semiotic.systems>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2017 by Ricardo Signes.
+This software is copyright (c) 2024 by Ricardo Signes.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

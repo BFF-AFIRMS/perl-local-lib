@@ -1,14 +1,13 @@
 package MooseX::Runnable::Util::ArgParser;
-BEGIN {
-  $MooseX::Runnable::Util::ArgParser::AUTHORITY = 'cpan:JROCKWAY';
-}
 # ABSTRACT: parse @ARGV for C<mx-run>
-$MooseX::Runnable::Util::ArgParser::VERSION = '0.09';
+
+our $VERSION = '0.10';
+
 use Moose;
 use MooseX::Types::Moose qw(HashRef ArrayRef Str Bool);
 use MooseX::Types::Path::Tiny qw(Path);
 use Path::Tiny; # exports path()
-use List::MoreUtils qw(first_index);
+use List::SomeUtils qw(first_index);
 use FindBin;
 
 use namespace::autoclean -also => ['_look_for_dash_something', '_delete_first'];
@@ -23,40 +22,46 @@ has 'argv' => (
 has 'class_name' => (
     is         => 'ro',
     isa        => Str,
-    lazy_build => 1,
+    lazy       => 1,
+    builder    => '_build_class_name',
 );
 
 has 'modules' => (
     is         => 'ro',
     isa        => ArrayRef[Str],
-    lazy_build => 1,
+    lazy       => 1,
+    builder    => '_build_modules',
     auto_deref => 1,
 );
 
 has 'include_paths' => (
     is         => 'ro',
     isa        => ArrayRef[Path],
-    lazy_build => 1,
+    lazy       => 1,
+    builder    => '_build_include_paths',
     auto_deref => 1,
 );
 
 has 'plugins' => (
     is         => 'ro',
     isa        => HashRef[ArrayRef[Str]],
-    lazy_build => 1,
+    lazy       => 1,
+    builder    => '_build_plugins',
 );
 
 has 'app_args' => (
     is         => 'ro',
     isa        => ArrayRef[Str],
-    lazy_build => 1,
+    lazy       => 1,
+    builder    => '_build_app_args',
     auto_deref => 1,
 );
 
 has 'is_help' => (
     is       => 'ro',
     isa      => Bool,
-    lazy_build => 1,
+    lazy     => 1,
+    builder  => '_build_is_help',
 );
 
 
@@ -274,7 +279,7 @@ MooseX::Runnable::Util::ArgParser - parse @ARGV for C<mx-run>
 
 =head1 VERSION
 
-version 0.09
+version 0.10
 
 =head1 SYNOPSIS
 
@@ -288,6 +293,17 @@ version 0.09
     $parser->plugins;
     $parser->is_help;
     $parser->app_args;
+
+=head1 SUPPORT
+
+Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=MooseX-Runnable>
+(or L<bug-MooseX-Runnable@rt.cpan.org|mailto:bug-MooseX-Runnable@rt.cpan.org>).
+
+There is also a mailing list available for users of this distribution, at
+L<http://lists.perl.org/list/moose.html>.
+
+There is also an irc channel available for users of this distribution, at
+L<C<#moose> on C<irc.perl.org>|irc://irc.perl.org/#moose>.
 
 =head1 AUTHOR
 

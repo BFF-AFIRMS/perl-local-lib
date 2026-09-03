@@ -32,7 +32,7 @@
 package GD::Graph;
 
 ($GD::Graph::prog_version) = '$Revision: 1.55 $' =~ /\s([\d.]+)/;
-$GD::Graph::VERSION = '1.54';
+$GD::Graph::VERSION = '1.44';
 
 use strict;
 use GD;
@@ -605,35 +605,6 @@ Create a pie chart.
 
 =back
 
-=head1 DISTRIBUTION STATUS
-
-Distribution has no releases since 2007. It has new maintainer starting
-of 1.45 and my plan is to keep modules backwards compatible as much as
-possible, fix bugs with test cases, apply patches and release new versions
-to the CPAN.
-
-I got repository from Martien without Benjamin's work, Benjamin couldn't
-find his repository, so everything else is imported from CPAN and BackPAN.
-Now it's all on github L<https://github.com/ruz/GDGraph>. May be at some
-point Benjamin will find his VCS backup and we can restore full history.
-
-Release 1.44_01 (development release) was released in 2007 by Benjamin,
-but never made into production version. This dev version contains very
-nice changes (truecolor, anti-aliasing and alpha support), but due to
-nature of how GD and GD::Graph works authors had to add third optional
-argument (truecolor) to all constructors in GD::Graph modules. I think
-that this should be and can be adjusted to receive named arguments in
-constructor and still be backwards compatible. If you were using that
-dev release and want to fast forward inclusion of this work into production
-release then contact ruz@cpan.org
-
-Martien also has changes in his repository that were never published
-to CPAN. These are smaller and well isolated, so I can merge them faster.
-
-My goal at this moment is to merge existing versions together, get rid
-of CVS reminders, do some repo cleanup, review existing tickets on
-rt.cpan.org. Join if you want to help.
-
 =head1 EXAMPLES
 
 See the samples directory in the distribution, and read the Makefile
@@ -740,7 +711,7 @@ especially the FAQ.
 
 =item GD::Graph::chart-E<gt>new([width,height])
 
-Create a new object $graph with optional width and height. 
+Create a new object $graph with optional width and heigth. 
 Default width = 400, default height = 300. I<chart> is either
 I<bars>, I<lines>, I<points>, I<linespoints>, I<area>, I<mixed> or
 I<pie>.
@@ -1002,7 +973,7 @@ x_long_ticks, y_long_ticks, x_tick_length and y_tick_length.
 
 =item x_ticks
 
-If I<x_ticks> is a true value, ticks will be drawn for the x axis.
+If I<x_ticks> is a true value, ticks will be drawm for the x axis.
 These ticks are subject to the values of I<long_ticks> and
 I<tick_length>.  Default: 1.
 
@@ -1068,42 +1039,23 @@ Print every I<x_label_skip>th number under the tick on the x axis, and
 every I<y_label_skip>th number next to the tick on the y axis.
 Default: 1 for both.
 
-=item x_last_label_skip
-
-By default, when I<x_label_skip> is set to something higher than 1, the last
-label on the axis will be printed, even when it doesn't belong to the
-normal series that should be printed. Setting this to a true value
-prevents that.
-
-For example, when your X values are the months of the year (i.e. Jan -
-Dec), and you set I<x_label_skip> to 3, the months printed on the axis
-will be Jan, Apr, Jul, Oct and Dec; even though Dec does not really
-belong to that sequence. If you do not like the last month to be
-printed, set I<x_last_label_skip> to a true value.
-
-This option has no effect in other circumstances. Also see
-I<x_tick_offset> for another method to make this look better.
-Default: 0 for both
-
 =item x_tick_offset
 
-When I<x_label_skip> is used, this will skip the first I<x_tick_offset>
-values in the labels before starting to print. Let me give an example.
-If you have a series of X labels like
+When x_label_skip is used, this will skip the first x_tick_offset values
+in the labels before starting to print. Let me give an example. If you
+have a series of X labels like
 
   qw(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec)
 
-and you set I<x_label_skip> to 3, you will see ticks on the X axis for Jan,
+and you set x_label_skip to 3, you will see ticks on the X axis for Jan,
 Apr, Jul, Oct and Dec. This is not always what is wanted. If you set
-I<x_tick_offset> to 1, you get Feb, May, Aug, Nov and Dec, and if you set
+x_tick_offset to 1, you get Feb, May, Aug, Nov and Dec, and if you set
 it to 2, you get Mar, Jun Sep and Dec, and this last one definitely
 looks better. A combination of 6 and 5 also works nice for months. 
 
-Note that the value for I<x_tick_offset> is periodical. This means that it
-will have the same effect for each integer n in I<x_tick_offset> + n *
-I<x_label_skip>.
-
-Also see I<x_last_label_skip> for another method to influence this.
+Note that the value for x_tick_offset is periodical. This means that it
+will have the same effect for each nteger n in x_tick_offset + n *
+x_label_skip.
 
 =item x_all_ticks
 
@@ -1145,7 +1097,7 @@ Default: 1.
 
 Draw no axes at all. If this is set to undef, all axes are drawn. If
 it is set to 0, the zero axis will be drawn, I<for bar charts only>.
-If this is set to a true value, no axes will be drawn at all. Value
+If this is set to a true value, no axes will be drawns at all. Value
 labels on the axes and ticks will also not be drawn, but axis lables
 are drawn.
 Default: undef.
@@ -1186,12 +1138,15 @@ Default: 0.
 
 If set to a true value, the zero axis will be drawn (see
 I<zero_axis>), and no axis at the bottom of the graph will be drawn.
-The labels for X values will be placed on the zero axis.
+The labels for X values will be placed on the zero exis.
 Default: 0.
 
 =item y_max_value, y_min_value
 
-Maximum and minimum value displayed on the y axis.
+Maximum and minimum value displayed on the y axis. If two_axes is a
+true value, then y1_min_value, y1_max_value (for the left axis),
+and y2_min_value, y2_max_value (for the right axis) take precedence
+over these.
 
 The range (y_min_value..y_max_value) has to include all the values of
 the data points, or I<GD::Graph> will die with a message.
@@ -1201,30 +1156,6 @@ include 0. If it doesn't, the values will be adapted before attempting
 to draw the graph.
 
 Default: Computed from data sets.
-
-=item y1_max_value, y1_min_value, y2_max_value, y2_min_value
-
-Maximum and minimum values for left (y1) and right (y2) axes when
-B<two_axes> is a true value. Take precedence over y_min_value
-and y_max_value.
-
-By default 0 of the left axis is aligned with 0 of the right axis,
-it's not true if any of these options is defined.
-
-Otherwise behaviour and default values are as with y_max_value and y_min_value.
-
-=item y_min_range, y1_min_range, y2_min_range
-
-Minimal range between min and max values on y axis that is used to adjust
-computed y_min_value and y_max_value.
-
-B<NOTE> that author of the feature implemented this for two_axes case only,
-patches are wellcome to expand over one y axis.
-
-If two_axes is a true value, then y1_min_range and y2_min_range take
-precedence over y_min_range value.
-
-Default: undef
 
 =item axis_space
 
@@ -1326,14 +1257,6 @@ How to format the values for display. See y_number_format for more
 information.
 Default: undef.
 
-=item hide_overlapping_values
-
-If set to a true value, the values that goes out of graph space are hidden.
-Option is B<EXPERIMENTAL>, works only for bars, text still can overlap with
-other bars and labels, most useful only with text in the same direction as
-bars.
-Default: undef
-
 =back
 
 =head2 Options for graphs with a numerical X axis
@@ -1361,12 +1284,6 @@ Default: undef.
 
 The minimum and maximum value to use for the X axis.
 Default: computed.
-
-=item x_min_range
-
-Minimal range of x axis.
-
-Default: undef
 
 =item x_number_format
 
@@ -1632,10 +1549,6 @@ more restrictive behaviour).
 I<Note that this is an experimental feature, and its interface may, and
 likely will, change in the future. It currently does not work for area
 charts or pie charts.>
-
-I<A known problem with hotspots for GD::Graph::hbars is that the x and y
-coordinate come out transposed. This probably won't be fixed until the
-redesign of this section>
 
 GD::Graph keeps an internal set of coordinates for each data point and
 for certain features of a chart, like the title and axis labels. This

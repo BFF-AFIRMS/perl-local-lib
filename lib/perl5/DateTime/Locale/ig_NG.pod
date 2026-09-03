@@ -36,7 +36,7 @@ Igbo Nigeria locale.
   Tọọzdee
   Fraịdee
   Satọdee
-  Ụbọchị Ụka
+  Sọndee
 
 =head3 Abbreviated (format)
 
@@ -45,8 +45,8 @@ Igbo Nigeria locale.
   Wen
   Tọọ
   Fraị
-  Satọdee
-  Ụka
+  Sat
+  Sọn
 
 =head3 Narrow (format)
 
@@ -67,7 +67,7 @@ Igbo Nigeria locale.
   Tọọzdee
   Fraịdee
   Satọdee
-  Ụbọchị Ụka
+  Sọndee
 
 =head3 Abbreviated (stand-alone)
 
@@ -76,8 +76,8 @@ Igbo Nigeria locale.
   Wen
   Tọọ
   Fraị
-  Satọdee
-  Ụka
+  Sat
+  Sọn
 
 =head3 Narrow (stand-alone)
 
@@ -98,7 +98,7 @@ Igbo Nigeria locale.
   Maachị
   Epreel
   Mee
-  Juun
+  Jun
   Julaị
   Ọgọọst
   Septemba
@@ -144,7 +144,7 @@ Igbo Nigeria locale.
   Maachị
   Epreel
   Mee
-  Juun
+  Jun
   Julaị
   Ọgọọst
   Septemba
@@ -193,10 +193,10 @@ Igbo Nigeria locale.
 
 =head3 Abbreviated (format)
 
-  Ọ1
-  Ọ2
-  Ọ3
-  Ọ4
+  Q1
+  Q2
+  Q3
+  Q4
 
 =head3 Narrow (format)
 
@@ -215,10 +215,10 @@ Igbo Nigeria locale.
 
 =head3 Abbreviated (stand-alone)
 
-  Ọ1
-  Ọ2
-  Ọ3
-  Ọ4
+  Q1
+  Q2
+  Q3
+  Q4
 
 =head3 Narrow (stand-alone)
 
@@ -231,18 +231,18 @@ Igbo Nigeria locale.
 
 =head3 Wide (format)
 
-  Tupu Kristi
-  Afọ Kristi
+  Tupu Kraist
+  Afọ Kraịst
 
 =head3 Abbreviated (format)
 
-  T.K.
-  A.K.
+  BC
+  AD
 
 =head3 Narrow (format)
 
-  T.K.
-  A.K.
+  BC
+  AD
 
 =head2 Date Formats
 
@@ -302,15 +302,15 @@ Igbo Nigeria locale.
 
 =head3 Full
 
-   2008-02-05T18:30:30 = Tiuzdee, 5 Febrụwarị 2008 na 18:30:30 UTC
-   1995-12-22T09:05:02 = Fraịdee, 22 Disemba 1995 na 09:05:02 UTC
-  -0010-09-15T04:44:23 = Satọdee, 15 Septemba -10 na 04:44:23 UTC
+   2008-02-05T18:30:30 = Tiuzdee, 5 Febrụwarị 2008, 18:30:30 UTC
+   1995-12-22T09:05:02 = Fraịdee, 22 Disemba 1995, 09:05:02 UTC
+  -0010-09-15T04:44:23 = Satọdee, 15 Septemba -10, 04:44:23 UTC
 
 =head3 Long
 
-   2008-02-05T18:30:30 = 5 Febrụwarị 2008 na 18:30:30 UTC
-   1995-12-22T09:05:02 = 22 Disemba 1995 na 09:05:02 UTC
-  -0010-09-15T04:44:23 = 15 Septemba -10 na 04:44:23 UTC
+   2008-02-05T18:30:30 = 5 Febrụwarị 2008, 18:30:30 UTC
+   1995-12-22T09:05:02 = 22 Disemba 1995, 09:05:02 UTC
+  -0010-09-15T04:44:23 = 15 Septemba -10, 04:44:23 UTC
 
 =head3 Medium
 
@@ -349,73 +349,103 @@ Igbo Nigeria locale.
 
    2008-02-05T18:30:30 = Tiu
    1995-12-22T09:05:02 = Fraị
-  -0010-09-15T04:44:23 = Satọdee
+  -0010-09-15T04:44:23 = Sat
+
+=head3 EBh (E h B)
+
+   2008-02-05T18:30:30 = Tiu 6 B
+   1995-12-22T09:05:02 = Fraị 9 B
+  -0010-09-15T04:44:23 = Sat 4 B
 
 =head3 EBhm (E h:mm B)
 
    2008-02-05T18:30:30 = Tiu 6:30 B
    1995-12-22T09:05:02 = Fraị 9:05 B
-  -0010-09-15T04:44:23 = Satọdee 4:44 B
+  -0010-09-15T04:44:23 = Sat 4:44 B
 
 =head3 EBhms (E h:mm:ss B)
 
    2008-02-05T18:30:30 = Tiu 6:30:30 B
    1995-12-22T09:05:02 = Fraị 9:05:02 B
-  -0010-09-15T04:44:23 = Satọdee 4:44:23 B
+  -0010-09-15T04:44:23 = Sat 4:44:23 B
 
 =head3 EHm (E HH:mm)
 
    2008-02-05T18:30:30 = Tiu 18:30
    1995-12-22T09:05:02 = Fraị 09:05
-  -0010-09-15T04:44:23 = Satọdee 04:44
+  -0010-09-15T04:44:23 = Sat 04:44
 
 =head3 EHms (E HH:mm:ss)
 
    2008-02-05T18:30:30 = Tiu 18:30:30
    1995-12-22T09:05:02 = Fraị 09:05:02
-  -0010-09-15T04:44:23 = Satọdee 04:44:23
+  -0010-09-15T04:44:23 = Sat 04:44:23
 
 =head3 Ed (d, E)
 
    2008-02-05T18:30:30 = 5, Tiu
    1995-12-22T09:05:02 = 22, Fraị
-  -0010-09-15T04:44:23 = 15, Satọdee
+  -0010-09-15T04:44:23 = 15, Sat
+
+=head3 Eh (E h a)
+
+   2008-02-05T18:30:30 = Tiu 6 N’abalị
+   1995-12-22T09:05:02 = Fraị 9 N’ụtụtụ
+  -0010-09-15T04:44:23 = Sat 4 N’ụtụtụ
 
 =head3 Ehm (E h:mm a)
 
-   2008-02-05T18:30:30 = Tiu 6:30 P.M.
-   1995-12-22T09:05:02 = Fraị 9:05 A.M.
-  -0010-09-15T04:44:23 = Satọdee 4:44 A.M.
+   2008-02-05T18:30:30 = Tiu 6:30 N’abalị
+   1995-12-22T09:05:02 = Fraị 9:05 N’ụtụtụ
+  -0010-09-15T04:44:23 = Sat 4:44 N’ụtụtụ
 
 =head3 Ehms (E h:mm:ss a)
 
-   2008-02-05T18:30:30 = Tiu 6:30:30 P.M.
-   1995-12-22T09:05:02 = Fraị 9:05:02 A.M.
-  -0010-09-15T04:44:23 = Satọdee 4:44:23 A.M.
+   2008-02-05T18:30:30 = Tiu 6:30:30 N’abalị
+   1995-12-22T09:05:02 = Fraị 9:05:02 N’ụtụtụ
+  -0010-09-15T04:44:23 = Sat 4:44:23 N’ụtụtụ
 
 =head3 Gy (G y)
 
-   2008-02-05T18:30:30 = A.K. 2008
-   1995-12-22T09:05:02 = A.K. 1995
-  -0010-09-15T04:44:23 = T.K. -10
+   2008-02-05T18:30:30 = AD 2008
+   1995-12-22T09:05:02 = AD 1995
+  -0010-09-15T04:44:23 = BC -10
+
+=head3 GyM (G y-MM)
+
+   2008-02-05T18:30:30 = AD 2008-02
+   1995-12-22T09:05:02 = AD 1995-12
+  -0010-09-15T04:44:23 = BC -10-09
+
+=head3 GyMEd (G y-MM-dd, E)
+
+   2008-02-05T18:30:30 = AD 2008-02-05, Tiu
+   1995-12-22T09:05:02 = AD 1995-12-22, Fraị
+  -0010-09-15T04:44:23 = BC -10-09-15, Sat
 
 =head3 GyMMM (MMM G y)
 
-   2008-02-05T18:30:30 = Feb A.K. 2008
-   1995-12-22T09:05:02 = Dis A.K. 1995
-  -0010-09-15T04:44:23 = Sep T.K. -10
+   2008-02-05T18:30:30 = Feb AD 2008
+   1995-12-22T09:05:02 = Dis AD 1995
+  -0010-09-15T04:44:23 = Sep BC -10
 
 =head3 GyMMMEd (E, d MMM, G y)
 
-   2008-02-05T18:30:30 = Tiu, 5 Feb, A.K. 2008
-   1995-12-22T09:05:02 = Fraị, 22 Dis, A.K. 1995
-  -0010-09-15T04:44:23 = Satọdee, 15 Sep, T.K. -10
+   2008-02-05T18:30:30 = Tiu, 5 Feb, AD 2008
+   1995-12-22T09:05:02 = Fraị, 22 Dis, AD 1995
+  -0010-09-15T04:44:23 = Sat, 15 Sep, BC -10
 
 =head3 GyMMMd (d MMM, G y)
 
-   2008-02-05T18:30:30 = 5 Feb, A.K. 2008
-   1995-12-22T09:05:02 = 22 Dis, A.K. 1995
-  -0010-09-15T04:44:23 = 15 Sep, T.K. -10
+   2008-02-05T18:30:30 = 5 Feb, AD 2008
+   1995-12-22T09:05:02 = 22 Dis, AD 1995
+  -0010-09-15T04:44:23 = 15 Sep, BC -10
+
+=head3 GyMd (G y-MM-dd)
+
+   2008-02-05T18:30:30 = AD 2008-02-05
+   1995-12-22T09:05:02 = AD 1995-12-22
+  -0010-09-15T04:44:23 = BC -10-09-15
 
 =head3 H (HH)
 
@@ -447,6 +477,12 @@ Igbo Nigeria locale.
    1995-12-22T09:05:02 = 09:05 UTC
   -0010-09-15T04:44:23 = 04:44 UTC
 
+=head3 Hv (HH v)
+
+   2008-02-05T18:30:30 = 18 UTC
+   1995-12-22T09:05:02 = 09 UTC
+  -0010-09-15T04:44:23 = 04 UTC
+
 =head3 M (L)
 
    2008-02-05T18:30:30 = 2
@@ -457,7 +493,7 @@ Igbo Nigeria locale.
 
    2008-02-05T18:30:30 = Tiu, 5/2
    1995-12-22T09:05:02 = Fraị, 22/12
-  -0010-09-15T04:44:23 = Satọdee, 15/9
+  -0010-09-15T04:44:23 = Sat, 15/9
 
 =head3 MMM (LLL)
 
@@ -469,19 +505,19 @@ Igbo Nigeria locale.
 
    2008-02-05T18:30:30 = Tiu, 5 Feb
    1995-12-22T09:05:02 = Fraị, 22 Dis
-  -0010-09-15T04:44:23 = Satọdee, 15 Sep
+  -0010-09-15T04:44:23 = Sat, 15 Sep
 
 =head3 MMMMEd (E, d MMMM)
 
    2008-02-05T18:30:30 = Tiu, 5 Febrụwarị
    1995-12-22T09:05:02 = Fraị, 22 Disemba
-  -0010-09-15T04:44:23 = Satọdee, 15 Septemba
+  -0010-09-15T04:44:23 = Sat, 15 Septemba
 
-=head3 MMMMW-count-other ('week' W 'of' MMMM)
+=head3 MMMMW-count-other ('Izu' W 'n'‘'ime' MMMM)
 
-   2008-02-05T18:30:30 = week 1 of Febrụwarị
-   1995-12-22T09:05:02 = week 3 of Disemba
-  -0010-09-15T04:44:23 = week 2 of Septemba
+   2008-02-05T18:30:30 = Izu 1 n‘ime Febrụwarị
+   1995-12-22T09:05:02 = Izu 3 n‘ime Disemba
+  -0010-09-15T04:44:23 = Izu 2 n‘ime Septemba
 
 =head3 MMMMd (d MMMM)
 
@@ -507,35 +543,41 @@ Igbo Nigeria locale.
    1995-12-22T09:05:02 = 22
   -0010-09-15T04:44:23 = 15
 
-=head3 h (h a)
+=head3 h (h a)
 
-   2008-02-05T18:30:30 = 6 P.M.
-   1995-12-22T09:05:02 = 9 A.M.
-  -0010-09-15T04:44:23 = 4 A.M.
+   2008-02-05T18:30:30 = 6 N’abalị
+   1995-12-22T09:05:02 = 9 N’ụtụtụ
+  -0010-09-15T04:44:23 = 4 N’ụtụtụ
 
 =head3 hm (h:mm a)
 
-   2008-02-05T18:30:30 = 6:30 P.M.
-   1995-12-22T09:05:02 = 9:05 A.M.
-  -0010-09-15T04:44:23 = 4:44 A.M.
+   2008-02-05T18:30:30 = 6:30 N’abalị
+   1995-12-22T09:05:02 = 9:05 N’ụtụtụ
+  -0010-09-15T04:44:23 = 4:44 N’ụtụtụ
 
 =head3 hms (h:mm:ss a)
 
-   2008-02-05T18:30:30 = 6:30:30 P.M.
-   1995-12-22T09:05:02 = 9:05:02 A.M.
-  -0010-09-15T04:44:23 = 4:44:23 A.M.
+   2008-02-05T18:30:30 = 6:30:30 N’abalị
+   1995-12-22T09:05:02 = 9:05:02 N’ụtụtụ
+  -0010-09-15T04:44:23 = 4:44:23 N’ụtụtụ
 
 =head3 hmsv (h:mm:ss a v)
 
-   2008-02-05T18:30:30 = 6:30:30 P.M. UTC
-   1995-12-22T09:05:02 = 9:05:02 A.M. UTC
-  -0010-09-15T04:44:23 = 4:44:23 A.M. UTC
+   2008-02-05T18:30:30 = 6:30:30 N’abalị UTC
+   1995-12-22T09:05:02 = 9:05:02 N’ụtụtụ UTC
+  -0010-09-15T04:44:23 = 4:44:23 N’ụtụtụ UTC
 
 =head3 hmv (h:mm a v)
 
-   2008-02-05T18:30:30 = 6:30 P.M. UTC
-   1995-12-22T09:05:02 = 9:05 A.M. UTC
-  -0010-09-15T04:44:23 = 4:44 A.M. UTC
+   2008-02-05T18:30:30 = 6:30 N’abalị UTC
+   1995-12-22T09:05:02 = 9:05 N’ụtụtụ UTC
+  -0010-09-15T04:44:23 = 4:44 N’ụtụtụ UTC
+
+=head3 hv (h a v)
+
+   2008-02-05T18:30:30 = 6 N’abalị UTC
+   1995-12-22T09:05:02 = 9 N’ụtụtụ UTC
+  -0010-09-15T04:44:23 = 4 N’ụtụtụ UTC
 
 =head3 ms (mm:ss)
 
@@ -559,7 +601,7 @@ Igbo Nigeria locale.
 
    2008-02-05T18:30:30 = Tiu, 5/2/2008
    1995-12-22T09:05:02 = Fraị, 22/12/1995
-  -0010-09-15T04:44:23 = Satọdee, 15/9/-10
+  -0010-09-15T04:44:23 = Sat, 15/9/-10
 
 =head3 yMMM (MMM y)
 
@@ -571,7 +613,7 @@ Igbo Nigeria locale.
 
    2008-02-05T18:30:30 = Tiu, 5 Feb 2008
    1995-12-22T09:05:02 = Fraị, 22 Dis 1995
-  -0010-09-15T04:44:23 = Satọdee, 15 Sep -10
+  -0010-09-15T04:44:23 = Sat, 15 Sep -10
 
 =head3 yMMMM (MMMM y)
 
@@ -593,9 +635,9 @@ Igbo Nigeria locale.
 
 =head3 yQQQ (QQQ y)
 
-   2008-02-05T18:30:30 = Ọ1 2008
-   1995-12-22T09:05:02 = Ọ4 1995
-  -0010-09-15T04:44:23 = Ọ3 -10
+   2008-02-05T18:30:30 = Q1 2008
+   1995-12-22T09:05:02 = Q4 1995
+  -0010-09-15T04:44:23 = Q3 -10
 
 =head3 yQQQQ (QQQQ y)
 
@@ -603,11 +645,11 @@ Igbo Nigeria locale.
    1995-12-22T09:05:02 = Ọkara 4 1995
   -0010-09-15T04:44:23 = Ọkara 3 -10
 
-=head3 yw-count-other ('week' w 'of' Y)
+=head3 yw-count-other ('Izu' w 'n' 'ime' Y)
 
-   2008-02-05T18:30:30 = week 6 of 2008
-   1995-12-22T09:05:02 = week 51 of 1995
-  -0010-09-15T04:44:23 = week 37 of -10
+   2008-02-05T18:30:30 = Izu 6 n ime 2008
+   1995-12-22T09:05:02 = Izu 51 n ime 1995
+  -0010-09-15T04:44:23 = Izu 37 n ime -10
 
 
 =head2 Miscellaneous
@@ -619,6 +661,26 @@ Yes
 =head3 Local first day of the week
 
 1 (Mọnde)
+
+=head2 Strftime Patterns
+
+=head3 %c (%A, %d %B %Y %T) - date time format
+
+   2008-02-05T18:30:30 = Tiuzdee, 05 Febrụwarị 2008 18:30:30
+   1995-12-22T09:05:02 = Fraịdee, 22 Disemba 1995 09:05:02
+  -0010-09-15T04:44:23 = Satọdee, 15 Septemba -10 04:44:23
+
+=head3 %x (%d/%m/%y) - date format
+
+   2008-02-05T18:30:30 = 05/02/08
+   1995-12-22T09:05:02 = 22/12/95
+  -0010-09-15T04:44:23 = 15/09/10
+
+=head3 %X (%r) - time format
+
+   2008-02-05T18:30:30 = 06:30:30 N’abalị
+   1995-12-22T09:05:02 = 09:05:02 N’ụtụtụ
+  -0010-09-15T04:44:23 = 04:44:23 N’ụtụtụ
 
 =head1 SUPPORT
 

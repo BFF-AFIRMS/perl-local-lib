@@ -1,14 +1,13 @@
 package Graph::BitMatrix;
 
 use strict;
+use warnings;
 
-# $SIG{__DIE__ } = sub { use Carp; confess };
-# $SIG{__WARN__} = sub { use Carp; confess };
+# $SIG{__DIE__ } = \&Graph::__carp_confess;
+# $SIG{__WARN__} = \&Graph::__carp_confess;
 
-sub _V () { 2 } # Graph::_V()
 sub _E () { 3 } # Graph::_E()
 sub _i () { 3 } # Index to path.
-sub _s () { 4 } # Successors / Path to Index.
 
 sub new {
     my ($class, $g, %opt) = @_;
@@ -18,99 +17,70 @@ sub new {
     my %V; @V{ @V } = 0 .. $#V;
     my $bm = bless [ [ ( $Z ) x $V ], \%V ], $class;
     my $bm0 = $bm->[0];
-    my $connect_edges;
-    if (exists $opt{connect_edges}) {
-	$connect_edges = $opt{connect_edges};
-	delete $opt{connect_edges};
-    }
+    my $connect_edges = delete $opt{connect_edges};
     $connect_edges = 1 unless defined $connect_edges;
+    my $transpose = delete $opt{transpose};
     Graph::_opt_unknown(\%opt);
-    if ($connect_edges) {
-	# for (my $i = 0; $i <= $#V; $i++) {
-	#    my $u = $V[$i];
-	#    for (my $j = 0; $j <= $#V; $j++) {
-	#	vec($bm0->[$i], $j, 1) = 1 if $g->has_edge($u, $V[$j]);
-	#    }
-	# }
-	my $Vi = $g->[_V]->[_i];
-	my $Ei = $g->[_E]->[_i];
-	if ($g->is_undirected) {
-	    for my $e (keys %{ $Ei }) {
-		my ($i0, $j0) = @{ $Ei->{ $e } };
-		my $i1 = $V{ $Vi->{ $i0 } };
-		my $j1 = $V{ $Vi->{ $j0 } };
-		vec($bm0->[$i1], $j1, 1) = 1;
-		vec($bm0->[$j1], $i1, 1) = 1;
-	    }
-	} else {
-	    for my $e (keys %{ $Ei }) {
-		my ($i0, $j0) = @{ $Ei->{ $e } };
-		vec($bm0->[$V{ $Vi->{ $i0 } }], $V{ $Vi->{ $j0 } }, 1) = 1;
-	    }
-	}
+    return $bm if !$connect_edges;
+    # for (my $i = 0; $i <= $#V; $i++) {
+    #    my $u = $V[$i];
+    #    for (my $j = 0; $j <= $#V; $j++) {
+    #	vec($bm0->[$i], $j, 1) = 1 if $g->has_edge($u, $V[$j]);
+    #    }
+    # }
+    my $undirected = $g->is_undirected;
+    for my $e ($g->edges) {
+	my ($i0, $j0) = map $V{$_}, @$e;
+	($j0, $i0) = ($i0, $j0) if $transpose;
+	vec($bm0->[$i0], $j0, 1) = 1;
+	vec($bm0->[$j0], $i0, 1) = 1 if $undirected;
     }
-    return $bm;
+    $bm;
 }
 
-sub set {
+sub stringify {
+    my ($m) = @_;
+    my @V = sort keys %{ $m->[1] };
+    my $top = join ' ', map sprintf('%4s', $_), 'to:', @V;
+    my @indices = map $m->[1]{$_}, @V;
+    my @rows;
+    for my $n (@V) {
+        my @vals = $m->get_row($n, @V);
+        push @rows, join ' ', map sprintf('%4s', defined()?$_:''), $n, @vals;
+    }
+    join '', map "$_\n", $top, @rows;
+}
+
+sub set { push @_, 1; goto &_get_set }
+sub unset { push @_, 0; goto &_get_set }
+sub get { push @_, undef; goto &_get_set }
+sub _get_set {
+    my $val = pop;
     my ($m, $u, $v) = @_;
-    my ($i, $j) = map { $m->[1]->{ $_ } } ($u, $v);
-    vec($m->[0]->[$i], $j, 1) = 1 if defined $i && defined $j;
+    my ($m0, $m1) = @$m[0, 1];
+    return if grep !defined, my ($i, $j) = @$m1{ $u, $v };
+    defined $val ? vec($m0->[$i], $j, 1) = $val : vec($m0->[$i], $j, 1);
 }
 
-sub unset {
-    my ($m, $u, $v) = @_;
-    my ($i, $j) = map { $m->[1]->{ $_ } } ($u, $v);
-    vec($m->[0]->[$i], $j, 1) = 0 if defined $i && defined $j;
-}
-
-sub get {
-    my ($m, $u, $v) = @_;
-    my ($i, $j) = map { $m->[1]->{ $_ } } ($u, $v);
-    defined $i && defined $j ? vec($m->[0]->[$i], $j, 1) : undef;
-}
-
-sub set_row {
+sub _set_row {
+    my $val = pop;
     my ($m, $u) = splice @_, 0, 2;
-    my $m0 = $m->[0];
-    my $m1 = $m->[1];
-    my $i = $m1->{ $u };
-    return unless defined $i;
-    for my $v (@_) {
-	my $j = $m1->{ $v };
-	vec($m0->[$i], $j, 1) = 1 if defined $j;
-    }
+    my ($m0, $m1) = @$m[0, 1];
+    return unless defined(my $i = $m1->{ $u });
+    vec($m0->[$i], $_, 1) = $val for grep defined, @$m1{ @_ };
 }
-
-sub unset_row {
-    my ($m, $u) = splice @_, 0, 2;
-    my $m0 = $m->[0];
-    my $m1 = $m->[1];
-    my $i = $m1->{ $u };
-    return unless defined $i;
-    for my $v (@_) {
-	my $j = $m1->{ $v };
-	vec($m0->[$i], $j, 1) = 0 if defined $j;
-    }
-}
+sub set_row { push @_, 1; goto &_set_row }
+sub unset_row { push @_, 0; goto &_set_row }
 
 sub get_row {
     my ($m, $u) = splice @_, 0, 2;
-    my $m0 = $m->[0];
-    my $m1 = $m->[1];
-    my $i = $m1->{ $u };
-    return () x @_ unless defined $i;
-    my @r;
-    for my $v (@_) {
-	my $j = $m1->{ $v };
-	push @r, defined $j ? (vec($m0->[$i], $j, 1) ? 1 : 0) : undef;
-    }
-    return @r;
+    my ($m0, $m1) = @$m[0, 1];
+    return () x @_ unless defined(my $i = $m1->{ $u });
+    map defined() ? (vec($m0->[$i], $_, 1) ? 1 : 0) : undef, @$m1{ @_ };
 }
 
 sub vertices {
-    my ($m, $u, $v) = @_;
-    keys %{ $m->[1] };
+    keys %{ $_[0]->[1] };
 }
 
 1;
@@ -159,6 +129,14 @@ connect_edges
 If true or if not present, set the bits in the bit matrix that
 correspond to edges.  If false, do not set any bits.  In either
 case the bit matrix of V x V bits is allocated.
+
+=item *
+
+transpose
+
+If true, set the bits in the bit matrix that correspond to edges
+but in the reverse direction. This has the effect of transposing the
+matrix. Obviously makes no difference to the result for undirected graphs.
 
 =back
 

@@ -1,9 +1,11 @@
+use strict; use warnings;
+
 package DBIx::Connector::Driver::Oracle;
 
-use strict;
-use warnings;
-use base 'DBIx::Connector::Driver';
-our $VERSION = '0.56';
+use DBIx::Connector::Driver;
+
+our $VERSION = '0.60';
+our @ISA = qw( DBIx::Connector::Driver );
 
 # Note from https://rt.cpan.org/Ticket/Display.html?id=47005:
 # DBD::Oracle has some shutdown state in which it will return 1 on ping as
@@ -41,13 +43,14 @@ sub rollback_to {
 }
 
 1;
+
 __END__
 
-=head1 Name
+=head1 NAME
 
 DBIx::Connector::Driver::Oracle - Oracle-specific connection interface
 
-=head1 Description
+=head1 DESCRIPTION
 
 This subclass of L<DBIx::Connector::Driver|DBIx::Connector::Driver> provides
 Oracle-specific implementations of the following methods:
@@ -64,9 +67,9 @@ Oracle-specific implementations of the following methods:
 
 =back
 
-=head1 Authors
+=head1 AUTHORS
 
-This module was written and is maintained by:
+This module was written by:
 
 =over
 
@@ -86,7 +89,7 @@ It is based on code written by:
 
 =back
 
-=head1 Copyright and License
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (c) 2009-2013 David E. Wheeler. Some Rights Reserved.
 

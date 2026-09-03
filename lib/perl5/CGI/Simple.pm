@@ -13,7 +13,7 @@ our ($VERSION, $USE_CGI_PM_DEFAULTS, $DISABLE_UPLOADS, $POST_MAX,
      $NO_UNDEF_PARAMS, $USE_PARAM_SEMICOLONS, $PARAM_UTF8, $HEADERS_ONCE,
      $NPH, $DEBUG, $NO_NULL, $FATAL);
 
-$VERSION = "1.21";
+$VERSION = "1.282";
 
 # you can hard code the global variable settings here if you want.
 # warning - do not delete the unless defined $VAR part unless you
@@ -920,13 +920,13 @@ sub cookie {
   my ( $self, @params ) = @_;
   require CGI::Simple::Cookie;
   require CGI::Simple::Util;
-  my ( $name, $value, $path, $domain, $secure, $expires, $httponly )
+  my ( $name, $value, $path, $domain, $secure, $expires, $httponly, $samesite )
    = CGI::Simple::Util::rearrange(
     [
       'NAME', [ 'VALUE', 'VALUES' ],
       'PATH',   'DOMAIN',
       'SECURE', 'EXPIRES',
-      'HTTPONLY'
+      'HTTPONLY', 'SAMESITE'
     ],
     @params
    );
@@ -957,6 +957,7 @@ sub cookie {
   push @params, '-expires'  => $expires if $expires;
   push @params, '-secure'   => $secure if $secure;
   push @params, '-httponly' => $httponly if $httponly;
+  push @params, '-samesite' => $samesite if $samesite;
   return CGI::Simple::Cookie->new( @params );
 }
 
@@ -997,6 +998,7 @@ sub header {
    );
 
   my $CRLF = $self->crlf;
+  my $ALL_POSSIBLE_CRLF = qr/(?:\r\n|\n|\015\012)/;
 
   # CR escaping for values, per RFC 822
   for my $header (
@@ -1006,11 +1008,12 @@ sub header {
     if ( defined $header ) {
       # From RFC 822:
       # Unfolding  is  accomplished  by regarding   CRLF   immediately
-      # followed  by  a  LWSP-char  as equivalent to the LWSP-char.
-      $header =~ s/$CRLF(\s)/$1/g;
+      # followed  by  a  LWSP-char  as equivalent to the LWSP-char
+      # (defined in the RFC as a space or a horizontal tab).
+      $header =~ s/$ALL_POSSIBLE_CRLF([ \t])/$1/g;
 
       # All other uses of newlines are invalid input.
-      if ( $header =~ m/$CRLF/ ) {
+      if ( $header =~ m/$ALL_POSSIBLE_CRLF/ ) {
         # shorten very long values in the diagnostic
         $header = substr( $header, 0, 72 ) . '...'
          if ( length $header > 72 );
@@ -1490,7 +1493,7 @@ CGI::Simple - A Simple totally OO CGI interface that is CGI.pm compliant
 
 =head1 VERSION
 
-This document describes CGI::Simple version 1.21.
+This document describes CGI::Simple version 1.282.
 
 =head1 SYNOPSIS
 

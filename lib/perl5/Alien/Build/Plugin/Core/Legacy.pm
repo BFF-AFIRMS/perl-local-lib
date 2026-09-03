@@ -2,24 +2,25 @@ package Alien::Build::Plugin::Core::Legacy;
 
 use strict;
 use warnings;
+use 5.008004;
 use Alien::Build::Plugin;
 
 # ABSTRACT: Core Alien::Build plugin to maintain compatibility with legacy Alien::Base
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
 sub init
 {
   my($self, $meta) = @_;
-  
+
   $meta->after_hook(
     $_ => sub {
       my($build) = @_;
-      
+
       $build->log("adding legacy hash to config");
-      
+
       my $runtime = $build->runtime_prop;
-      
+
       if($runtime->{cflags} && ! defined $runtime->{cflags_static})
       {
         $runtime->{cflags_static} = $runtime->{cflags};
@@ -29,7 +30,7 @@ sub init
       {
         $runtime->{libs_static} = $runtime->{libs};
       }
-      
+
       $runtime->{legacy}->{finished_installing} = 1;
       $runtime->{legacy}->{install_type}        = $runtime->{install_type};
       $runtime->{legacy}->{version}             = $runtime->{version};
@@ -52,7 +53,7 @@ Alien::Build::Plugin::Core::Legacy - Core Alien::Build plugin to maintain compat
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 SYNOPSIS
 
@@ -61,7 +62,7 @@ version 1.69
 
 =head1 DESCRIPTION
 
-This plugin provides some compatibility with the legacy L<Alien::Build::ModuleBuild>
+This plugin provides some compatibility with the legacy L<Alien::Base::ModuleBuild>
 interfaces.
 
 =head1 SEE ALSO
@@ -76,7 +77,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -110,7 +111,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -126,9 +127,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

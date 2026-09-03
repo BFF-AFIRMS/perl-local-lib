@@ -10,28 +10,28 @@
 #   Andy Wardley   <abw@wardley.org>
 #
 # COPYRIGHT
-#   Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+#   Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 #
 #   This module is free software; you can redistribute it and/or
 #   modify it under the same terms as Perl itself.
 #
 #========================================================================
- 
+
 package Template::Base;
 
 use strict;
 use warnings;
 use Template::Constants;
 
-our $VERSION = 2.78;
+our $VERSION = '3.106';
 
 
 #------------------------------------------------------------------------
 # new(\%params)
 #
-# General purpose constructor method which expects a hash reference of 
-# configuration parameters, or a list of name => value pairs which are 
-# folded into a hash.  Blesses a hash into an object and calls its 
+# General purpose constructor method which expects a hash reference of
+# configuration parameters, or a list of name => value pairs which are
+# folded into a hash.  Blesses a hash into an object and calls its
 # _init() method, passing the parameter hash reference.  Returns a new
 # object derived from Template::Base, or undef on error.
 #------------------------------------------------------------------------
@@ -61,7 +61,7 @@ sub new {
         _ERROR  => '',
         DEBUG   => 0,
     }, $class;
-    
+
     return $self->_init($cfg) ? $self : $class->error($self->error);
 }
 
@@ -69,9 +69,9 @@ sub new {
 #------------------------------------------------------------------------
 # error()
 # error($msg, ...)
-# 
-# May be called as a class or object method to set or retrieve the 
-# package variable $ERROR (class method) or internal member 
+#
+# May be called as a class or object method to set or retrieve the
+# package variable $ERROR (class method) or internal member
 # $self->{ _ERROR } (object method).  The presence of parameters indicates
 # that the error value should be set.  Undef is then returned.  In the
 # absence of parameters, the current error value is returned.
@@ -81,7 +81,7 @@ sub error {
     my $self = shift;
     my $errvar;
 
-    { 
+    {
         no strict qw( refs );
         $errvar = ref $self ? \$self->{ _ERROR } : \${"$self\::ERROR"};
     }
@@ -98,9 +98,9 @@ sub error {
 #------------------------------------------------------------------------
 # _init()
 #
-# Initialisation method called by the new() constructor and passing a 
+# Initialisation method called by the new() constructor and passing a
 # reference to a hash array containing any configuration items specified
-# as constructor arguments.  Should return $self on success or undef on 
+# as constructor arguments.  Should return $self on success or undef on
 # error, via a call to the error() method to set the error message.
 #------------------------------------------------------------------------
 
@@ -115,7 +115,7 @@ sub debug {
     my $msg  = join('', @_);
     my ($pkg, $file, $line) = caller();
 
-    unless ($msg =~ /\n$/) {
+    unless (substr($msg,-1) eq "\n") {
         $msg .= ($self->{ DEBUG } & Template::Constants::DEBUG_CALLER)
             ? " at $file line $line\n"
             : "\n";
@@ -138,6 +138,7 @@ sub module_version {
     return ${"${class}::VERSION"};
 }
 
+sub DESTROY { 1 } # noop
 
 1;
 
@@ -151,34 +152,34 @@ Template::Base - Base class module implementing common functionality
 
     package My::Module;
     use base qw( Template::Base );
-    
+
     sub _init {
         my ($self, $config) = @_;
         $self->{ doodah } = $config->{ doodah }
             || return $self->error("No 'doodah' specified");
         return $self;
     }
-    
+
     package main;
-    
+
     my $object = My::Module->new({ doodah => 'foobar' })
         || die My::Module->error();
 
 =head1 DESCRIPTION
 
-Base class module which implements a constructor and error reporting 
+Base class module which implements a constructor and error reporting
 functionality for various Template Toolkit modules.
 
 =head1 PUBLIC METHODS
 
 =head2 new(\%config)
 
-Constructor method which accepts a reference to a hash array or a list 
-of C<name =E<gt> value> parameters which are folded into a hash.  The 
+Constructor method which accepts a reference to a hash array or a list
+of C<name =E<gt> value> parameters which are folded into a hash.  The
 C<_init()> method is then called, passing the configuration hash and should
 return true/false to indicate success or failure.  A new object reference
 is returned, or undef on error.  Any error message raised can be examined
-via the L<error()> class method or directly via the C<$ERROR> package variable 
+via the L<error()> class method or directly via the C<$ERROR> package variable
 in the derived class.
 
     my $module = My::Module->new({ ... })
@@ -196,7 +197,7 @@ package.
     my $module = My::Module->new({ ... })
         || die My::Module->error(), "\n";
 
-    $module->do_something() 
+    $module->do_something()
         || die $module->error(), "\n";
 
 When called with parameters (multiple params are concatenated), this
@@ -204,12 +205,12 @@ method will set the relevant variable and return undef.  This is most
 often used within object methods to report errors to the caller.
 
     package My::Module;
-    
+
     sub foobar {
         my $self = shift;
-        
+
         # some other code...
-        
+
         return $self->error('some kind of error...')
             if $some_condition;
     }
@@ -221,12 +222,12 @@ passed into a string and printing it to C<STDERR>.  A prefix is
 added to indicate the module of the caller.
 
     package My::Module;
-    
+
     sub foobar {
         my $self = shift;
-        
+
         $self->debug('called foobar()');
-        
+
         # some other code...
     }
 
@@ -241,11 +242,11 @@ to indicate C<DEBUG_CALLER> then the file and line number of
 the caller will be append to the message.
 
     use Template::Constants qw( :debug );
-    
+
     my $module = My::Module->new({
         DEBUG => DEBUG_SERVICE | DEBUG_CONTEXT | DEBUG_CALLER,
     });
-    
+
     $module->foobar();
 
 This generates an error message such as:
@@ -263,7 +264,7 @@ Andy Wardley E<lt>abw@wardley.orgE<gt> L<http://wardley.org/>
 
 =head1 COPYRIGHT
 
-Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

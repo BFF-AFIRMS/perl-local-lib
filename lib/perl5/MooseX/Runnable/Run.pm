@@ -1,11 +1,10 @@
 use strict;
 use warnings;
 package MooseX::Runnable::Run;
-BEGIN {
-  $MooseX::Runnable::Run::AUTHORITY = 'cpan:JROCKWAY';
-}
 # ABSTRACT: Run a MooseX::Runnable class as an application
-$MooseX::Runnable::Run::VERSION = '0.09';
+
+our $VERSION = '0.10';
+
 use MooseX::Runnable::Invocation;
 use namespace::autoclean;
 
@@ -53,7 +52,7 @@ MooseX::Runnable::Run - Run a MooseX::Runnable class as an application
 
 =head1 VERSION
 
-version 0.09
+version 0.10
 
 =head1 SYNOPSIS
 
@@ -93,6 +92,17 @@ L<mx-run>, a script that will run MooseX::Runnable apps, saving you
 valuable seconds!
 
 L<MooseX::Runnable>
+
+=head1 SUPPORT
+
+Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=MooseX-Runnable>
+(or L<bug-MooseX-Runnable@rt.cpan.org|mailto:bug-MooseX-Runnable@rt.cpan.org>).
+
+There is also a mailing list available for users of this distribution, at
+L<http://lists.perl.org/list/moose.html>.
+
+There is also an irc channel available for users of this distribution, at
+L<C<#moose> on C<irc.perl.org>|irc://irc.perl.org/#moose>.
 
 =head1 AUTHOR
 

@@ -1,9 +1,9 @@
 package Net::DNS::Mailbox;
 
-#
-# $Id: Mailbox.pm 1605 2017-11-27 11:37:40Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1605 $)[1];
+use strict;
+use warnings;
+
+our $VERSION = (qw$Id: Mailbox.pm 2002 2025-01-07 09:57:46Z willem $)[2];
 
 
 =head1 NAME
@@ -12,21 +12,25 @@ Net::DNS::Mailbox - DNS mailbox representation
 
 =head1 SYNOPSIS
 
-    use Net::DNS::Mailbox;
+	use Net::DNS::Mailbox;
 
-    $mailbox = new Net::DNS::Mailbox('user@example.com');
-    $address = $mailbox->address;
+	$mailbox = Net::DNS::Mailbox->new('user@example.com');
+	$address = $mailbox->address;
 
 =head1 DESCRIPTION
 
 The Net::DNS::Mailbox module implements a subclass of DNS domain name
 objects representing the DNS coded form of RFC822 mailbox address.
 
+The Net::DNS::Mailbox1035 and Net::DNS::Mailbox2535 packages
+implement mailbox representation subtypes which provide the name
+compression and canonicalisation specified by RFC1035 and RFC2535.
+These are necessary to meet the backward compatibility requirements
+introduced by RFC3597.
+
 =cut
 
 
-use strict;
-use warnings;
 use integer;
 use Carp;
 
@@ -37,9 +41,9 @@ use base qw(Net::DNS::DomainName);
 
 =head2 new
 
-    $mailbox = new Net::DNS::Mailbox('John Doe <john.doe@example.com>');
-    $mailbox = new Net::DNS::Mailbox('john.doe@example.com');
-    $mailbox = new Net::DNS::Mailbox('john\.doe.example.com');
+	$mailbox = Net::DNS::Mailbox->new('John Doe <john.doe@example.com>');
+	$mailbox = Net::DNS::Mailbox->new('john.doe@example.com');
+	$mailbox = Net::DNS::Mailbox->new('john\.doe.example.com');
 
 Creates a mailbox object representing the RFC822 mail address specified by
 the character string argument. An encoded domain name is also accepted for
@@ -57,24 +61,19 @@ sub new {
 
 	s/^.*<//g;						# strip excess on left
 	s/>.*$//g;						# strip excess on right
+	s/^\@.+://;						# strip deprecated source route
+	s/\\\./\\046/g;						# disguise escaped dots
 
-	s/\\\@/\\064/g;						# disguise escaped @
-	s/("[^"]*)\@([^"]*")/$1\\064$2/g;			# disguise quoted @
+	my ( $localpart, @domain ) = split /[@.]([^@;:"]*$)/;	# split on rightmost @
+	s/\./\\046/g for $localpart ||= '';			# escape dots in local part
 
-	my ( $mbox, @host ) = split /\@/;			# split on @ if present
-	for ( $mbox ||= '' ) {
-		s/^.*"(.*)".*$/$1/;				# strip quotes
-		s/\\\./\\046/g;					# disguise escaped dot
-		s/\./\\046/g if @host;				# escape dots in local part
-	}
-
-	bless __PACKAGE__->SUPER::new( join '.', $mbox, @host ), $class;
+	return bless __PACKAGE__->SUPER::new( join '.', $localpart, @domain ), $class;
 }
 
 
 =head2 address
 
-    $address = $mailbox->address;
+	$address = $mailbox->address;
 
 Returns a character string containing the RFC822 mailbox address
 corresponding to the encoded domain name representation described
@@ -87,35 +86,27 @@ sub address {
 	my @label = shift->label;
 	local $_ = shift(@label) || return '<>';
 	s/\\\\//g;						# delete escaped \
+	s/^\\034(.*)\\034$/"$1"/;				# unescape enclosing quotes
 	s/\\\d\d\d//g;						# delete non-printable
 	s/\\\./\./g;						# unescape dots
-	s/[\\"]//g;						# delete \ "
-	s/^(.*)$/"$1"/ if /["(),:;<>@\[\\\]]/;			# quote local part
+	s/\\//g;						# delete escapes
 	return $_ unless scalar(@label);
-	join '@', $_, join '.', @label;
+	return join '@', $_, join '.', @label;
 }
 
 
 ########################################
 
-=head1 DOMAIN NAME COMPRESSION AND CANONICALISATION
-
-The Net::DNS::Mailbox1035 and Net::DNS::Mailbox2535 subclass
-packages implement RFC1035 domain name compression and RFC2535
-canonicalisation.
-
-=cut
-
-package Net::DNS::Mailbox1035;
+package Net::DNS::Mailbox1035;		## no critic ProhibitMultiplePackages
 our @ISA = qw(Net::DNS::Mailbox);
 
-sub encode { &Net::DNS::DomainName1035::encode; }
+sub encode { return &Net::DNS::DomainName1035::encode; }
 
 
-package Net::DNS::Mailbox2535;
+package Net::DNS::Mailbox2535;		## no critic ProhibitMultiplePackages
 our @ISA = qw(Net::DNS::Mailbox);
 
-sub encode { &Net::DNS::DomainName2535::encode; }
+sub encode { return &Net::DNS::DomainName2535::encode; }
 
 
 1;
@@ -135,7 +126,7 @@ All rights reserved.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -152,7 +143,9 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::DomainName>, RFC1035, RFC5322 (RFC822)
+L<perl> L<Net::DNS> L<Net::DNS::DomainName>
+L<RFC1035|https://iana.org/go/rfc1035>
+L<RFC5322|https://iana.org/go/rfc5322>
 
 =cut
 

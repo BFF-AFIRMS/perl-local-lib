@@ -9,7 +9,6 @@ use Carp qw(croak cluck carp);
 use R::YapRI::Base;
 use R::YapRI::Interpreter::Perl qw( r_var );
 
-use utf8;
 
 ###############
 ### PERLDOC ###
@@ -2089,7 +2088,7 @@ sub read_rbase {
 	matrix   => [],
 	);
 
-    open(my $rfh, '< :encoding(UTF-8)', $rfile) || die "Can't open rfile $rfile";
+    open my $rfh, '<', $rfile;
     while(<$rfh>) {
 	chomp($_);
 	if ($_ =~ m/"end_catch_matrix_$r_obj"/) {

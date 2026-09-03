@@ -1,3 +1,4 @@
-/* Fri Jul 13 13:32:02 2012 */
-/* Mixed revision working copy (15349:15353) */
-#define DBIXS_REVISION 15349
+/* Sat Aug 15 13:28:22 2026 */
+#define DBIXS_RELEASE  1
+#define DBIXS_VERSION  652
+#define DBIXS_REVISION 1810

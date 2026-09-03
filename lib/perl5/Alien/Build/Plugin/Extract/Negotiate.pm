@@ -2,6 +2,7 @@ package Alien::Build::Plugin::Extract::Negotiate;
 
 use strict;
 use warnings;
+use 5.008004;
 use Alien::Build::Plugin;
 use Alien::Build::Plugin::Extract::ArchiveTar;
 use Alien::Build::Plugin::Extract::ArchiveZip;
@@ -9,7 +10,7 @@ use Alien::Build::Plugin::Extract::CommandLine;
 use Alien::Build::Plugin::Extract::Directory;
 
 # ABSTRACT: Extraction negotiation plugin
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
 has '+format' => 'tar';
@@ -17,12 +18,12 @@ has '+format' => 'tar';
 sub init
 {
   my($self, $meta) = @_;
-  
+
   my $format = $self->format;
   $format = 'tar.gz'  if $format eq 'tgz';
   $format = 'tar.bz2' if $format eq 'tbz';
   $format = 'tar.xz'  if $format eq 'txz';
-  
+
   my $plugin = $self->pick($format);
   $meta->apply_plugin($plugin, format => $format);
   $self;
@@ -32,7 +33,7 @@ sub init
 sub pick
 {
   my(undef, $format) = @_;
-  
+
   if($format =~ /^tar(\.(gz|bz2))?$/)
   {
     if(Alien::Build::Plugin::Extract::ArchiveTar->available($format))
@@ -51,7 +52,7 @@ sub pick
     {
       return 'Extract::ArchiveZip';
     }
-    
+
     # If it isn't available, then use the command-line unzip.  Alien::unzip will be used
     # as necessary in environments where it isn't already installed.
     else
@@ -59,13 +60,33 @@ sub pick
       return 'Extract::CommandLine';
     }
   }
-  elsif($format eq 'tar.xz' || $format eq 'tar.Z')
+  elsif($format eq 'tar.xz')
+  {
+    # The windows version of tar.exe (which is based on BSD tar) will try to use external
+    # program xz to decompress tar.xz files if it is available.  The default windows
+    # install does not have this in the PATH, but if it IS in the PATH then it often
+    # or always can hang, so the pure Perl Archive::Tar is more reliable on that platform,
+    # but will require a newer version of Archive::Tar and IO::Uncompress::UnXz
+    if(Alien::Build::Plugin::Extract::ArchiveTar->available('tar.xz') || $^O eq 'MSWin32')
+    {
+      return 'Extract::ArchiveTar';
+    }
+    else
+    {
+      return 'Extract::CommandLine';
+    }
+  }
+  elsif($format eq 'tar.Z')
   {
     return 'Extract::CommandLine';
   }
   elsif($format eq 'd')
   {
     return 'Extract::Directory';
+  }
+  elsif($format eq 'f')
+  {
+    return 'Extract::File';
   }
   else
   {
@@ -87,7 +108,7 @@ Alien::Build::Plugin::Extract::Negotiate - Extraction negotiation plugin
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 SYNOPSIS
 
@@ -98,7 +119,7 @@ version 1.69
 
 =head1 DESCRIPTION
 
-This is a negotiator plugin for extracting packages downloaded from the internet. 
+This is a negotiator plugin for extracting packages downloaded from the internet.
 This plugin picks the best Extract plugin to do the actual work.  Which plugins are
 picked depend on the properties you specify, your platform and environment.  It is
 usually preferable to use a negotiator plugin rather than using a specific Extract
@@ -131,7 +152,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -165,7 +186,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -181,9 +202,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

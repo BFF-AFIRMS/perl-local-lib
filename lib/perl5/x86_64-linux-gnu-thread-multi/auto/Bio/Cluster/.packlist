@@ -1,0 +1,10 @@
+/home/production/cxgn/local-lib/lib/perl5/Bio/Cluster.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Cluster/ClusterFactory.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Cluster/FamilyI.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Cluster/SequenceFamily.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Cluster/UniGene.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Cluster/UniGeneI.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/ClusterI.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/ClusterIO.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/ClusterIO/dbsnp.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/ClusterIO/unigene.pm

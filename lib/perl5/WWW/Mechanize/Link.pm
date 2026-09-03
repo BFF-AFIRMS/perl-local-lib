@@ -3,7 +3,7 @@ package WWW::Mechanize::Link;
 use strict;
 use warnings;
 
-our $VERSION = '1.91';
+our $VERSION = '2.22';
 
 #ABSTRACT: Link object for WWW::Mechanize
 
@@ -16,22 +16,22 @@ sub new {
     # The order of the first four must stay as they are for
     # compatibility with older code.
     if ( ref $_[0] eq 'HASH' ) {
-        $self = [ @{$_[0]}{ qw( url text name tag base attrs ) } ];
+        $self = [ @{ $_[0] }{qw( url text name tag base attrs )} ];
     }
     else {
-        $self = [ @_ ];
+        $self = [@_];
     }
 
     return bless $self, $class;
 }
 
 
-sub url   { return ($_[0])->[0]; }
-sub text  { return ($_[0])->[1]; }
-sub name  { return ($_[0])->[2]; }
-sub tag   { return ($_[0])->[3]; }
-sub base  { return ($_[0])->[4]; }
-sub attrs { return ($_[0])->[5]; }
+sub url   { return ( $_[0] )->[0]; }
+sub text  { return ( $_[0] )->[1]; }
+sub name  { return ( $_[0] )->[2]; }
+sub tag   { return ( $_[0] )->[3]; }
+sub base  { return ( $_[0] )->[4]; }
+sub attrs { return ( $_[0] )->[5]; }
 
 
 sub URI {
@@ -65,12 +65,11 @@ WWW::Mechanize::Link - Link object for WWW::Mechanize
 
 =head1 VERSION
 
-version 1.91
+version 2.22
 
 =head1 SYNOPSIS
 
-Link object to encapsulate all the stuff that Mech needs but nobody
-wants to deal with as an array.
+Link object to encapsulate all the stuff that Mech needs but nobody wants to deal with as an array.
 
 =head1 Constructor
 
@@ -115,7 +114,7 @@ Base URL to which the links are relative.
 
 =head2 $link->attrs()
 
-Returns hash ref of all the attributes and attribute values in the tag. 
+Returns hash ref of all the attributes and attribute values in the tag.
 
 =head2 $link->URI()
 
@@ -135,7 +134,7 @@ Andy Lester <andy at petdance.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2004-2016 by Andy Lester.
+This software is copyright (c) 2004 by Andy Lester.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

@@ -1,14 +1,11 @@
 package Net::DNS::RR::AFSDB;
 
-#
-# $Id: AFSDB.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: AFSDB.pm 2002 2025-01-07 09:57:46Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,27 +13,25 @@ Net::DNS::RR::AFSDB - DNS AFSDB resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::DomainName;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset, @opaque ) = @_;
+	my ( $self, $data, $offset, @opaque ) = @_;
 
-	$self->{subtype} = unpack "\@$offset n", $$data;
-	$self->{hostname} = decode Net::DNS::DomainName2535( $data, $offset + 2, @opaque );
+	$self->{subtype}  = unpack "\@$offset n", $$data;
+	$self->{hostname} = Net::DNS::DomainName2535->decode( $data, $offset + 2, @opaque );
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
-	my $self = shift;
-	my ( $offset, @opaque ) = @_;
+	my ( $self, $offset, @opaque ) = @_;
 
 	my $hostname = $self->{hostname};
-	pack 'n a*', $self->subtype, $hostname->encode( $offset + 2, @opaque );
+	return pack 'n a*', $self->subtype, $hostname->encode( $offset + 2, @opaque );
 }
 
 
@@ -44,31 +39,29 @@ sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
 	my $hostname = $self->{hostname};
-	join ' ', $self->subtype, $hostname->string;
+	return join ' ', $self->subtype, $hostname->string;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->subtype(shift);
-	$self->hostname(shift);
+	for (qw(subtype hostname)) { $self->$_( shift @argument ) }
+	return;
 }
 
 
 sub subtype {
-	my $self = shift;
-
-	$self->{subtype} = 0 + shift if scalar @_;
-	$self->{subtype} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{subtype} = 0 + $_ }
+	return $self->{subtype} || 0;
 }
 
 
 sub hostname {
-	my $self = shift;
-
-	$self->{hostname} = new Net::DNS::DomainName2535(shift) if scalar @_;
-	$self->{hostname}->name if $self->{hostname};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{hostname} = Net::DNS::DomainName2535->new($_) }
+	return $self->{hostname} ? $self->{hostname}->name : undef;
 }
 
 
@@ -78,8 +71,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name AFSDB subtype hostname');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name AFSDB subtype hostname');
 
 =head1 DESCRIPTION
 
@@ -97,16 +90,16 @@ other unpredictable behaviour.
 
 =head2 subtype
 
-    $subtype = $rr->subtype;
-    $rr->subtype( $subtype );
+	$subtype = $rr->subtype;
+	$rr->subtype( $subtype );
 
 A 16 bit integer which indicates the service offered by the
 listed host.
 
 =head2 hostname
 
-    $hostname = $rr->hostname;
-    $rr->hostname( $hostname );
+	$hostname = $rr->hostname;
+	$rr->hostname( $hostname );
 
 The hostname field is a domain name of a host that has a server
 for the cell named by the owner name of the RR.
@@ -127,7 +120,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -144,6 +137,8 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1183, RFC5864
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1183(1)|https://iana.org/go/rfc1183#section-1>
+L<RFC5864|https://iana.org/go/rfc5864>
 
 =cut

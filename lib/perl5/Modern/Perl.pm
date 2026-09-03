@@ -1,6 +1,6 @@
 package Modern::Perl;
 # ABSTRACT: enable all of the features of Modern Perl with one import
-$Modern::Perl::VERSION = '1.20181021';
+$Modern::Perl::VERSION = '1.20250607';
 use 5.010_000;
 
 use strict;
@@ -14,19 +14,25 @@ use IO::File   ();
 use IO::Handle ();
 
 my $wanted_date;
-sub VERSION
-{
+
+sub VERSION {
     my ($self, $version) = @_;
 
-    return $Modern::Perl::VERSION || 2018 unless defined $version;
-    return $Modern::Perl::VERSION || 2018 if             $version < 2009;
+    my $default = 2025;
+
+    return $Modern::Perl::VERSION || $default unless defined $version;
+    return $Modern::Perl::VERSION || $default if             $version < 2009;
 
     $wanted_date = $version if (caller(1))[3] =~ /::BEGIN/;
-    return 2018;
+    return $default;
 }
 
-sub import
-{
+my $unimport_tag;
+BEGIN {
+    $unimport_tag = $] > 5.015 ? ':all' : ':5.10';
+}
+
+sub import {
     my ($class, $date) = @_;
     $date = $wanted_date unless defined $date;
 
@@ -35,39 +41,52 @@ sub import
 
     warnings->import;
     strict->import;
+    feature->unimport( $unimport_tag );
     feature->import( $feature_tag );
+
+    if ($feature_tag ge ':5.34') {
+        feature->import( 'signatures' );
+        warnings->unimport( 'experimental::signatures' );
+    }
+
+    if ($feature_tag ge ':5.38') {
+        feature->import( 'module_true' );
+    }
+
     mro::set_mro( scalar caller(), 'c3' );
 }
 
-sub unimport
-{
+sub unimport {
     warnings->unimport;
     strict->unimport;
     feature->unimport;
 }
 
-my %dates =
-(
-    2009 => ':5.10',
-    2010 => ':5.10',
-    2011 => ':5.12',
-    2012 => ':5.14',
-    2013 => ':5.16',
-    2014 => ':5.18',
-    2015 => ':5.20',
-    2016 => ':5.24',
-    2017 => ':5.24',
-    2018 => ':5.26',
-    2019 => ':5.28',
-);
+sub validate_date {
+    my %dates = (
+        2009 => ':5.10',
+        2010 => ':5.10',
+        2011 => ':5.12',
+        2012 => ':5.14',
+        2013 => ':5.16',
+        2014 => ':5.18',
+        2015 => ':5.20',
+        2016 => ':5.24',
+        2017 => ':5.24',
+        2018 => ':5.26',
+        2019 => ':5.28',
+        2020 => ':5.30',
+        2021 => ':5.32',
+        2022 => ':5.34',
+        2023 => ':5.36',
+        2024 => ':5.38',
+        2025 => ':5.40',
+    );
 
-sub validate_date
-{
     my $date = shift;
 
     # always enable unicode_strings when available
-    unless ($date)
-    {
+    unless ($date) {
         return ':5.12' if $] > 5.011003;
         return ':5.10';
     }
@@ -93,7 +112,7 @@ Modern::Perl - enable all of the features of Modern Perl with one import
 
 =head1 VERSION
 
-version 1.20181021
+version 1.20250607
 
 =head1 SYNOPSIS
 
@@ -119,6 +138,16 @@ more information, L<http://www.modernperlbooks.com/> for further discussion of
 Modern Perl and its implications, and
 L<http://onyxneon.com/books/modern_perl/index.html> for a freely-downloadable
 Modern Perl tutorial.
+
+=head2 CLI Usage
+
+As of Modern::Perl 2019, you may also enable this pragma from the command line:
+
+    $ perl -Modern::Perl -e 'say "Take that, awk!"'
+
+You may also enable year-specific features:
+
+    $ perl -Modern::Perl=2020 -e 'say "Looking forward to Perl 5.30!"'
 
 =head2 Wrapping Modern::Perl
 
@@ -170,10 +199,46 @@ I<year> value as the single optional import tag. For example:
 
     use Modern::Perl '2018';
 
-... enables 5.26 features.
+... enables 5.26 features, and:
 
-Obviously you cannot use newer features on earlier
-versions. Perl will throw the appropriate exception if you try.
+    use Modern::Perl '2019';
+
+... enables 5.28 features, and:
+
+    use Modern::Perl '2020';
+
+... enables 5.30 features, and:
+
+    use Modern::Perl '2021';
+
+... enables 5.32 features, and:
+
+    use Modern::Perl '2022';
+
+... enables 5.34 features, and:
+
+    use Modern::Perl '2023';
+
+... enables 5.36 features, and:
+
+    use Modern::Perl '2024';
+
+... enables 5.38 features, and:
+
+    use Modern::Perl '2025';
+
+... enables 5.40 features.
+
+Obviously you cannot use newer features on earlier versions. Perl will throw
+the appropriate exception if you try.
+
+As of Perl 5.38, you may prefer to write C<use v5.38>, which is almost entirely
+equivalent to the use of this module. For the purpose of forward compatibility,
+this module will continue to work as expected--and will continue regular
+maintenance.
+
+As of Perl 5.41.4, C<given> is no longer available, so any import tags for
+older versions of Perl will not enable this feature, no matter how much you try.
 
 =head1 AUTHOR
 
@@ -181,7 +246,7 @@ chromatic, C<< <chromatic at wgz.org> >>
 
 =head1 BUGS
 
-None reported.
+None known.
 
 Please report any bugs or feature requests to C<bug-modern-perl at
 rt.cpan.org>, or through the web interface at
@@ -223,8 +288,8 @@ Damian Conway (inspiration from L<Toolkit>), Florian Ragwitz
 (L<B::Hooks::Parser>, so I didn't have to write it myself), chocolateboy (for
 suggesting that I don't even need L<B::Hooks::Parser>), Damien Learns Perl,
 David Moreno, Evan Carroll, Elliot Shank, Andreas König, Father Chrysostomos,
-Gryphon Shafer, and Norbert E. Grüner for reporting bugs, filing patches, and
-requesting features.
+Gryphon Shafer, Norbert E. Grüner, and Slaven Rezic for reporting bugs, filing
+patches, and requesting features.
 
 =head1 AUTHOR
 
@@ -232,7 +297,7 @@ chromatic
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2018 by chromatic@wgz.org.
+This software is copyright (c) 2025 by chromatic@wgz.org.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

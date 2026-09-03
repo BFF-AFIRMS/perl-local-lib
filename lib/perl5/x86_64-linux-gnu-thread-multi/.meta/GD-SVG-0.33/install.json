@@ -1,0 +1,1 @@
+{"pathname":"T/TW/TWH/GD-SVG-0.33.tar.gz","dist":"GD-SVG-0.33","version":"0.33","provides":{"GD::SVG::Polygon":{"version":"0.33","file":"SVG.pm"},"GD::SVG::Image":{"version":"0.33","file":"SVG.pm"},"GD::SVG":{"file":"SVG.pm","version":"0.33"},"GD::SVG::Font":{"version":"0.33","file":"SVG.pm"}},"target":"GD::SVG","name":"GD::SVG"}

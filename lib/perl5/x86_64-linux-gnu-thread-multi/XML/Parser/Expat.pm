@@ -1,666 +1,801 @@
 package XML::Parser::Expat;
 
-require 5.004;
-
 use strict;
-use vars qw($VERSION @ISA %Handler_Setters %Encoding_Table @Encoding_Path
-            $have_File_Spec);
+
+# warnings not enabled globally: namespace methods use int() on strings
+# that may not be numeric and rely on 'no warnings "numeric"' locally.
+
+use XSLoader;
 use Carp;
 
-require DynaLoader;
+our $VERSION = '2.59';
 
-@ISA = qw(DynaLoader);
-$VERSION = "2.44";
+our ( %Encoding_Table, @Encoding_Path );
 
-$have_File_Spec = $INC{'File/Spec.pm'} || do 'File/Spec.pm';
+use File::Spec ();
+use File::ShareDir ();
 
 %Encoding_Table = ();
-if ($have_File_Spec) {
-  @Encoding_Path = (grep(-d $_,
-                         map(File::Spec->catdir($_, qw(XML Parser Encodings)),
-                             @INC)),
-                    File::Spec->curdir);
-}
-else {
-  @Encoding_Path = (grep(-d $_, map($_ . '/XML/Parser/Encodings', @INC)), '.');
-}
-  
 
-bootstrap XML::Parser::Expat $VERSION;
+my $_share_dir;
+eval { $_share_dir = File::ShareDir::dist_dir('XML-Parser') };
 
-%Handler_Setters = (
-                    Start => \&SetStartElementHandler,
-                    End   => \&SetEndElementHandler,
-                    Char  => \&SetCharacterDataHandler,
-                    Proc  => \&SetProcessingInstructionHandler,
-                    Comment => \&SetCommentHandler,
-                    CdataStart => \&SetStartCdataHandler,
-                    CdataEnd   => \&SetEndCdataHandler,
-                    Default => \&SetDefaultHandler,
-                    Unparsed => \&SetUnparsedEntityDeclHandler,
-                    Notation => \&SetNotationDeclHandler,
-                    ExternEnt => \&SetExternalEntityRefHandler,
-                    ExternEntFin => \&SetExtEntFinishHandler,
-                    Entity => \&SetEntityDeclHandler,
-                    Element => \&SetElementDeclHandler,
-                    Attlist => \&SetAttListDeclHandler,
-                    Doctype => \&SetDoctypeHandler,
-                    DoctypeFin => \&SetEndDoctypeHandler,
-                    XMLDecl => \&SetXMLDeclHandler
-                    );
+@Encoding_Path = (
+    ( defined $_share_dir && -d $_share_dir ? ($_share_dir) : () ),
+    grep( -d $_,
+        map( File::Spec->catdir( $_, qw(XML Parser Encodings) ), @INC ) ),
+    File::Spec->curdir
+);
+
+XSLoader::load( 'XML::Parser::Expat', $VERSION );
+
+our %Handler_Setters = (
+    Start        => \&SetStartElementHandler,
+    End          => \&SetEndElementHandler,
+    Char         => \&SetCharacterDataHandler,
+    Proc         => \&SetProcessingInstructionHandler,
+    Comment      => \&SetCommentHandler,
+    CdataStart   => \&SetStartCdataHandler,
+    CdataEnd     => \&SetEndCdataHandler,
+    Default      => \&SetDefaultHandler,
+    Unparsed     => \&SetUnparsedEntityDeclHandler,
+    Notation     => \&SetNotationDeclHandler,
+    ExternEnt    => \&SetExternalEntityRefHandler,
+    ExternEntFin => \&SetExtEntFinishHandler,
+    Entity       => \&SetEntityDeclHandler,
+    Element      => \&SetElementDeclHandler,
+    Attlist      => \&SetAttListDeclHandler,
+    Doctype      => \&SetDoctypeHandler,
+    DoctypeFin   => \&SetEndDoctypeHandler,
+    XMLDecl      => \&SetXMLDeclHandler
+);
 
 sub new {
-  my ($class, %args) = @_;
-  my $self = bless \%args, $_[0];
-  $args{_State_} = 0;
-  $args{Context} = [];
-  $args{Namespaces} ||= 0;
-  $args{ErrorMessage} ||= '';
-  if ($args{Namespaces}) {
-    $args{Namespace_Table} = {};
-    $args{Namespace_List} = [undef];
-    $args{Prefix_Table} = {};
-    $args{New_Prefixes} = [];
-  }
-  $args{_Setters} = \%Handler_Setters;
-  $args{Parser} = ParserCreate($self, $args{ProtocolEncoding},
-                               $args{Namespaces});
-  $self;
+    my ( $class, %args ) = @_;
+    my $self = bless \%args, $_[0];
+    $args{_State_} = 0;
+    $args{Context} = [];
+    $args{Namespaces}   ||= 0;
+    $args{ErrorMessage} ||= '';
+    if ( $args{Namespaces} ) {
+        $args{Namespace_Table} = {};
+        $args{Namespace_List}  = [undef];
+        $args{Prefix_Table}    = {};
+        $args{New_Prefixes}    = [];
+    }
+    $args{_Setters} = \%Handler_Setters;
+    $args{Parser}   = ParserCreate(
+        $self, $args{ProtocolEncoding},
+        $args{Namespaces}
+    );
+
+    if ( defined $args{BillionLaughsAttackProtectionMaximumAmplification} ) {
+        $self->billion_laughs_attack_protection_maximum_amplification(
+            $args{BillionLaughsAttackProtectionMaximumAmplification}
+        );
+    }
+    if ( defined $args{BillionLaughsAttackProtectionActivationThreshold} ) {
+        $self->billion_laughs_attack_protection_activation_threshold(
+            $args{BillionLaughsAttackProtectionActivationThreshold}
+        );
+    }
+    if ( defined $args{AllocTrackerMaximumAmplification} ) {
+        $self->alloc_tracker_maximum_amplification(
+            $args{AllocTrackerMaximumAmplification}
+        );
+    }
+    if ( defined $args{AllocTrackerActivationThreshold} ) {
+        $self->alloc_tracker_activation_threshold(
+            $args{AllocTrackerActivationThreshold}
+        );
+    }
+    if ( defined $args{ReparseDeferralEnabled} ) {
+        $self->reparse_deferral_enabled( $args{ReparseDeferralEnabled} );
+    }
+
+    $self;
 }
 
 sub load_encoding {
-  my ($file) = @_;
+    my ($file) = @_;
 
-  $file =~ s!([^/]+)$!\L$1\E!;
-  $file .= '.enc' unless $file =~ /\.enc$/;
-  unless ($file =~ m!^/!) {
-    foreach (@Encoding_Path) {
-      my $tmp = ($have_File_Spec
-                 ? File::Spec->catfile($_, $file)
-                 : "$_/$file");
-      if (-e $tmp) {
-        $file = $tmp;
-        last;
-      }
+    $file =~ s!([^/]+)$!\L$1\E!;
+    $file .= '.enc' unless $file =~ /\.enc$/;
+    unless ( $file =~ m!^/! ) {
+        foreach (@Encoding_Path) {
+            my $tmp = File::Spec->catfile( $_, $file );
+            if ( -e $tmp ) {
+                $file = $tmp;
+                last;
+            }
+        }
     }
-  }
 
-  local(*ENC);
-  open(ENC, $file) or croak("Couldn't open encmap $file:\n$!\n");
-  binmode(ENC);
-  my $data;
-  my $br = sysread(ENC, $data, -s $file);
-  croak("Trouble reading $file:\n$!\n")
-    unless defined($br);
-  close(ENC);
+    open( my $fh, '<', $file ) or croak("Couldn't open encmap $file:\n$!\n");
+    binmode($fh);
+    my $data;
+    my $br = sysread( $fh, $data, -s $file );
+    croak("Trouble reading $file:\n$!\n")
+      unless defined($br);
+    close($fh);
 
-  my $name = LoadEncoding($data, $br);
-  croak("$file isn't an encmap file")
-    unless defined($name);
+    my $name = LoadEncoding( $data, $br );
+    croak("$file isn't an encmap file")
+      unless defined($name);
 
-  $name;
-}  # End load_encoding
+    $name;
+}    # End load_encoding
 
 sub setHandlers {
-  my ($self, @handler_pairs) = @_;
+    my ( $self, @handler_pairs ) = @_;
 
-  croak("Uneven number of arguments to setHandlers method")
-    if (int(@handler_pairs) & 1);
+    croak("Uneven number of arguments to setHandlers method")
+      if ( int(@handler_pairs) & 1 );
 
-  my @ret;
+    my @ret;
 
-  while (@handler_pairs) {
-    my $type = shift @handler_pairs;
-    my $handler = shift @handler_pairs;
-    croak "Handler for $type not a Code ref"
-      unless (! defined($handler) or ! $handler or ref($handler) eq 'CODE');
+    while (@handler_pairs) {
+        my $type    = shift @handler_pairs;
+        my $handler = shift @handler_pairs;
+        croak "Handler for $type not a Code ref"
+          unless ( !defined($handler) or !$handler or ref($handler) eq 'CODE' );
 
-    my $hndl = $self->{_Setters}->{$type};
+        my $hndl = $self->{_Setters}->{$type};
 
-    unless (defined($hndl)) {
-      my @types = sort keys %{$self->{_Setters}};
-      croak("Unknown Expat handler type: $type\n Valid types: @types");
+        unless ( defined($hndl) ) {
+            my @types = sort keys %{ $self->{_Setters} };
+            croak("Unknown Expat handler type: $type\n Valid types: @types");
+        }
+
+        my $old = &$hndl( $self->{Parser}, $handler );
+        push( @ret, $type, $old );
     }
 
-    my $old = &$hndl($self->{Parser}, $handler);
-    push (@ret, $type, $old);
-  }
-
-  return @ret;
+    return @ret;
 }
 
-sub xpcroak
- {
-  my ($self, $message) = @_;
+sub xpcroak {
+    my ( $self, $message ) = @_;
 
-  my $eclines = $self->{ErrorContext};
-  my $line = GetCurrentLineNumber($_[0]->{Parser});
-  $message .= " at line $line";
-  $message .= ":\n" . $self->position_in_context($eclines)
-    if defined($eclines);
-  croak $message;
+    my $eclines = $self->{ErrorContext};
+    my $line    = GetCurrentLineNumber( $_[0]->{Parser} );
+    $message .= " at line $line";
+    $message .= ":\n" . $self->position_in_context($eclines)
+      if defined($eclines);
+    croak $message;
 }
 
 sub xpcarp {
-  my ($self, $message) = @_;
+    my ( $self, $message ) = @_;
 
-  my $eclines = $self->{ErrorContext};
-  my $line = GetCurrentLineNumber($_[0]->{Parser});
-  $message .= " at line $line";
-  $message .= ":\n" . $self->position_in_context($eclines)
-    if defined($eclines);
-  carp $message;
+    my $eclines = $self->{ErrorContext};
+    my $line    = GetCurrentLineNumber( $_[0]->{Parser} );
+    $message .= " at line $line";
+    $message .= ":\n" . $self->position_in_context($eclines)
+      if defined($eclines);
+    carp $message;
 }
 
 sub default_current {
-  my $self = shift;
-  if ($self->{_State_} == 1) {
-    return DefaultCurrent($self->{Parser});
-  }
+    my $self = shift;
+    if ( $self->{_State_} == 1 ) {
+        return DefaultCurrent( $self->{Parser} );
+    }
 }
 
 sub recognized_string {
-  my $self = shift;
-  if ($self->{_State_} == 1) {
-    return RecognizedString($self->{Parser});
-  }
+    my $self = shift;
+    if ( $self->{_State_} == 1 ) {
+        return RecognizedString( $self->{Parser} );
+    }
 }
 
 sub original_string {
-  my $self = shift;
-  if ($self->{_State_} == 1) {
-    return OriginalString($self->{Parser});
-  }
+    my $self = shift;
+    if ( $self->{_State_} == 1 ) {
+        return OriginalString( $self->{Parser} );
+    }
 }
 
 sub current_line {
-  my $self = shift;
-  if ($self->{_State_} == 1) {
-    return GetCurrentLineNumber($self->{Parser});
-  }
+    my $self = shift;
+    if ( $self->{_State_} == 1 ) {
+        return GetCurrentLineNumber( $self->{Parser} );
+    }
 }
 
 sub current_column {
-  my $self = shift;
-  if ($self->{_State_} == 1) {
-    return GetCurrentColumnNumber($self->{Parser});
-  }
+    my $self = shift;
+    if ( $self->{_State_} == 1 ) {
+        return GetCurrentColumnNumber( $self->{Parser} );
+    }
 }
 
 sub current_byte {
-  my $self = shift;
-  if ($self->{_State_} == 1) {
-    return GetCurrentByteIndex($self->{Parser});
-  }
+    my $self = shift;
+    if ( $self->{_State_} == 1 ) {
+        return GetCurrentByteIndex( $self->{Parser} );
+    }
+}
+
+sub current_length {
+    my $self = shift;
+    if ( $self->{_State_} == 1 ) {
+        return GetCurrentByteCount( $self->{Parser} );
+    }
 }
 
 sub base {
-  my ($self, $newbase) = @_;
-  my $p = $self->{Parser};
-  my $oldbase = GetBase($p);
-  SetBase($p, $newbase) if @_ > 1;
-  return $oldbase;
+    my ( $self, $newbase ) = @_;
+    my $p       = $self->{Parser};
+    my $oldbase = GetBase($p);
+    SetBase( $p, $newbase ) if @_ > 1;
+    return $oldbase;
 }
 
 sub context {
-  my $ctx = $_[0]->{Context};
-  @$ctx;
+    my $ctx = $_[0]->{Context};
+    @$ctx;
 }
 
 sub current_element {
-  my ($self) = @_;
-  @{$self->{Context}} ? $self->{Context}->[-1] : undef;
+    my ($self) = @_;
+    @{ $self->{Context} } ? $self->{Context}->[-1] : undef;
 }
 
 sub in_element {
-  my ($self, $element) = @_;
-  @{$self->{Context}} ? $self->eq_name($self->{Context}->[-1], $element)
-    : undef;
+    my ( $self, $element ) = @_;
+    @{ $self->{Context} }
+      ? $self->eq_name( $self->{Context}->[-1], $element )
+      : undef;
 }
 
 sub within_element {
-  my ($self, $element) = @_;
-  my $cnt = 0;
-  foreach (@{$self->{Context}}) {
-    $cnt++ if $self->eq_name($_, $element);
-  }
-  return $cnt;
+    my ( $self, $element ) = @_;
+    my $cnt = 0;
+    foreach ( @{ $self->{Context} } ) {
+        $cnt++ if $self->eq_name( $_, $element );
+    }
+    return $cnt;
 }
 
 sub depth {
-  my ($self) = @_;
-  int(@{$self->{Context}});
+    my ($self) = @_;
+    int( @{ $self->{Context} } );
 }
 
 sub element_index {
-  my ($self) = @_;
+    my ($self) = @_;
 
-  if ($self->{_State_} == 1) {
-    return ElementIndex($self->{Parser});
-  }
+    if ( $self->{_State_} == 1 ) {
+        return ElementIndex( $self->{Parser} );
+    }
 }
 
 ################
 # Namespace methods
 
 sub namespace {
-  my ($self, $name) = @_;
-  local($^W) = 0;
-  $self->{Namespace_List}->[int($name)];
+    my ( $self, $name ) = @_;
+    no warnings 'numeric';
+    $self->{Namespace_List}->[ int($name) ];
 }
 
 sub eq_name {
-  my ($self, $nm1, $nm2) = @_;
-  local($^W) = 0;
-
-  int($nm1) == int($nm2) and $nm1 eq $nm2;
+    my ( $self, $nm1, $nm2 ) = @_;
+    no warnings 'numeric';
+    int($nm1) == int($nm2) and $nm1 eq $nm2;
 }
 
 sub generate_ns_name {
-  my ($self, $name, $namespace) = @_;
+    my ( $self, $name, $namespace ) = @_;
 
-  $namespace ?
-    GenerateNSName($name, $namespace, $self->{Namespace_Table},
-                   $self->{Namespace_List})
+    $namespace
+      ? GenerateNSName(
+        $name, $namespace, $self->{Namespace_Table},
+        $self->{Namespace_List}
+      )
       : $name;
 }
 
 sub new_ns_prefixes {
-  my ($self) = @_;
-  if ($self->{Namespaces}) {
-    return @{$self->{New_Prefixes}};
-  }
-  return ();
+    my ($self) = @_;
+    if ( $self->{Namespaces} ) {
+        return @{ $self->{New_Prefixes} };
+    }
+    return ();
 }
 
 sub expand_ns_prefix {
-  my ($self, $prefix) = @_;
+    my ( $self, $prefix ) = @_;
 
-  if ($self->{Namespaces}) {
-    my $stack = $self->{Prefix_Table}->{$prefix};
-    return (defined($stack) and @$stack) ? $stack->[-1] : undef;
-  }
+    if ( $self->{Namespaces} ) {
+        my $stack = $self->{Prefix_Table}->{$prefix};
+        return ( defined($stack) and @$stack ) ? $stack->[-1] : undef;
+    }
 
-  return undef;
+    return;
 }
 
 sub current_ns_prefixes {
-  my ($self) = @_;
+    my ($self) = @_;
 
-  if ($self->{Namespaces}) {
-    my %set = %{$self->{Prefix_Table}};
+    if ( $self->{Namespaces} ) {
+        my %set = %{ $self->{Prefix_Table} };
 
-    if (exists $set{'#default'} and not defined($set{'#default'}->[-1])) {
-      delete $set{'#default'};
+        if ( exists $set{'#default'} and not defined( $set{'#default'}->[-1] ) ) {
+            delete $set{'#default'};
+        }
+
+        return keys %set;
     }
 
-    return keys %set;
-  }
-
-  return ();
+    return ();
 }
-
 
 ################################################################
 # Namespace declaration handlers
 #
 
 sub NamespaceStart {
-  my ($self, $prefix, $uri) = @_;
+    my ( $self, $prefix, $uri ) = @_;
 
-  $prefix = '#default' unless defined $prefix;
-  my $stack = $self->{Prefix_Table}->{$prefix}; 
+    $prefix = '#default' unless defined $prefix;
+    my $stack = $self->{Prefix_Table}->{$prefix};
 
-  if (defined $stack) {
-    push(@$stack, $uri);
-  }
-  else {
-    $self->{Prefix_Table}->{$prefix} = [$uri];
-  }
+    if ( defined $stack ) {
+        push( @$stack, $uri );
+    }
+    else {
+        $self->{Prefix_Table}->{$prefix} = [$uri];
+    }
 
-  # The New_Prefixes list gets emptied at end of startElement function
-  # in Expat.xs
+    # The New_Prefixes list gets emptied at end of startElement function
+    # in Expat.xs
 
-  push(@{$self->{New_Prefixes}}, $prefix);
+    push( @{ $self->{New_Prefixes} }, $prefix );
 }
 
 sub NamespaceEnd {
-  my ($self, $prefix) = @_;
+    my ( $self, $prefix ) = @_;
 
-  $prefix = '#default' unless defined $prefix;
+    $prefix = '#default' unless defined $prefix;
 
-  my $stack = $self->{Prefix_Table}->{$prefix};
-  if (@$stack > 1) {
-    pop(@$stack);
-  }
-  else {
-    delete $self->{Prefix_Table}->{$prefix};
-  }
+    my $stack = $self->{Prefix_Table}->{$prefix};
+    if ( @$stack > 1 ) {
+        pop(@$stack);
+    }
+    else {
+        delete $self->{Prefix_Table}->{$prefix};
+    }
 }
 
 ################
 
 sub specified_attr {
-  my $self = shift;
-  
-  if ($self->{_State_} == 1) {
-    return GetSpecifiedAttributeCount($self->{Parser});
-  }
+    my $self = shift;
+
+    if ( $self->{_State_} == 1 ) {
+        return GetSpecifiedAttributeCount( $self->{Parser} );
+    }
 }
 
 sub finish {
-  my ($self) = @_;
-  if ($self->{_State_} == 1) {
-    my $parser = $self->{Parser};
-    UnsetAllHandlers($parser);
-  }
+    my ($self) = @_;
+    if ( $self->{_State_} == 1 ) {
+        my $parser = $self->{Parser};
+        UnsetAllHandlers($parser);
+    }
 }
 
 sub position_in_context {
-  my ($self, $lines) = @_;
-  if ($self->{_State_} == 1) {
-    my $parser = $self->{Parser};
-    my ($string, $linepos) = PositionContext($parser, $lines);
+    my ( $self, $lines ) = @_;
+    if ( $self->{_State_} == 1 ) {
+        my $parser = $self->{Parser};
+        my ( $string, $linepos ) = PositionContext( $parser, $lines );
 
-    return '' unless defined($string);
+        return '' unless defined($string);
 
-    my $col = GetCurrentColumnNumber($parser);
-    my $ptr = ('=' x ($col - 1)) . '^' . "\n";
-    my $ret;
-    my $dosplit = $linepos < length($string);
-  
-    $string .= "\n" unless $string =~ /\n$/;
-  
-    if ($dosplit) {
-      $ret = substr($string, 0, $linepos) . $ptr
-        . substr($string, $linepos);
-    } else {
-      $ret = $string . $ptr;
+        my $col = GetCurrentColumnNumber($parser);
+        my $ptr = ( '=' x ( $col - 1 ) ) . '^' . "\n";
+        my $ret;
+        my $dosplit = $linepos < length($string);
+
+        $string .= "\n" unless $string =~ /\n$/;
+
+        if ($dosplit) {
+            $ret = substr( $string, 0, $linepos ) . $ptr . substr( $string, $linepos );
+        }
+        else {
+            $ret = $string . $ptr;
+        }
+
+        return $ret;
     }
-  
-    return $ret;
-  }
 }
 
 sub xml_escape {
-  my $self = shift;
-  my $text = shift;
+    my $self = shift;
+    my $text = shift;
 
-  study $text;
-  $text =~ s/\&/\&amp;/g;
-  $text =~ s/</\&lt;/g;
-  foreach (@_) {
-    croak "xml_escape: '$_' isn't a single character" if length($_) > 1;
+    $text =~ s/\&/\&amp;/g;
+    $text =~ s/</\&lt;/g;
+    foreach (@_) {
+        croak "xml_escape: '$_' isn't a single character" if length($_) > 1;
 
-    if ($_ eq '>') {
-      $text =~ s/>/\&gt;/g;
+        if ( $_ eq '>' ) {
+            $text =~ s/>/\&gt;/g;
+        }
+        elsif ( $_ eq '"' ) {
+            $text =~ s/\"/\&quot;/g;
+        }
+        elsif ( $_ eq "'" ) {
+            $text =~ s/\'/\&apos;/g;
+        }
+        else {
+            my $rep = '&#' . sprintf( 'x%X', ord($_) ) . ';';
+            if (/\W/) {
+                my $ptrn = "\\$_";
+                $text =~ s/$ptrn/$rep/g;
+            }
+            else {
+                $text =~ s/$_/$rep/g;
+            }
+        }
     }
-    elsif ($_ eq '"') {
-      $text =~ s/\"/\&quot;/;
-    }
-    elsif ($_ eq "'") {
-      $text =~ s/\'/\&apos;/;
-    }
-    else {
-      my $rep = '&#' . sprintf('x%X', ord($_)) . ';';
-      if (/\W/) {
-        my $ptrn = "\\$_";
-        $text =~ s/$ptrn/$rep/g;
-      }
-      else {
-        $text =~ s/$_/$rep/g;
-      }
-    }
-  }
-  $text;
+    $text;
 }
 
 sub skip_until {
-  my $self = shift;
-  if ($self->{_State_} <= 1) {
-    SkipUntil($self->{Parser}, $_[0]);
-  }
+    my $self = shift;
+    if ( $self->{_State_} <= 1 ) {
+        SkipUntil( $self->{Parser}, $_[0] );
+    }
 }
 
+################
+# Security API methods (require sufficiently recent libexpat)
+
+sub billion_laughs_attack_protection_maximum_amplification {
+    my ( $self, $factor ) = @_;
+    croak "Usage: \$parser->billion_laughs_attack_protection_maximum_amplification(\$factor)"
+      unless defined $factor;
+    unless ( defined &SetBillionLaughsAttackProtectionMaximumAmplification ) {
+        croak "SetBillionLaughsAttackProtectionMaximumAmplification not available"
+          . " (requires libexpat >= 2.4.0 built with XML_DTD)";
+    }
+    SetBillionLaughsAttackProtectionMaximumAmplification( $self->{Parser}, $factor );
+}
+
+sub billion_laughs_attack_protection_activation_threshold {
+    my ( $self, $threshold ) = @_;
+    croak "Usage: \$parser->billion_laughs_attack_protection_activation_threshold(\$threshold)"
+      unless defined $threshold;
+    unless ( defined &SetBillionLaughsAttackProtectionActivationThreshold ) {
+        croak "SetBillionLaughsAttackProtectionActivationThreshold not available"
+          . " (requires libexpat >= 2.4.0 built with XML_DTD)";
+    }
+    SetBillionLaughsAttackProtectionActivationThreshold( $self->{Parser}, $threshold );
+}
+
+sub alloc_tracker_maximum_amplification {
+    my ( $self, $factor ) = @_;
+    croak "Usage: \$parser->alloc_tracker_maximum_amplification(\$factor)"
+      unless defined $factor;
+    unless ( defined &SetAllocTrackerMaximumAmplification ) {
+        croak "SetAllocTrackerMaximumAmplification not available"
+          . " (requires libexpat >= 2.7.2)";
+    }
+    SetAllocTrackerMaximumAmplification( $self->{Parser}, $factor );
+}
+
+sub alloc_tracker_activation_threshold {
+    my ( $self, $threshold ) = @_;
+    croak "Usage: \$parser->alloc_tracker_activation_threshold(\$threshold)"
+      unless defined $threshold;
+    unless ( defined &SetAllocTrackerActivationThreshold ) {
+        croak "SetAllocTrackerActivationThreshold not available"
+          . " (requires libexpat >= 2.7.2)";
+    }
+    SetAllocTrackerActivationThreshold( $self->{Parser}, $threshold );
+}
+
+sub reparse_deferral_enabled {
+    my ( $self, $enabled ) = @_;
+    croak "Usage: \$parser->reparse_deferral_enabled(\$enabled)"
+      unless defined $enabled;
+    unless ( defined &SetReparseDeferralEnabled ) {
+        croak "SetReparseDeferralEnabled not available"
+          . " (requires libexpat >= 2.6.0)";
+    }
+    SetReparseDeferralEnabled( $self->{Parser}, $enabled ? 1 : 0 );
+}
+
+################
+# Expat library version info
+
+sub expat_version {
+    return ExpatVersion();
+}
+
+sub expat_version_info {
+    my %info = ExpatVersionInfo();
+    return %info;
+}
+
+################
+
 sub release {
-  my $self = shift;
-  ParserRelease($self->{Parser});
+    my $self = shift;
+    ParserRelease( $self->{Parser} );
 }
 
 sub DESTROY {
-  my $self = shift;
-  ParserFree($self->{Parser});
+    my $self = shift;
+    ParserFree( $self->{Parser} );
 }
 
 sub parse {
-  my $self = shift;
-  my $arg = shift;
-  croak "Parse already in progress (Expat)" if $self->{_State_};
-  $self->{_State_} = 1;
-  my $parser = $self->{Parser};
-  my $ioref;
-  my $result = 0;
-  
-  if (defined $arg) {
-    local *@;
-    if (ref($arg) and UNIVERSAL::isa($arg, 'IO::Handle')) {
-      $ioref = $arg;
-    } elsif ($] < 5.008 and defined tied($arg)) {
-      require IO::Handle;
-      $ioref = $arg;
+    my $self = shift;
+    my $arg  = shift;
+    croak 'Parse already in progress (Expat)' if $self->{_State_};
+    $self->{_State_} = 1;
+    my $parser = $self->{Parser};
+    my $ioref;
+    my $result = 0;
+
+    if ( defined $arg ) {
+        local *@;
+        if ( ref($arg) and UNIVERSAL::isa( $arg, 'IO::Handle' ) ) {
+            $ioref = $arg;
+        }
+        else {
+            require IO::Handle;
+            eval {
+                no strict 'refs';
+                if ( ref $arg eq 'GLOB' ) {
+
+                    # Glob reference not recognized as IO::Handle
+                    $ioref = *{$arg}{IO};
+                }
+                elsif ( ref \$arg eq 'GLOB' ) {
+
+                    # Bare glob (*FH) — not a reference, but taking a
+                    # reference of it yields a GLOB ref. (GH#201)
+                    $ioref = *{$arg}{IO};
+                }
+                elsif ( ref($arg) ) {
+
+                    # Blessed glob (e.g. IO::String) not descended
+                    # from IO::Handle — extract IO slot if underlying
+                    # reftype is GLOB. (GH#268)
+                    require Scalar::Util;
+                    $ioref = *{$arg}{IO}
+                      if Scalar::Util::reftype($arg) eq 'GLOB';
+                }
+                elsif ( $arg =~ /\A[^\W\d]\w*(?:::\w+)*\z/
+                    && defined *{$arg} )
+                {
+                    # Bareword filehandle name — only look up if it could be
+                    # a valid Perl identifier, to prevent auto-vivification
+                    # of symbol table entries for XML strings. (GH#27)
+                    $ioref = *{$arg}{IO};
+                }
+            };
+            if ( ref($ioref) eq 'FileHandle' ) {
+
+                #for perl 5.10.x and possibly earlier, see t/file_open_scalar.t
+                require FileHandle;
+            }
+        }
+    }
+
+    if ( defined($ioref) ) {
+        my $delim = $self->{Stream_Delimiter};
+        my $prev_rs;
+        my $ioclass = ref $ioref;
+        $ioclass = 'IO::Handle' if !length $ioclass;
+
+        $prev_rs = $ioclass->input_record_separator("\n$delim\n")
+          if defined($delim);
+
+        eval { $result = ParseStream( $parser, $ioref, $delim ) };
+
+        $ioclass->input_record_separator($prev_rs)
+          if defined($delim);
     }
     else {
-      require IO::Handle;
-      eval {
-        no strict 'refs';
-        $ioref = *{$arg}{IO} if defined *{$arg};
-      };
-      if (ref($ioref) eq 'FileHandle') {
-        #for perl 5.10.x and possibly earlier, see t/file_open_scalar.t
-        require FileHandle;
-      }
+        eval { $result = ParseString( $parser, $arg ) };
     }
-  }
-  
-  if (defined($ioref)) {
-    my $delim = $self->{Stream_Delimiter};
-    my $prev_rs;
-    my $ioclass = ref $ioref;
-    $ioclass = "IO::Handle" if !length $ioclass;
-    
-    $prev_rs = $ioclass->input_record_separator("\n$delim\n")
-      if defined($delim);
-    
-    $result = ParseStream($parser, $ioref, $delim);
-    
-    $ioclass->input_record_separator($prev_rs)
-      if defined($delim);
-  } else {
-    $result = ParseString($parser, $arg);
-  }
-  
-  $self->{_State_} = 2;
-  $result or croak $self->{ErrorMessage};
+
+    if ($@) {
+        # Preserve reference exceptions (e.g. objects thrown by handlers)
+        die $@ if ref $@;
+        # For string exceptions, add XML context when ErrorContext is set
+        $self->xpcroak($@) if defined $self->{ErrorContext};
+        die $@;
+    }
+
+    $self->{_State_} = 2;
+    $result or croak $self->{ErrorMessage};
 }
 
 sub parsestring {
-  my $self = shift;
-  $self->parse(@_);
+    my $self = shift;
+    $self->parse(@_);
 }
 
 sub parsefile {
-  my $self = shift;
-  croak "Parser has already been used" if $self->{_State_};
-  local(*FILE);
-  open(FILE, $_[0]) or  croak "Couldn't open $_[0]:\n$!";
-  binmode(FILE);
-  my $ret = $self->parse(*FILE);
-  close(FILE);
-  $ret;
+    my $self = shift;
+    croak 'Parser has already been used' if $self->{_State_};
+
+    open( my $fh, '<', $_[0] ) or croak "Couldn't open $_[0]:\n$!";
+    binmode($fh);
+    my $ret = $self->parse($fh);
+    close($fh);
+    $ret;
 }
 
 ################################################################
-package #hide from PAUSE
- XML::Parser::ContentModel;
+package    #hide from PAUSE
+  XML::Parser::ContentModel;
 use overload '""' => \&asString, 'eq' => \&thiseq;
 
-sub EMPTY  () {1}
-sub ANY    () {2}
-sub MIXED  () {3}
-sub NAME   () {4}
-sub CHOICE () {5}
-sub SEQ    () {6}
-
+sub EMPTY ()  { 1 }
+sub ANY ()    { 2 }
+sub MIXED ()  { 3 }
+sub NAME ()   { 4 }
+sub CHOICE () { 5 }
+sub SEQ ()    { 6 }
 
 sub isempty {
-  return $_[0]->{Type} == EMPTY;
+    return $_[0]->{Type} == EMPTY;
 }
 
 sub isany {
-  return $_[0]->{Type} == ANY;
+    return $_[0]->{Type} == ANY;
 }
 
 sub ismixed {
-  return $_[0]->{Type} == MIXED;
+    return $_[0]->{Type} == MIXED;
 }
 
 sub isname {
-  return $_[0]->{Type} == NAME;
+    return $_[0]->{Type} == NAME;
 }
 
 sub name {
-  return $_[0]->{Tag};
+    return $_[0]->{Tag};
 }
 
 sub ischoice {
-  return $_[0]->{Type} == CHOICE;
+    return $_[0]->{Type} == CHOICE;
 }
 
 sub isseq {
-  return $_[0]->{Type} == SEQ;
+    return $_[0]->{Type} == SEQ;
 }
 
 sub quant {
-  return $_[0]->{Quant};
+    return $_[0]->{Quant};
 }
 
 sub children {
-  my $children = $_[0]->{Children};
-  if (defined $children) {
-    return @$children;
-  }
-  return undef;
+    my $children = $_[0]->{Children};
+    if ( defined $children ) {
+        return @$children;
+    }
+    return;
 }
 
 sub asString {
-  my ($self) = @_;
-  my $ret;
+    my ($self) = @_;
+    my $ret;
 
-  if ($self->{Type} == NAME) {
-    $ret = $self->{Tag};
-  }
-  elsif ($self->{Type} == EMPTY) {
-    return "EMPTY";
-  }
-  elsif ($self->{Type} == ANY) {
-    return "ANY";
-  }
-  elsif ($self->{Type} == MIXED) {
-    $ret = '(#PCDATA';
-    foreach (@{$self->{Children}}) {
-      $ret .= '|' . $_;
+    if ( $self->{Type} == NAME ) {
+        $ret = $self->{Tag};
     }
-    $ret .= ')';
-  }
-  else {
-    my $sep = $self->{Type} == CHOICE ? '|' : ',';
-    $ret = '(' . join($sep, map { $_->asString } @{$self->{Children}}) . ')';
-  }
+    elsif ( $self->{Type} == EMPTY ) {
+        return 'EMPTY';
+    }
+    elsif ( $self->{Type} == ANY ) {
+        return 'ANY';
+    }
+    elsif ( $self->{Type} == MIXED ) {
+        $ret = '(#PCDATA';
+        foreach ( @{ $self->{Children} } ) {
+            $ret .= '|' . $_;
+        }
+        $ret .= ')';
+    }
+    else {
+        my $sep = $self->{Type} == CHOICE ? '|' : ',';
+        $ret = '(' . join( $sep, map { $_->asString } @{ $self->{Children} } ) . ')';
+    }
 
-  $ret .= $self->{Quant} if $self->{Quant};
-  return $ret;
+    $ret .= $self->{Quant} if $self->{Quant};
+    return $ret;
 }
 
 sub thiseq {
-  my $self = shift;
+    my $self = shift;
 
-  return $self->asString eq $_[0];
+    return $self->asString eq $_[0];
 }
 
 ################################################################
-package #hide from PAUSE
- XML::Parser::ExpatNB;
+package    #hide from PAUSE
+  XML::Parser::ExpatNB;
 
-use vars qw(@ISA);
 use Carp;
 
-@ISA = qw(XML::Parser::Expat);
+our @ISA = qw(XML::Parser::Expat);
 
 sub parse {
-  my $self = shift;
-  my $class = ref($self);
-  croak "parse method not supported in $class";
+    my $self  = shift;
+    my $class = ref($self);
+    croak "parse method not supported in $class";
 }
 
 sub parsestring {
-  my $self = shift;
-  my $class = ref($self);
-  croak "parsestring method not supported in $class";
+    my $self  = shift;
+    my $class = ref($self);
+    croak "parsestring method not supported in $class";
 }
 
 sub parsefile {
-  my $self = shift;
-  my $class = ref($self);
-  croak "parsefile method not supported in $class";
+    my $self  = shift;
+    my $class = ref($self);
+    croak "parsefile method not supported in $class";
 }
 
 sub parse_more {
-  my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
-  $self->{_State_} = 1;
-  my $ret = XML::Parser::Expat::ParsePartial($self->{Parser}, $data);
+    $self->{_State_} = 1;
+    my $ret = XML::Parser::Expat::ParsePartial( $self->{Parser}, $data );
 
-  croak $self->{ErrorMessage} unless $ret;
+    croak $self->{ErrorMessage} unless $ret;
 }
 
 sub parse_done {
-  my $self = shift;
+    my $self = shift;
 
-  my $ret = XML::Parser::Expat::ParseDone($self->{Parser});
-  unless ($ret) {
-    my $msg = $self->{ErrorMessage};
+    my $ret = XML::Parser::Expat::ParseDone( $self->{Parser} );
+    unless ($ret) {
+        my $msg = $self->{ErrorMessage};
+        $self->release;
+        croak $msg;
+    }
+
+    $self->{_State_} = 2;
+
+    my $result = $ret;
+    my @result = ();
+    my $final  = $self->{FinalHandler};
+    if ( defined $final ) {
+        if (wantarray) {
+            @result = &$final($self);
+        }
+        else {
+            $result = &$final($self);
+        }
+    }
+
     $self->release;
-    croak $msg;
-  }
 
-  $self->{_State_} = 2;
-
-  my $result = $ret;
-  my @result = ();
-  my $final = $self->{FinalHandler};
-  if (defined $final) {
-    if (wantarray) {
-      @result = &$final($self);
-    }
-    else {
-      $result = &$final($self);
-    }
-  }
-
-  $self->release;
-
-  return unless defined wantarray;
-  return wantarray ? @result : $result;
+    return unless defined wantarray;
+    return wantarray ? @result : $result;
 }
 
 ################################################################
 
-package  #hide from PAUSE
- XML::Parser::Encinfo;
+package    #hide from PAUSE
+  XML::Parser::Encinfo;
 
 sub DESTROY {
-  my $self = shift;
-  XML::Parser::Expat::FreeEncoding($self);
+    my $self = shift;
+    XML::Parser::Expat::FreeEncoding($self);
 }
 
 1;
@@ -679,9 +814,9 @@ XML::Parser::Expat - Lowlevel access to James Clark's expat XML parser
  $parser->setHandlers('Start' => \&sh,
                       'End'   => \&eh,
                       'Char'  => \&ch);
- open(FOO, '<', 'info.xml') or die "Couldn't open";
- $parser->parse(*FOO);
- close(FOO);
+ open(my $fh, '<', 'info.xml') or die "Couldn't open";
+ $parser->parse($fh);
+ close($fh);
  # $parser->parse('<foo id="me"> here <em>we</em> go </foo>');
 
  sub sh
@@ -768,10 +903,80 @@ Unless standalone is set to "yes" in the XML declaration, setting this to
 a true value allows the external DTD to be read, and parameter entities
 to be parsed and expanded.
 
+B<Implicit vs explicit parameter entity parsing:> When C<ParseParamEnt> is
+not set, parameter entity references (e.g. C<%foo;>) in the internal DTD
+subset are passed through to the B<Default> handler as literal text. This is
+the mode that XML::Twig and other DTD round-tripping tools rely on.
+
+When C<ParseParamEnt> is set to a true value, or when a declaration handler
+(B<Entity>, B<Element>, or B<Attlist>) is registered, parameter entity parsing
+is activated. In this mode, PE references are resolved by expat (via the
+B<ExternEnt> handler) and subsequent declarations are routed to their
+dedicated declaration handlers instead of the Default handler.
+
+=item * UseForeignDTD
+
+When set to a true value, this option tells expat to call the ExternEnt
+handler even for documents that do not have a DOCTYPE declaration. This
+allows the application to provide a DTD for validation and entity
+definitions. In this case, the ExternEnt handler will be called with
+both the system ID and public ID set to undef. This option should be
+used together with ParseParamEnt.
+
 =item * Base
 
 The base to use for relative pathnames or URLs. This can also be done by
 using the base method.
+
+=item * BillionLaughsAttackProtectionMaximumAmplification
+
+Sets the maximum amplification factor for the Billion Laughs attack
+protection. This limits how many times larger the output of entity
+expansion can be relative to the input. For example, a value of 100.0
+means the parser will abort if entity expansion would produce output more
+than 100 times the size of the input.
+
+Requires libexpat E<gt>= 2.4.0 built with C<XML_DTD> or C<XML_GE>.  Will C<croak> at
+runtime if the underlying C function is not available.
+
+=item * BillionLaughsAttackProtectionActivationThreshold
+
+Sets the activation threshold (in bytes) for the Billion Laughs attack
+protection. The amplification limit only kicks in after the parser has
+processed this many bytes of output from entity expansion. This prevents
+false positives on small documents that happen to have a high
+amplification ratio.
+
+Requires libexpat E<gt>= 2.4.0 built with C<XML_DTD> or C<XML_GE>.  Will C<croak> at
+runtime if the underlying C function is not available.
+
+=item * AllocTrackerMaximumAmplification
+
+Sets the maximum amplification factor for the allocation tracker.
+This limits how many times larger the output of entity expansion can be
+relative to the input.
+
+Requires libexpat E<gt>= 2.7.2 built with C<XML_DTD> or C<XML_GE>.
+Will C<croak> at runtime if the underlying C function is not available.
+
+=item * AllocTrackerActivationThreshold
+
+Sets the activation threshold (in bytes) for the allocation tracker.
+The amplification limit only kicks in after the parser has processed this
+many bytes of output from entity expansion.
+
+Requires libexpat E<gt>= 2.7.2 built with C<XML_DTD> or C<XML_GE>.
+Will C<croak> at runtime if the underlying C function is not available.
+
+=item * ReparseDeferralEnabled
+
+When set to a true value, enables reparse deferral. When set to a false
+value (e.g. C<0>), disables it. Reparse deferral is a security mechanism
+in expat that defers reparsing of unfinished tokens until more input
+arrives, preventing certain XML-based attacks.
+
+Requires libexpat E<gt>= 2.6.0.  Will C<croak> at runtime if the
+underlying C function is not available.
 
 =back
 
@@ -1021,6 +1226,12 @@ Returns the column number of the current position of the parse.
 
 Returns the current position of the parse.
 
+=item current_length
+
+Returns the byte length of the current event. This is useful in conjunction
+with current_byte to determine the exact byte range of an event in the
+original XML document.
+
 =item base([NEWBASE]);
 
 Returns the current value of the base for resolving relative URIs. If
@@ -1071,6 +1282,57 @@ that has an index number equal to INDEX is seen. If a start handler has
 been set, then this is the first tag that the start handler will see
 after skip_until has been called.
 
+
+=item billion_laughs_attack_protection_maximum_amplification(FACTOR)
+
+Sets the maximum amplification factor for the Billion Laughs attack
+protection.  FACTOR is a floating-point number (e.g. C<100.0>).
+
+  $parser->billion_laughs_attack_protection_maximum_amplification(100.0);
+
+Requires libexpat E<gt>= 2.4.0 built with C<XML_DTD> or C<XML_GE>.  Will C<croak> if
+the underlying C API is not available.
+
+=item billion_laughs_attack_protection_activation_threshold(THRESHOLD)
+
+Sets the activation threshold (in bytes) for the Billion Laughs attack
+protection.  THRESHOLD is an unsigned integer.
+
+  $parser->billion_laughs_attack_protection_activation_threshold(1_000_000);
+
+Requires libexpat E<gt>= 2.4.0 built with C<XML_DTD> or C<XML_GE>.  Will C<croak> if
+the underlying C API is not available.
+
+=item alloc_tracker_maximum_amplification(FACTOR)
+
+Sets the maximum amplification factor for the allocation tracker.
+FACTOR is a floating-point number (e.g. C<100.0>).
+
+  $parser->alloc_tracker_maximum_amplification(100.0);
+
+Requires libexpat E<gt>= 2.7.2 built with C<XML_DTD> or C<XML_GE>.
+Will C<croak> if the underlying C API is not available.
+
+=item alloc_tracker_activation_threshold(THRESHOLD)
+
+Sets the activation threshold (in bytes) for the allocation tracker.
+THRESHOLD is an unsigned integer.
+
+  $parser->alloc_tracker_activation_threshold(1_000_000);
+
+Requires libexpat E<gt>= 2.7.2 built with C<XML_DTD> or C<XML_GE>.
+Will C<croak> if the underlying C API is not available.
+
+=item reparse_deferral_enabled(ENABLED)
+
+Enables or disables reparse deferral.  ENABLED is a boolean (true to
+enable, false to disable).
+
+  $parser->reparse_deferral_enabled(0);  # disable
+  $parser->reparse_deferral_enabled(1);  # enable
+
+Requires libexpat E<gt>= 2.6.0.  Will C<croak> if the underlying C API
+is not available.
 
 =item position_in_context(LINES)
 
@@ -1134,6 +1396,22 @@ method breaks those references (and makes the instance unusable.)
 Normally, higher level calls handle this for you, but if you are using
 XML::Parser::Expat directly, then it's your responsibility to call it.
 
+=item XML::Parser::Expat::expat_version
+
+Returns the version string of the linked expat library (e.g.
+C<"expat_2.5.0">).  This is a class method and can be called without
+a parser instance:
+
+  my $ver = XML::Parser::Expat::expat_version();
+
+=item XML::Parser::Expat::expat_version_info
+
+Returns a hash with the major, minor, and micro version numbers of the
+linked expat library:
+
+  my %v = XML::Parser::Expat::expat_version_info();
+  # %v = (major => 2, minor => 5, micro => 0)
+
 =back
 
 =head2 XML::Parser::ContentModel Methods
@@ -1142,7 +1420,7 @@ The element declaration handlers are passed objects of this class as the
 content model of the element declaration. They also represent content
 particles, components of a content model.
 
-When referred to as a string, these objects are automagicly converted to a
+When referred to as a string, these objects are automagically converted to a
 string representation of the model (or content particle).
 
 =over 4
@@ -1162,7 +1440,7 @@ false otherwise.
 
 =item isname
 
-This method returns if the object is an element name.
+This method returns true if the object is an element name.
 
 =item ischoice
 
@@ -1234,5 +1512,13 @@ Larry Wall <F<larry@wall.org>> wrote version 1.0.
 Clark Cooper <F<coopercc@netheaven.com>> picked up support, changed the API
 for this version (2.x), provided documentation, and added some standard
 package features.
+
+Matt Sergeant <F<matt@sergeant.org>> was maintaining XML::Parser from 2003 to 2007.
+
+Alexandr Ciornii <F<alexchorny@gmail.com>> was maintaining XML::Parser from 2007 to 2013.
+
+Todd Rinaldo <F<toddr@cpan.org>> has been maintaining XML::Parser since 2013.
+
+The project started making use of Claude Code <F<https://claude.ai/code>> in January 2026.
 
 =cut

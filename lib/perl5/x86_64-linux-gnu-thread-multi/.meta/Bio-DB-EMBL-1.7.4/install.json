@@ -1,0 +1,1 @@
+{"pathname":"C/CJ/CJFIELDS/Bio-DB-EMBL-1.7.4.tar.gz","name":"Bio::DB::EMBL","version":"1.007004","dist":"Bio-DB-EMBL-1.7.4","provides":{"Bio::DB::EMBL":{"version":"1.007004","file":"lib/Bio/DB/EMBL.pm"}},"target":"Bio::DB::EMBL"}

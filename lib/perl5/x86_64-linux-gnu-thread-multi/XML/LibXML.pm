@@ -13,11 +13,12 @@ package XML::LibXML;
 use strict;
 use warnings;
 
-use vars qw($VERSION $ABI_VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS
-            $skipDTD $skipXMLDeclaration $setTagCompression
-            $MatchCB $ReadCB $OpenCB $CloseCB %PARSER_FLAGS
-	    $XML_LIBXML_PARSE_DEFAULTS
-            );
+our (
+    $VERSION,
+    $skipDTD, $skipXMLDeclaration, $setTagCompression,
+    $MatchCB, $ReadCB, $OpenCB, $CloseCB,
+);
+
 use Carp;
 
 use constant XML_XMLNS_NS => 'http://www.w3.org/2000/xmlns/';
@@ -29,13 +30,11 @@ use XML::LibXML::XPathContext;
 use IO::Handle; # for FH reads called as methods
 
 BEGIN {
-$VERSION = "2.0200"; # VERSION TEMPLATE: DO NOT CHANGE
-$ABI_VERSION = 2;
+$VERSION = "2.0213"; # VERSION TEMPLATE: DO NOT CHANGE
+our $ABI_VERSION = 2;
 require Exporter;
-require DynaLoader;
-@ISA = qw(DynaLoader Exporter);
-
-use vars qw($__PROXY_NODE_REGISTRY $__threads_shared $__PROXY_NODE_REGISTRY_MUTEX $__loaded);
+use XSLoader ();
+our @ISA = qw(Exporter);
 
 sub VERSION {
   my $class = shift;
@@ -57,7 +56,7 @@ sub VERSION {
 #-------------------------------------------------------------------------#
 # export information                                                      #
 #-------------------------------------------------------------------------#
-%EXPORT_TAGS = (
+our %EXPORT_TAGS = (
                 all => [qw(
                            XML_ELEMENT_NODE
                            XML_ATTRIBUTE_NODE
@@ -116,11 +115,11 @@ sub VERSION {
 		 )],
                );
 
-@EXPORT_OK = (
+our @EXPORT_OK = (
               @{$EXPORT_TAGS{all}},
              );
 
-@EXPORT = (
+our @EXPORT = (
            @{$EXPORT_TAGS{all}},
           );
 
@@ -147,7 +146,7 @@ $CloseCB = undef;
 #-------------------------------------------------------------------------#
 # bootstrapping                                                           #
 #-------------------------------------------------------------------------#
-bootstrap XML::LibXML $VERSION;
+XSLoader::load( 'XML::LibXML', $VERSION );
 undef &AUTOLOAD;
 
 *encodeToUTF8 = \&XML::LibXML::Common::encodeToUTF8;
@@ -180,6 +179,7 @@ use constant XML_NAMESPACE_DECL          => 18;
 use constant XML_XINCLUDE_START          => 19;
 use constant XML_XINCLUDE_END            => 20;
 
+our ($__PROXY_NODE_REGISTRY, $__threads_shared, $__PROXY_NODE_REGISTRY_MUTEX, $__loaded);
 
 sub import {
   my $package=shift;
@@ -203,7 +203,7 @@ sub import {
     } elsif (!$__threads_shared) {
       croak("XML::LibXML already loaded without thread support. Too late to enable thread support!");
     }
-  } elsif (defined $XML::LibXML::__loaded) {
+  } elsif (defined $__loaded) {
     $__threads_shared=0 if not defined $__threads_shared;
   }
   __PACKAGE__->export_to_level(1,$package,grep !/^:threads(_shared)?$/,@_);
@@ -261,12 +261,12 @@ use constant {
   HTML_PARSE_NOERROR  => (1<<5),       # suppress error reports
 };
 
-$XML_LIBXML_PARSE_DEFAULTS = ( XML_PARSE_NODICT | XML_PARSE_DTDLOAD | XML_PARSE_NOENT );
+our $XML_LIBXML_PARSE_DEFAULTS = ( XML_PARSE_NODICT );
 
 # this hash is made global so that applications can add names for new
 # libxml2 parser flags as temporary workaround
 
-%PARSER_FLAGS = (
+our %PARSER_FLAGS = (
   recover		 => XML_PARSE_RECOVER,
   expand_entities	 => XML_PARSE_NOENT,
   load_ext_dtd	         => XML_PARSE_DTDLOAD,
@@ -366,6 +366,7 @@ sub new {
       }
       # parser flags
       $opts{no_blanks} = !$opts{keep_blanks} if exists($opts{keep_blanks}) and !exists($opts{no_blanks});
+      $opts{load_ext_dtd} = $opts{expand_entities} if exists($opts{expand_entities}) and !exists($opts{load_ext_dtd});
 
       for (keys %OUR_FLAGS) {
 	$self->{$OUR_FLAGS{$_}} = delete $opts{$_};
@@ -450,7 +451,7 @@ sub createDocument {
 # callback functions                                                      #
 #-------------------------------------------------------------------------#
 
-sub externalEntityLoader(&)
+sub externalEntityLoader(;$)
 {
     return _externalEntityLoader($_[0]);
 }
@@ -1414,8 +1415,7 @@ sub toStringEC14N {
 #-------------------------------------------------------------------------#
 package XML::LibXML::Document;
 
-use vars qw(@ISA);
-@ISA = ('XML::LibXML::Node');
+our @ISA = ('XML::LibXML::Node');
 
 sub actualEncoding {
   my $doc = shift;
@@ -1510,8 +1510,7 @@ sub insertPI {
 #-------------------------------------------------------------------------#
 package XML::LibXML::DocumentFragment;
 
-use vars qw(@ISA);
-@ISA = ('XML::LibXML::Node');
+our @ISA = ('XML::LibXML::Node');
 
 sub toString {
     my $self = shift;
@@ -1533,8 +1532,7 @@ sub toString {
 #-------------------------------------------------------------------------#
 package XML::LibXML::Element;
 
-use vars qw(@ISA);
-@ISA = ('XML::LibXML::Node');
+our @ISA = ('XML::LibXML::Node');
 use XML::LibXML qw(:ns :libxml);
 use XML::LibXML::AttributeHash;
 use Carp;
@@ -1772,8 +1770,7 @@ sub appendWellBalancedChunk {
 #-------------------------------------------------------------------------#
 package XML::LibXML::Text;
 
-use vars qw(@ISA);
-@ISA = ('XML::LibXML::Node');
+our @ISA = ('XML::LibXML::Node');
 
 sub attributes { return; }
 
@@ -1817,15 +1814,13 @@ sub replaceDataRegEx {
 
 package XML::LibXML::Comment;
 
-use vars qw(@ISA);
-@ISA = ('XML::LibXML::Text');
+our @ISA = ('XML::LibXML::Text');
 
 1;
 
 package XML::LibXML::CDATASection;
 
-use vars qw(@ISA);
-@ISA     = ('XML::LibXML::Text');
+our @ISA     = ('XML::LibXML::Text');
 
 1;
 
@@ -1833,8 +1828,7 @@ use vars qw(@ISA);
 # XML::LibXML::Attribute Interface                                        #
 #-------------------------------------------------------------------------#
 package XML::LibXML::Attr;
-use vars qw( @ISA ) ;
-@ISA = ('XML::LibXML::Node') ;
+our @ISA = ('XML::LibXML::Node') ;
 
 sub setNamespace {
     my ($self,$href,$prefix) = @_;
@@ -1855,8 +1849,7 @@ sub setNamespace {
 # this is still under construction
 #
 package XML::LibXML::Dtd;
-use vars qw( @ISA );
-@ISA = ('XML::LibXML::Node');
+our @ISA = ('XML::LibXML::Node');
 
 # at least DESTROY and CLONE_SKIP must be inherited
 
@@ -1866,8 +1859,7 @@ use vars qw( @ISA );
 # XML::LibXML::PI Interface                                               #
 #-------------------------------------------------------------------------#
 package XML::LibXML::PI;
-use vars qw( @ISA );
-@ISA = ('XML::LibXML::Node');
+our @ISA = ('XML::LibXML::Node');
 
 sub setData {
     my $pi = shift;
@@ -2078,13 +2070,13 @@ sub new {
 
     my $self = undef;
     if ( defined $args{location} ) {
-        $self = $class->parse_location( $args{location} );
+        $self = $class->parse_location( $args{location}, XML::LibXML->_parser_options(\%args), $args{recover} );
     }
     elsif ( defined $args{string} ) {
-        $self = $class->parse_buffer( $args{string} );
+        $self = $class->parse_buffer( $args{string}, XML::LibXML->_parser_options(\%args), $args{recover} );
     }
     elsif ( defined $args{DOM} ) {
-        $self = $class->parse_document( $args{DOM} );
+        $self = $class->parse_document( $args{DOM}, XML::LibXML->_parser_options(\%args), $args{recover} );
     }
 
     return $self;
@@ -2102,10 +2094,10 @@ sub new {
 
     my $self = undef;
     if ( defined $args{location} ) {
-        $self = $class->parse_location( $args{location} );
+        $self = $class->parse_location( $args{location}, XML::LibXML->_parser_options(\%args), $args{recover} );
     }
     elsif ( defined $args{string} ) {
-        $self = $class->parse_buffer( $args{string} );
+        $self = $class->parse_buffer( $args{string}, XML::LibXML->_parser_options(\%args), $args{recover} );
     }
 
     return $self;
@@ -2178,7 +2170,7 @@ sub CLONE_SKIP { 1 }
 #-------------------------------------------------------------------------#
 package XML::LibXML::InputCallback;
 
-use vars qw($_CUR_CB @_GLOBAL_CALLBACKS @_CB_STACK $_CB_NESTED_DEPTH @_CB_NESTED_STACK);
+our ($_CUR_CB, @_GLOBAL_CALLBACKS, @_CB_STACK, $_CB_NESTED_DEPTH, @_CB_NESTED_STACK);
 
 BEGIN {
   $_CUR_CB = undef;
@@ -2363,7 +2355,7 @@ sub cleanup_callbacks {
     $self->lib_cleanup_callbacks() unless($_CB_NESTED_DEPTH);
 }
 
-$XML::LibXML::__loaded=1;
+$__loaded=1;
 
 1;
 

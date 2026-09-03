@@ -1,9 +1,8 @@
 package Net::DNS::Resolver::Recurse;
 
-#
-# $Id: Recurse.pm 1737 2019-03-22 08:38:59Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1737 $)[1];
+use strict;
+use warnings;
+our $VERSION = (qw$Id: Recurse.pm 2002 2025-01-07 09:57:46Z willem $)[2];
 
 
 =head1 NAME
@@ -13,25 +12,23 @@ Net::DNS::Resolver::Recurse - DNS recursive resolver
 
 =head1 SYNOPSIS
 
-    use Net::DNS::Resolver::Recurse;
+	use Net::DNS::Resolver::Recurse;
 
-    $resolver = new Net::DNS::Resolver::Recurse();
+	my $resolver = new Net::DNS::Resolver::Recurse();
 
-    $packet = $resolver->query ( 'www.example.com', 'A' );
-    $packet = $resolver->search( 'www.example.com', 'A' );
-    $packet = $resolver->send  ( 'www.example.com', 'A' );
+	$resolver->hints('198.41.0.4');	# A.ROOT-SERVER.NET.
+
+	my $packet = $resolver->send( 'www.rob.com.au.', 'A' );
 
 
 =head1 DESCRIPTION
 
-This module is a subclass of Net::DNS::Resolver.
+This module resolves queries by following the delegation path from the DNS root.
 
 =cut
 
 
-use strict;
-use warnings;
-use base qw(Net::DNS::Resolver);
+use base qw(Net::DNS::Resolver::Base);
 
 
 =head1 METHODS
@@ -45,7 +42,7 @@ Additional module-specific methods are described below.
 This method specifies a list of the IP addresses of nameservers to
 be used to discover the addresses of the root nameservers.
 
-    $resolver->hints(@ip);
+	$resolver->hints(@ip);
 
 If no hints are passed, the priming query is directed to nameservers
 drawn from a built-in list of IP addresses.
@@ -53,13 +50,13 @@ drawn from a built-in list of IP addresses.
 =cut
 
 my @hints;
-my $root = [];
+my $root;
 
 sub hints {
-	shift;
-	return @hints unless scalar @_;
-	$root  = [];
-	@hints = @_;
+	my ( undef, @argument ) = @_;
+	return @hints unless scalar @argument;
+	undef $root;
+	return @hints = @argument;
 }
 
 
@@ -68,7 +65,7 @@ sub hints {
 The query(), search() and send() methods produce the same result
 as their counterparts in Net::DNS::Resolver.
 
-    $packet = $resolver->send( 'www.example.com.', 'A' );
+	$packet = $resolver->send( 'www.example.com.', 'A' );
 
 Server-side recursion is suppressed by clearing the recurse flag in
 query packets and recursive name resolution is performed explicitly.
@@ -79,67 +76,87 @@ and invoke send() indirectly.
 =cut
 
 sub send {
-	my $self = shift;
-	my @conf = ( recurse => 0, udppacketsize => 1024 );	   # RFC8109
-	bless( {persistent => {'.' => $root}, %$self, @conf}, ref($self) )->_send(@_);
+	my ( $self, @q ) = @_;
+	my @conf = ( recurse => 0, udppacketsize => 1232 );
+	return bless( {persistent => {'.' => $root}, %$self, @conf}, ref($self) )->_send(@q);
 }
 
 
-sub query_dorecursion { &send; }				# uncoverable pod
+sub query_dorecursion {			## historical
+	my ($self) = @_;					# uncoverable pod
+	$self->_deprecate('prefer  $resolver->send(...)');
+	return &send;
+}
 
 
 sub _send {
-	my $self  = shift;
-	my $query = $self->_make_query_packet(@_);
+	my ( $self, @q ) = @_;
+	my $query = $self->_make_query_packet(@q);
 
-	unless ( scalar(@$root) ) {
-		$self->_diag("resolver priming query");
+	unless ($root) {
+		$self->_diag('resolver priming query');
 		$self->nameservers( scalar(@hints) ? @hints : $self->_hints );
-		my $packet = $self->SUPER::send(qw(. NS));
-		$self->_callback($packet);
-		$self->_referral($packet);
+		$self->_referral( $self->SUPER::send(qw(. NS)) );
 		$root = $self->{persistent}->{'.'};
 	}
 
-	$self->_recurse( $query, '.' );
+	return $self->_recurse( $query, '.' );
 }
 
 
 sub _recurse {
 	my ( $self, $query, $apex ) = @_;
 	$self->_diag("using cached nameservers for $apex");
-	my $nslist = $self->{persistent}->{$apex};
-	$self->nameservers(@$nslist);
-	my $reply = $self->SUPER::send($query);
+	my $cache  = $self->{persistent}->{$apex};
+	my @nslist = keys %$cache;
+	my @glue   = grep { $$cache{$_} } @nslist;
+	my @noglue = grep { !$$cache{$_} } @nslist;
+	my $reply;
+	foreach my $ns ( @glue, @noglue ) {
+		if ( my $iplist = $$cache{$ns} ) {
+			$self->nameservers(@$iplist);
+		} else {
+			$self->_diag("recover missing glue for $ns");
+			next if substr( lc($ns), -length($apex) ) eq $apex;
+			my @ip = $self->nameservers($ns);
+			$$cache{$ns} = \@ip;
+		}
+		$query->header->id(undef);
+		last if $reply = $self->SUPER::send($query);
+		$$cache{$ns} = undef;				# park non-responder
+	}
 	$self->_callback($reply);
 	return unless $reply;
-	my $qname = lc( ( $query->question )[0]->qname );
-	return $reply if grep lc( $_->owner ) eq $qname, $reply->answer;
 	my $zone = $self->_referral($reply) || return $reply;
-	$self->_recurse( $query, $zone );
+	die '_recurse exceeded depth limit' if $self->{recurse_depth}++ > 50;
+	my $qname  = lc( ( $query->question )[0]->qname );
+	my $suffix = substr( $qname, -length($zone) );
+	return $zone eq $suffix ? $self->_recurse( $query, $zone ) : undef;
 }
 
 
 sub _referral {
 	my ( $self, $packet ) = @_;
 	return unless $packet;
-	my @auth = grep $_->type eq 'NS', $packet->answer, $packet->authority;
+	my @ans	 = $packet->answer;
+	my @auth = grep { $_->type eq 'NS' } $packet->authority, @ans;
 	return unless scalar(@auth);
 	my $owner = lc( $auth[0]->owner );
 	my $cache = $self->{persistent}->{$owner};
-	return $owner if $cache && scalar(@$cache);
-	my @addr = grep $_->can('address'), $packet->additional;
-	my @ip;
-	my @ns = map lc( $_->nsdname ), @auth;
+	return scalar(@ans) ? undef : $owner if $cache;
 
-	foreach my $ns (@ns) {
-		push @ip, map $_->address, grep $ns eq lc( $_->owner ), @addr;
-	}
-	$self->_diag("resolving glue for $owner") unless scalar(@ip);
-	@ip = $self->nameservers( $ns[0], $ns[$#ns] ) unless scalar(@ip);
 	$self->_diag("caching nameservers for $owner");
-	$self->{persistent}->{$owner} = \@ip;
-	return $owner;
+	my %addr;
+	my @addr = grep { $_->can('address') } $packet->additional;
+	push @{$addr{lc $_->owner}}, $_->address foreach @addr;
+
+	my %cache;
+	foreach my $ns ( map { lc( $_->nsdname ) } @auth ) {
+		$cache{$ns} = $addr{$ns};
+	}
+
+	$self->{persistent}->{$owner} = \%cache;
+	return scalar(@ans) ? undef : $owner;
 }
 
 
@@ -150,14 +167,14 @@ which is then invoked at each stage of the recursive lookup.
 
 For example to emulate dig's C<+trace> function:
 
-    my $coderef = sub {
+	my $coderef = sub {
 	my $packet = shift;
 
 	printf ";; Received %d bytes from %s\n\n",
 		$packet->answersize, $packet->answerfrom;
-    };
+	};
 
-    $resolver->callback($coderef);
+	$resolver->callback($coderef);
 
 The callback subroutine is not called
 for queries for missing glue records.
@@ -165,17 +182,26 @@ for queries for missing glue records.
 =cut
 
 sub callback {
-	my $self = shift;
-
-	( $self->{callback} ) = grep ref($_) eq 'CODE', @_;
+	my ( $self, @argument ) = @_;
+	for ( grep { ref($_) eq 'CODE' } @argument ) {
+		$self->{callback} = $_;
+	}
+	return;
 }
 
 sub _callback {
-	my $callback = shift->{callback};
-	$callback->(@_) if $callback;
+	my ( $self, @argument ) = @_;
+	my $callback = $self->{callback};
+	$callback->(@argument) if $callback;
+	return;
 }
 
-sub recursion_callback { &callback; }				# uncoverable pod
+sub recursion_callback {		## historical
+	my ($self) = @_;					# uncoverable pod
+	$self->_deprecate('prefer  $resolver->callback(...)');
+	&callback;
+	return;
+}
 
 
 1;
@@ -203,7 +229,7 @@ All rights reserved.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific

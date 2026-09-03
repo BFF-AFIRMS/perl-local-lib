@@ -1,14 +1,11 @@
 package Net::DNS::RR::LP;
 
-#
-# $Id: LP.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: LP.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,16 +13,15 @@ Net::DNS::RR::LP - DNS LP resource record
 
 =cut
 
-
 use integer;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	$self->{preference} = unpack( "\@$offset n", $$data );
-	$self->{target} = decode Net::DNS::DomainName( $data, $offset + 2 );
+	$self->{target}	    = Net::DNS::DomainName->decode( $data, $offset + 2 );
+	return;
 }
 
 
@@ -33,7 +29,7 @@ sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
 	my $target = $self->{target};
-	pack 'n a*', $self->preference, $target->encode();
+	return pack 'n a*', $self->preference, $target->encode();
 }
 
 
@@ -41,40 +37,38 @@ sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
 	my $target = $self->{target};
-	join ' ', $self->preference, $target->string;
+	return join ' ', $self->preference, $target->string;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->preference(shift);
-	$self->target(shift);
+	for (qw(preference target)) { $self->$_( shift @argument ) }
+	return;
 }
 
 
 sub preference {
-	my $self = shift;
-
-	$self->{preference} = 0 + shift if scalar @_;
-	$self->{preference} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{preference} = 0 + $_ }
+	return $self->{preference} || 0;
 }
 
 
 sub target {
-	my $self = shift;
-
-	$self->{target} = new Net::DNS::DomainName(shift) if scalar @_;
-	$self->{target}->name if $self->{target};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{target} = Net::DNS::DomainName->new($_) }
+	return $self->{target} ? $self->{target}->name : undef;
 }
 
 
-sub FQDN { shift->{target}->fqdn; }
-sub fqdn { shift->{target}->fqdn; }
+sub FQDN { return shift->{target}->fqdn; }
+sub fqdn { return shift->{target}->fqdn; }
 
 
 my $function = sub {			## sort RRs in numerically ascending order.
-	$Net::DNS::a->{'preference'} <=> $Net::DNS::b->{'preference'};
+	return $Net::DNS::a->{'preference'} <=> $Net::DNS::b->{'preference'};
 };
 
 __PACKAGE__->set_rrsort_func( 'preference', $function );
@@ -88,15 +82,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name IN LP preference FQDN');
-
-    $rr = new Net::DNS::RR(
-	name	   => 'example.com',
-	type	   => 'LP',
-	preference => 10,
-	target	   => 'target.example.com.'
-	);
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name IN LP preference FQDN');
 
 =head1 DESCRIPTION
 
@@ -119,8 +106,8 @@ other unpredictable behaviour.
 
 =head2 preference
 
-    $preference = $rr->preference;
-    $rr->preference( $preference );
+	$preference = $rr->preference;
+	$rr->preference( $preference );
 
 A 16 bit unsigned integer in network byte order that indicates the
 relative preference for this LP record among other LP records
@@ -131,8 +118,8 @@ higher values.
 
 =head2 target
 
-    $target = $rr->target;
-    $rr->target( $target );
+	$target = $rr->target;
+	$rr->target( $target );
 
 The FQDN field contains the DNS target name that is used to
 reference L32 and/or L64 records.
@@ -151,7 +138,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -168,6 +155,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC6742
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC6742|https://iana.org/go/rfc6742>
 
 =cut

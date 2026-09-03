@@ -1,4 +1,4 @@
-#================================================================= -*-Perl-*- 
+#================================================================= -*-Perl-*-
 #
 # Template::Namespace::Constants
 #
@@ -10,7 +10,7 @@
 #   Andy Wardley   <abw@wardley.org>
 #
 # COPYRIGHT
-#   Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+#   Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 #
 #   This module is free software; you can redistribute it and/or
 #   modify it under the same terms as Perl itself.
@@ -26,7 +26,7 @@ use Template::Config;
 use Template::Directive;
 use Template::Exception;
 
-our $VERSION = 1.27;
+our $VERSION = '3.106';
 our $DEBUG   = 0 unless defined $DEBUG;
 
 
@@ -64,7 +64,7 @@ sub ident {
             return Template::Directive->ident(\@save);
         }
 
-        # if args is non-zero then it must be eval'ed 
+        # if args is non-zero then it must be eval'ed
         if ($ident->[$e * 2 + 1]) {
             my $args = $ident->[$e * 2 + 1];
             my $comp = eval "$args";
@@ -80,10 +80,21 @@ sub ident {
 
     $result = $self->{ STASH }->get($ident);
 
-    if (! length $result || ref $result) {
-        my $reason = length $result ? 'reference' : 'no result';
-        $self->DEBUG(" * deferred ($reason)\n") if $DEBUG;
+    if (! length $result) {
+        $self->DEBUG(" * deferred (no result)\n") if $DEBUG;
         return Template::Directive->ident(\@save);
+    }
+
+    if (ref $result) {
+        require Data::Dumper;
+        local $Data::Dumper::Terse    = 1;
+        local $Data::Dumper::Indent   = 0;
+        local $Data::Dumper::Sortkeys = 1;
+        my $code = Data::Dumper::Dumper($result);
+
+        $self->DEBUG(" * resolved ref => $code\n") if $DEBUG;
+
+        return $code;
     }
 
     $result =~ s/'/\\'/g;
@@ -105,7 +116,7 @@ Template::Namespace::Constants - Compile time constant folding
 
     # easy way to define constants
     use Template;
-    
+
     my $tt = Template->new({
         CONSTANTS => {
             pi => 3.14,
@@ -115,7 +126,7 @@ Template::Namespace::Constants - Compile time constant folding
 
     # nitty-gritty, hands-dirty way
     use Template::Namespace::Constants;
-    
+
     my $tt = Template->new({
         NAMESPACE => {
             constants => Template::Namespace::Constants->new({
@@ -156,7 +167,7 @@ Andy Wardley E<lt>abw@wardley.orgE<gt> L<http://wardley.org/>
 
 =head1 COPYRIGHT
 
-Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

@@ -2,10 +2,46 @@ package SQL::Abstract::Test; # see doc at end of file
 
 use strict;
 use warnings;
-use base qw(Test::Builder::Module Exporter);
+use base qw(Test::Builder::Module);
 use Test::Builder;
 use Test::Deep ();
 use SQL::Abstract::Tree;
+
+{
+  my $class;
+  if ($class = $ENV{SQL_ABSTRACT_TEST_AGAINST}) {
+    my $mod = join('/', split '::', $class).".pm";
+    require $mod;
+    eval qq{sub SQL::Abstract () { "\Q${class}\E" }; 1}
+      or die "Failed to create const sub for ${class}: $@";
+  }
+  if ($ENV{SQL_ABSTRACT_TEST_EXPAND_STABILITY}) {
+    $class ||= do { require SQL::Abstract; 'SQL::Abstract' };
+    my $orig = $class->can('expand_expr');
+    require Data::Dumper::Concise;
+    my $wrapped = sub {
+      my ($self, @args) = @_;
+      my $e1 = $self->$orig(@args);
+      return $e1 if our $Stab_Check_Rec;
+      local $Stab_Check_Rec = 1;
+      my $e2 = $self->$orig($e1);
+      my ($d1, $d2) = map Data::Dumper::Concise::Dumper($_), $e1, $e2;
+      (our $tb)->is_eq(
+        $d2, $d1,
+        'expand_expr stability ok'
+      ) or do {
+        require Path::Tiny;
+        Path::Tiny->new('e1')->spew($d1);
+        Path::Tiny->new('e2')->spew($d2);
+        system('diff -u e1 e2 1>&2');
+        die "Differences between e1 and e2, bailing out";
+      };
+      return $e1;
+    };
+    no strict 'refs'; no warnings 'redefine';
+    *{"${class}::expand_expr"} = $wrapped;
+  }
+}
 
 our @EXPORT_OK = qw(
   is_same_sql_bind is_same_sql is_same_bind
@@ -20,7 +56,7 @@ our $parenthesis_significant = 0;
 our $order_by_asc_significant = 0;
 
 our $sql_differ; # keeps track of differing portion between SQLs
-our $tb = __PACKAGE__->builder;
+our $tb; # not documented, but someone might be overriding it anyway
 
 sub _unpack_arrayrefref {
 
@@ -52,6 +88,7 @@ sub is_same_sql_bind {
   my $same_bind = eq_bind($bind_ref1, $bind_ref2);
 
   # call Test::Builder::ok
+  my $tb = $tb || __PACKAGE__->builder;
   my $ret = $tb->ok($same_sql && $same_bind, $msg);
 
   # add debugging info
@@ -73,6 +110,7 @@ sub is_same_sql {
   my $same_sql = eq_sql($sql1, $sql2);
 
   # call Test::Builder::ok
+  my $tb = $tb || __PACKAGE__->builder;
   my $ret = $tb->ok($same_sql, $msg);
 
   # add debugging info
@@ -91,6 +129,7 @@ sub is_same_bind {
   my $same_bind = eq_bind($bind_ref1, $bind_ref2);
 
   # call Test::Builder::ok
+  my $tb = $tb || __PACKAGE__->builder;
   my $ret = $tb->ok($same_bind, $msg);
 
   # add debugging info
@@ -112,12 +151,20 @@ sub dumper {
 }
 
 sub diag_where{
+  my $tb = $tb || __PACKAGE__->builder;
   $tb->diag("Search term:\n" . &dumper);
 }
 
 sub _sql_differ_diag {
   my $sql1 = shift || '';
   my $sql2 = shift || '';
+
+  my $tb = $tb || __PACKAGE__->builder;
+
+  if (my $profile = $ENV{SQL_ABSTRACT_TEST_TREE_PROFILE}) {
+    my $sqlat = SQL::Abstract::Tree->new(profile => $profile);
+    $_ = $sqlat->format($_) for ($sql1, $sql2);
+  }
 
   $tb->${\($tb->in_todo ? 'note' : 'diag')} (
        "SQL expressions differ\n"
@@ -130,6 +177,7 @@ sub _sql_differ_diag {
 sub _bind_differ_diag {
   my ($bind_ref1, $bind_ref2) = @_;
 
+  my $tb = $tb || __PACKAGE__->builder;
   $tb->${\($tb->in_todo ? 'note' : 'diag')} (
     "BIND values differ " . dumper({ got => $bind_ref1, want => $bind_ref2 })
   );
