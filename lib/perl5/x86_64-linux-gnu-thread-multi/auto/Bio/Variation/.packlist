@@ -1,0 +1,13 @@
+/home/production/cxgn/local-lib/bin/bp_flanks
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/AAChange.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/AAReverseMutate.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/Allele.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/DNAMutation.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/IO.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/IO/flat.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/IO/xml.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/RNAChange.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/SNP.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/SeqDiff.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/Variation/VariantI.pm

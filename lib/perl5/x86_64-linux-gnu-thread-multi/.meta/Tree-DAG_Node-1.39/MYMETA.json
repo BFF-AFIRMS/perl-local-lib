@@ -1,0 +1,74 @@
+{
+   "abstract" : "An N-ary tree",
+   "author" : [
+      "Sean M. Burke <sburke@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "ExtUtils::MakeMaker version 7.70, CPAN::Meta::Converter version 2.150010",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "Tree-DAG_Node",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "develop" : {
+         "requires" : {
+            "Test::Pod" : "1.48"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Data::Dumper" : "0",
+            "ExtUtils::MakeMaker" : "7.7",
+            "File::Slurper" : "0.014",
+            "Getopt::Long" : "2.57",
+            "perl" : "5.020004",
+            "strict" : "0",
+            "utf8" : "0",
+            "warnings" : "0"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "File::Spec" : "3.4",
+            "File::Temp" : "0.19",
+            "Test::More" : "1.001002"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/ronsavage/Tree-DAG_Node/issues"
+      },
+      "license" : [
+         "http://opensource.org/licenses/Artistic-2.0"
+      ],
+      "repository" : {
+         "type" : "git",
+         "url" : "https://github.com/ronsavage/Tree-DAG_Node.git",
+         "web" : "https://github.com/ronsavage/Tree-DAG_Node"
+      }
+   },
+   "version" : "1.39",
+   "x_serialization_backend" : "JSON::PP version 4.16"
+}

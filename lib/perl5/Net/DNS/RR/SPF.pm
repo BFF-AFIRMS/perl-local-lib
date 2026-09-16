@@ -1,14 +1,11 @@
 package Net::DNS::RR::SPF;
 
-#
-# $Id: SPF.pm 1593 2017-09-04 14:23:26Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1593 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: SPF.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR::TXT);
+
 
 =head1 NAME
 
@@ -16,16 +13,16 @@ Net::DNS::RR::SPF - DNS SPF resource record
 
 =cut
 
-
 use integer;
 
 
 sub spfdata {
-	my @spf = shift->char_str_list(@_);
-	wantarray ? @spf : join '', @spf;
+	my ( $self, @argument ) = @_;
+	my @spf = shift->char_str_list(@argument);
+	return wantarray ? @spf : join '', @spf;
 }
 
-sub txtdata { &spfdata; }
+sub txtdata { return &spfdata; }
 
 
 1;
@@ -34,18 +31,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name SPF spfdata ...');
-
-    $rr = new Net::DNS::RR( name    => 'name',
-			    type    => 'SPF',
-			    spfdata => 'single text string'
-			    );
-
-    $rr = new Net::DNS::RR( name    => 'name',
-			    type    => 'SPF',
-			    spfdata => [ 'multiple', 'strings', ... ]
-			    );
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name SPF spfdata ...');
 
 =head1 DESCRIPTION
 
@@ -68,10 +55,10 @@ other unpredictable behaviour.
 
 =head2 txtdata
 
-    $string = $rr->spfdata;
-    @list   = $rr->spfdata;
+	$string = $rr->spfdata;
+	@list	= $rr->spfdata;
 
-    $rr->spfdata( @list );
+	$rr->spfdata( @list );
 
 When invoked in scalar context, spfdata() returns the policy text as
 a single string, with text elements concatenated without intervening
@@ -93,7 +80,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -110,6 +97,8 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, L<Net::DNS::RR::TXT>, RFC7208
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<Net::DNS::RR::TXT>
+L<RFC7208|https://iana.org/go/rfc7208>
 
 =cut

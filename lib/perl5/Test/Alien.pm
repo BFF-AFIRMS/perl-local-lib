@@ -2,23 +2,23 @@ package Test::Alien;
 
 use strict;
 use warnings;
-use 5.008001;
+use 5.008004;
 use Env qw( @PATH );
 use File::Which 1.10 qw( which );
 use Capture::Tiny qw( capture capture_merged );
-use File::Temp qw( tempdir );
+use Alien::Build::Temp;
 use File::Copy qw( move );
 use Text::ParseWords qw( shellwords );
 use Test2::API qw( context run_subtest );
-use base qw( Exporter );
+use Exporter qw( import );
 use Path::Tiny qw( path );
 use Alien::Build::Util qw( _dump );
 use Config;
 
-our @EXPORT = qw( alien_ok run_ok xs_ok ffi_ok with_subtest synthetic helper_ok interpolate_template_is );
+our @EXPORT = qw( alien_ok run_ok xs_ok ffi_ok with_subtest synthetic helper_ok interpolate_template_is interpolate_run_ok plugin_ok );
 
 # ABSTRACT: Testing tools for Alien modules
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
 our @aliens;
@@ -31,21 +31,47 @@ sub alien_ok ($;$)
   $name = 'undef' unless defined $name;
   my @methods = qw( cflags libs dynamic_libs bin_dir );
   $message ||= "$name responds to: @methods";
-  
+
   my $ok;
   my @diag;
-  
+
   if(defined $alien)
   {
     my @missing = grep { ! $alien->can($_) } @methods;
-  
+
     $ok = !@missing;
     push @diag, map { "  missing method $_" } @missing;
 
     if($ok)
     {
       push @aliens, $alien;
-      unshift @PATH, $alien->bin_dir;
+      if($^O eq 'MSWin32' && $alien->isa('Alien::MSYS'))
+      {
+        unshift @PATH, Alien::MSYS::msys_path();
+      }
+      else
+      {
+        unshift @PATH, $alien->bin_dir;
+      }
+    }
+
+    if($alien->can('alien_helper'))
+    {
+      my($intr) = _interpolator();
+
+      my $help = eval { $alien->alien_helper };
+
+      if(my $error = $@)
+      {
+        $ok = 0;
+        push @diag, "  error getting helpers: $error";
+      }
+
+      foreach my $name (keys %$help)
+      {
+        my $code = $help->{$name};
+        $intr->replace_helper($name, $code);
+      }
     }
   }
   else
@@ -58,7 +84,7 @@ sub alien_ok ($;$)
   $ctx->ok($ok, $message);
   $ctx->diag($_) for @diag;
   $ctx->release;
-  
+
   $ok;
 }
 
@@ -69,17 +95,25 @@ sub synthetic
   $opt ||= {};
   my %alien = %$opt;
   require Test::Alien::Synthetic;
-  bless \%alien, 'Test::Alien::Synthetic', 
+  bless \%alien, 'Test::Alien::Synthetic',
 }
 
 
 sub run_ok
 {
   my($command, $message) = @_;
-  
-  my(@command) = ref $command ? @$command : ($command);
-  $message ||= "run @command";
-  
+
+  my(@command) = ref $command ? @$command : (do {
+    my $command = $command; # make a copy
+
+    # Double the backslashes so that when they are unescaped by shellwords(),
+    # they become a single backslash. This should be fine on Windows since
+    # backslashes are not used to escape metacharacters in cmd.exe.
+    $command =~ s/\\/\\\\/g if $^O eq 'MSWin32';
+    shellwords $command;
+  });
+  $message ||= ref $command ? "run @command" : "run $command";
+
   require Test::Alien::Run;
   my $run = bless {
     out    => '',
@@ -88,18 +122,37 @@ sub run_ok
     sig    => 0,
     cmd    => [@command],
   }, 'Test::Alien::Run';
-  
+
   my $ctx = context();
   my $exe = which $command[0];
   if(defined $exe)
   {
-    shift @command;
-    $run->{cmd} = [$exe, @command];
+    if(ref $command)
+    {
+      shift @command;
+      $run->{cmd} = [$exe, @command];
+    }
+    else
+    {
+      $run->{cmd} = [$command];
+    }
     my @diag;
     my $ok = 1;
     my($exit, $errno);
-    ($run->{out}, $run->{err}, $exit, $errno) = capture { system $exe, @command; ($?,$!); };
-  
+    ($run->{out}, $run->{err}, $exit, $errno) = capture {
+
+      if(ref $command)
+      {
+        system $exe, @command;
+      }
+      else
+      {
+        system $command;
+      }
+
+      ($?,$!);
+    };
+
     if($exit == -1)
     {
       $ok = 0;
@@ -118,8 +171,8 @@ sub run_ok
     }
 
     $ctx->ok($ok, $message);
-    $ok 
-      ? $ctx->note("  using $exe") 
+    $ok
+      ? $ctx->note("  using $exe")
       : $ctx->diag("  using $exe");
     $ctx->diag(@diag) for @diag;
 
@@ -130,9 +183,14 @@ sub run_ok
     $ctx->diag("  command not found");
     $run->{fail} = 'command not found';
   }
-  
+
+  unless(@aliens || $ENV{TEST_ALIEN_ALIENS_MISSING})
+  {
+    $ctx->diag("run_ok called without any aliens, you may want to call alien_ok");
+  }
+
   $ctx->release;
-  
+
   $run;
 }
 
@@ -153,8 +211,22 @@ sub xs_ok
   my($xs, $message) = @_;
   $message ||= 'xs';
 
+  $xs = { xs => $xs } unless ref $xs;
+  # make sure this is a copy because we may
+  # modify it.
+  $xs->{xs} = "@{[ $xs->{xs} ]}";
+  $xs->{pxs}              ||= {};
+  $xs->{cbuilder_check}   ||= 'have_compiler';
+  $xs->{cbuilder_config}  ||= {};
+  $xs->{cbuilder_compile} ||= {};
+  $xs->{cbuilder_link}    ||= {};
+
   require ExtUtils::CBuilder;
-  my $skip = !ExtUtils::CBuilder->new->have_compiler;
+  my $skip = do {
+    my $have_compiler = $xs->{cbuilder_check};
+    my %config = %{ $xs->{cbuilder_config} };
+    !ExtUtils::CBuilder->new( config => \%config )->$have_compiler;
+  };
 
   if($skip)
   {
@@ -164,14 +236,6 @@ sub xs_ok
     $ctx->release;
     return;
   }
-  
-  $xs = { xs => $xs } unless ref $xs;
-  # make sure this is a copy because we may
-  # modify it.
-  $xs->{xs} = "@{[ $xs->{xs} ]}";
-  $xs->{pxs} ||= {};
-  $xs->{cbuilder_compile} ||= {};
-  $xs->{cbuilder_link}    ||= {};
 
   if($xs->{cpp} || $xs->{'C++'})
   {
@@ -186,18 +250,29 @@ sub xs_ok
   my $verbose = $xs->{verbose} || 0;
   my $ok = 1;
   my @diag;
-  my $dir = _tempdir( CLEANUP => 1, TEMPLATE => 'testalienXXXXX' );
+  my $dir = Alien::Build::Temp->newdir(
+    TEMPLATE => 'test-alien-XXXXXX',
+    CLEANUP  => $^O =~ /^(MSWin32|cygwin|msys)$/ ? 0 : 1,
+  );
+
   my $xs_filename = path($dir)->child('test.xs')->stringify;
   my $c_filename  = path($dir)->child("test.@{[ $xs->{c_ext} ]}")->stringify;
-  
+
   my $ctx = context();
   my $module;
+
+  if($ENV{TEST_ALIEN_ALWAYS_KEEP})
+  {
+    $dir->unlink_on_destroy(0);
+    $ctx->note("keeping XS temporary directory $dir at user request");
+  }
 
   if($xs->{xs} =~ /\bTA_MODULE\b/)
   {
     our $count;
     $count = 0 unless defined $count;
-    my $name = sprintf "Test::Alien::XS::Mod%s", $count++;
+    my $name = sprintf "Test::Alien::XS::Mod%s%s", $count, chr(65 + $count % 26 ) x 4;
+    $count++;
     my $code = $xs->{xs};
     $code =~ s{\bTA_MODULE\b}{$name}g;
     $xs->{xs} = $code;
@@ -223,10 +298,10 @@ sub xs_ok
     open my $fh, '>', $xs_filename;
     print $fh $xs->{xs};
     close $fh;
-  
+
     require ExtUtils::ParseXS;
     my $pxs = ExtUtils::ParseXS->new;
-  
+
     my($out, $err) = capture_merged {
       eval {
         $pxs->process_file(
@@ -239,7 +314,7 @@ sub xs_ok
       };
       $@;
     };
-    
+
     $ctx->note("parse xs $xs_filename => $c_filename") if $verbose;
     $ctx->note($out) if $verbose;
     $ctx->note("error: $err") if $verbose && $err;
@@ -253,11 +328,16 @@ sub xs_ok
     }
   }
 
+  push @diag, "xs_ok called without any aliens, you may want to call alien_ok" unless @aliens || $ENV{TEST_ALIEN_ALIENS_MISSING};
+
   if($ok)
   {
     my $cb = ExtUtils::CBuilder->new(
-      config => {
-        lddlflags => join(' ', grep !/^-l/, shellwords map { _flags $_, 'libs' } @aliens) . " $Config{lddlflags}",
+      config => do {
+        my %config = %{ $xs->{cbuilder_config} };
+        my $lddlflags = join(' ', grep !/^-l/, shellwords map { _flags $_, 'libs' } @aliens) . " $Config{lddlflags}";
+        $config{lddlflags} = defined $config{lddlflags} ? "$lddlflags $config{lddlflags}" : $lddlflags;
+        \%config;
       },
     );
 
@@ -265,12 +345,12 @@ sub xs_ok
       source               => $c_filename,
       %{ $xs->{cbuilder_compile} },
     );
-    
+
     if(defined $compile_options{extra_compiler_flags} && ref($compile_options{extra_compiler_flags}) eq '')
     {
       $compile_options{extra_compiler_flags} = [ shellwords $compile_options{extra_compiler_flags} ];
     }
-    
+
     push @{ $compile_options{extra_compiler_flags} }, shellwords map { _flags $_, 'cflags' } @aliens;
 
     my($out, $obj, $err) = capture_merged {
@@ -279,7 +359,7 @@ sub xs_ok
       };
       ($obj, $@);
     };
-    
+
     $ctx->note("compile $c_filename") if $verbose;
     $ctx->note($out) if $verbose;
     $ctx->note($err) if $verbose && $err;
@@ -288,7 +368,7 @@ sub xs_ok
     {
       $ctx->note(_dump({ compile_options => \%compile_options }));
     }
-    
+
     unless($obj)
     {
       $ok = 0;
@@ -296,7 +376,7 @@ sub xs_ok
       push @diag, "    $err" if $err;
       push @diag, "    $_" for split /\r?\n/, $out;
     }
-    
+
     if($ok)
     {
 
@@ -310,16 +390,16 @@ sub xs_ok
       {
         $link_options{extra_linker_flags} = [ shellwords $link_options{extra_linker_flags} ];
       }
-      
-      push @{ $link_options{extra_linker_flags} }, grep /^-l/, shellwords map { _flags $_, 'libs' } @aliens;
+
+      unshift @{ $link_options{extra_linker_flags} }, grep /^-l/, shellwords map { _flags $_, 'libs' } @aliens;
 
       my($out, $lib, $err) = capture_merged {
-        my $lib = eval { 
+        my $lib = eval {
           $cb->link(%link_options);
         };
         ($lib, $@);
       };
-      
+
       $ctx->note("link $obj") if $verbose;
       $ctx->note($out) if $verbose;
       $ctx->note($err) if $verbose && $err;
@@ -340,7 +420,7 @@ sub xs_ok
         push @diag, "    $err" if $err;
         push @diag, "    $_" for split /\r?\n/, $out;
       }
-      
+
       if($ok)
       {
         my @modparts = split(/::/,$module);
@@ -350,14 +430,14 @@ sub xs_ok
         my $libpath = path($dir)->child('auto', @modparts, "$modfname.$dl_dlext");
         $libpath->parent->mkpath;
         move($lib, "$libpath") || die "unable to copy $lib => $libpath $!";
-        
+
         pop @modparts;
         my $pmpath = path($dir)->child(@modparts, "$modfname.pm");
         $pmpath->parent->mkpath;
         open my $fh, '>', "$pmpath";
-        
+
         my($alien_with_xs_load, @rest) = grep { $_->can('xs_load') } @aliens;
-        
+
         if($alien_with_xs_load)
         {
           {
@@ -367,15 +447,15 @@ sub xs_ok
           }
           print $fh '# line '. __LINE__ . ' "' . __FILE__ . qq("\n) . qq{
             package $module;
-            
+
             use strict;
             use warnings;
             our \$VERSION = '0.01';
             our \@rest;
             our \$alien_with_xs_load;
-            
+
             \$alien_with_xs_load->xs_load('$module', \$VERSION, \@rest);
-            
+
             1;
           };
         }
@@ -383,13 +463,13 @@ sub xs_ok
         {
           print $fh '# line '. __LINE__ . ' "' . __FILE__ . qq("\n) . qq{
             package $module;
-          
+
             use strict;
             use warnings;
             require XSLoader;
             our \$VERSION = '0.01';
             XSLoader::load('$module',\$VERSION);
-          
+
             1;
           };
         }
@@ -397,12 +477,14 @@ sub xs_ok
 
         {
           local @INC = @INC;
-          unshift @INC, $dir;
+          unshift @INC, "$dir";
+          ## no critic
           eval '# line '. __LINE__ . ' "' . __FILE__ . qq("\n) . qq{
             use $module;
           };
+          ## use critic
         }
-        
+
         if(my $error = $@)
         {
           $ok = 0;
@@ -416,7 +498,13 @@ sub xs_ok
   $ctx->ok($ok, $message);
   $ctx->diag($_) for @diag;
   $ctx->release;
-  
+
+  unless($ok || defined $ENV{TEST_ALIEN_ALWAYS_KEEP})
+  {
+    $ctx->note("keeping XS temporary directory $dir due to failure");
+    $dir->unlink_on_destroy(0);
+  }
+
   if($cb)
   {
     $cb = sub {
@@ -433,7 +521,26 @@ sub xs_ok
   $ok;
 }
 
-sub with_subtest (&) { $_[0]; }
+sub with_subtest (&)
+{
+  my($code) = @_;
+
+  # it may be possible to catch a segmentation fault,
+  # but not with signal handlers apparently.  See:
+  # https://feepingcreature.github.io/handling.html
+  return $code if $^O eq 'MSWin32';
+
+  # try to catch a segmentation fault and bail out
+  # with a useful diagnostic.  prove test to swallow
+  # the diagnostic on such failures.
+  sub {
+    local $SIG{SEGV} = sub {
+      my $ctx = context();
+      $ctx->bail("Segmentation fault");
+    };
+    $code->(@_);
+  }
+}
 
 
 sub ffi_ok
@@ -441,42 +548,58 @@ sub ffi_ok
   my $cb;
   $cb = pop if defined $_[-1] && ref $_[-1] eq 'CODE';
   my($opt, $message) = @_;
-  
+
   $message ||= 'ffi';
-  
+
   my $ok = 1;
   my $skip;
   my $ffi;
   my @diag;
-  
+
   {
     my $min = '0.12'; # the first CPAN release
     $min = '0.15' if $opt->{ignore_not_found};
     $min = '0.18' if $opt->{lang};
+    $min = '0.99' if defined $opt->{api} && $opt->{api} > 0;
     unless(eval { require FFI::Platypus; FFI::Platypus->VERSION($min) })
     {
       $ok = 0;
       $skip = "Test requires FFI::Platypus $min";
     }
   }
-  
+
   if($ok && $opt->{lang})
   {
     my $class = "FFI::Platypus::Lang::@{[ $opt->{lang} ]}";
-    eval qq{ use $class () };
+    {
+      my $pm = "$class.pm";
+      $pm =~ s/::/\//g;
+      eval { require $pm };
+    }
     if($@)
     {
       $ok = 0;
       $skip = "Test requires FFI::Platypus::Lang::@{[ $opt->{lang} ]}";
     }
   }
-  
+
+  unless(@aliens || $ENV{TEST_ALIEN_ALIENS_MISSING})
+  {
+    push @diag, 'ffi_ok called without any aliens, you may want to call alien_ok';
+  }
+
   if($ok)
   {
     $ffi = FFI::Platypus->new(
-      lib              => [map { $_->dynamic_libs } @aliens],
-      ignore_not_found => $opt->{ignore_not_found},
-      lang             => $opt->{lang},
+      do {
+        my @args = (
+          lib              => [map { $_->dynamic_libs } @aliens],
+          ignore_not_found => $opt->{ignore_not_found},
+          lang             => $opt->{lang},
+        );
+        push @args, api => $opt->{api} if defined $opt->{api};
+        @args;
+      }
     );
     foreach my $symbol (@{ $opt->{symbols} || [] })
     {
@@ -487,9 +610,9 @@ sub ffi_ok
       }
     }
   }
-  
-  my $ctx = context(); 
-  
+
+  my $ctx = context();
+
   if($skip)
   {
     $ctx->skip($message, $skip);
@@ -499,7 +622,7 @@ sub ffi_ok
     $ctx->ok($ok, $message);
   }
   $ctx->diag($_) for @diag;
-  
+
   $ctx->release;
 
   if($cb)
@@ -514,30 +637,27 @@ sub ffi_ok
 
     goto \&Test2::API::run_subtest;
   }
-  
+
   $ok;
 }
 
 
-sub _interpolator
-{  
-  require Alien::Build::Interpolate::Default;
-  my $intr = Alien::Build::Interpolate::Default->new;
-  
-  foreach my $alien (@aliens)
+{
+  my @ret;
+
+  sub _interpolator
   {
-    if($alien->can('alien_helper'))
-    {
-      my $help = $alien->alien_helper;
-      foreach my $name (keys %$help)
-      {
-        my $code = $help->{$name};
-        $intr->replace_helper($name, $code);
-      }
-    }
+    return @ret if @ret;
+
+    require Alien::Build::Interpolate::Default;
+    my $intr = Alien::Build::Interpolate::Default->new;
+
+    require Alien::Build;
+    my $build = Alien::Build->new;
+    $build->meta->interpolator($intr);
+
+    @ret = ($intr, $build);
   }
-  
-  $intr;
 }
 
 sub helper_ok
@@ -546,7 +666,7 @@ sub helper_ok
 
   $message ||= "helper $name exists";
 
-  my $intr = _interpolator; 
+  my($intr) = _interpolator;
 
   my $code = $intr->has_helper($name);
 
@@ -554,25 +674,81 @@ sub helper_ok
 
   my $ctx = context();
   $ctx->ok($ok, $message);
+  $ctx->diag("helper_ok called without any aliens, you may want to call alien_ok") unless @aliens || $ENV{TEST_ALIEN_ALIENS_MISSING};
   $ctx->release;
-  
+
   $ok;
+}
+
+
+sub plugin_ok
+{
+  my($name, $message) = @_;
+
+  my @args;
+
+  ($name, @args) = @$name if ref $name;
+
+  $message ||= "plugin $name";
+
+  my($intr, $build) = _interpolator;
+
+  my $class = "Alien::Build::Plugin::$name";
+  my $pm = "$class.pm";
+  $pm =~ s/::/\//g;
+
+  my $ctx = context();
+
+  my $plugin = eval {
+    require $pm unless $class->can('new');
+    $class->new(@args);
+  };
+
+  if(my $error = $@)
+  {
+    $ctx->ok(0, $message, ['unable to create $name plugin', $error]);
+    $ctx->release;
+    return 0;
+  }
+
+  eval {
+    $plugin->init($build->meta);
+  };
+
+  if($^O eq 'MSWin32' && ($plugin->isa('Alien::Build::Plugin::Build::MSYS') || $plugin->isa('Alien::Build::Plugin::Build::Autoconf')))
+  {
+    require Alien::MSYS;
+    unshift @PATH, Alien::MSYS::msys_path();
+  }
+
+  if(my $error = $@)
+  {
+    $ctx->ok(0, $message, ['unable to initiate $name plugin', $error]);
+    $ctx->release;
+    return 0;
+  }
+  else
+  {
+    $ctx->ok(1, $message);
+    $ctx->release;
+    return 1;
+  }
 }
 
 
 sub interpolate_template_is
 {
   my($template, $pattern, $message) = @_;
-  
+
   $message ||= "template matches";
-  
-  my $intr = _interpolator;
-  
+
+  my($intr) = _interpolator;
+
   my $value = eval { $intr->interpolate($template) };
   my $error = $@;
   my @diag;
   my $ok;
-  
+
   if($error)
   {
     $ok = 0;
@@ -589,36 +765,60 @@ sub interpolate_template_is
     $ok = $value eq "$pattern";
     push @diag, "value '$value' does not equal '$pattern'" unless $ok;
   }
-  
+
   my $ctx = context();
   $ctx->ok($ok, $message, [@diag]);
+  $ctx->diag('interpolate_template_is called without any aliens, you may want to call alien_ok') unless @aliens || $ENV{TEST_ALIEN_ALIENS_MISSING};
   $ctx->release;
-  
+
   $ok;
 }
 
-sub _tempdir {
-  # makes sure /tmp or whatever isn't mounted noexec,
-  # which will cause xs_ok tests to fail.
 
-  my $dir = tempdir(@_);
+sub interpolate_run_ok
+{
+  my($template, $message) = @_;
 
-  if($^O ne 'MSWin32')
+  my(@template) = ref $template ? @$template : ($template);
+
+  my($intr) = _interpolator;
+
+  my $ok = 1;
+  my @diag;
+  my @command;
+
+  foreach my $template (@template)
   {
-    my $filename = path($dir, 'foo.pl');
-    my $fh;
-    open $fh, '>', $filename;
-    print $fh "#!$^X";
-    close $fh;
-    chmod 0755, $filename;
-    system $filename, 'foo';
-    if($?)
+    my $command = eval { $intr->interpolate($template) };
+    if(my $error = $@)
     {
-      $dir = tempdir( DIR => path('.')->absolute->stringify );
+      $ok = 0;
+      push @diag, "error in evaluation:";
+      push @diag, "  $error";
+    }
+    else
+    {
+      push @command, $command;
     }
   }
-  
-  $dir;  
+
+  my $ctx = context();
+
+  if($ok)
+  {
+    my $command = ref $template ? \@command : $command[0];
+    $ok = run_ok($command, $message);
+  }
+  else
+  {
+    $message ||= "run @template";
+    $ctx->ok($ok, $message, [@diag]);
+    $ctx->diag('interpolate_run_ok called without any aliens, you may want to call alien_ok') unless @aliens || $ENV{TEST_ALIEN_ALIENS_MISSING};
+  }
+
+  $ctx->release;
+
+  $ok;
 }
 
 1;
@@ -635,7 +835,7 @@ Test::Alien - Testing tools for Alien modules
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 SYNOPSIS
 
@@ -650,7 +850,7 @@ Test commands that come with your Alien:
    ->success
    # we only accept the version written
    # by Larry ...
-   ->out_like(qr{Larry Wall}); 
+   ->out_like(qr{Larry Wall});
  
  done_testing;
 
@@ -668,7 +868,7 @@ Test that your library works with C<XS>:
  };
  
  done_testing;
-
+ 
  __DATA__
  
  #include "EXTERN.h"
@@ -724,7 +924,7 @@ be used, via either C<XS> or L<FFI::Platypus>.  It also provides a mechanism for
 testing binaries that are provided by the various L<Alien> modules (for example
 L<Alien::gmake> and L<Alien::patch>).
 
-L<Alien> modules can actually be useable without a compiler, or without L<FFI::Platypus>
+L<Alien> modules can actually be usable without a compiler, or without L<FFI::Platypus>
 (for example, if the library is provided by the system, and you are using L<FFI::Platypus>,
 or if you are building from source and you are using C<XS>), so tests with missing
 prerequisites are automatically skipped.  For example, L</xs_ok> will automatically skip
@@ -848,6 +1048,16 @@ The XS code.  This is the only required element.
 
 Extra L<ExtUtils::ParseXS> arguments passed in as a hash reference.
 
+=item cbuilder_check
+
+The compile check that should be done prior to attempting to build.
+Should be one of C<have_compiler> or C<have_cplusplus>.  Defaults
+to C<have_compiler>.
+
+=item cbuilder_config
+
+Hash to override values normally provided by C<Config>.
+
 =item cbuilder_compile
 
 Extra The L<ExtUtils::CBuilder> arguments passed in as a hash reference.
@@ -877,6 +1087,21 @@ The module name detected during the XS parsing phase will
 be passed in to the subtest.  This is helpful when you are
 using a generated module name.
 
+If you need to test XS C++ interfaces, see L<Test::Alien::CPP>.
+
+Caveats: C<xs_ok> uses L<ExtUtils::ParseXS>, which may call C<exit>
+under certain error conditions.  While this is not really good
+thing to happen in the middle of a test, it usually indicates
+a real failure condition, and it should return a failure condition
+so the test should still fail overall.
+
+[version 2.53]
+
+As of version 2.53, C<xs_ok> will only remove temporary generated files
+if the test is successful by default.  You can force either always
+or never removing the temporary generated files using the
+C<TEST_ALIEN_ALWAYS_KEEP> environment variable (see L</ENVIRONMENT> below).
+
 =head2 ffi_ok
 
  ffi_ok;
@@ -903,6 +1128,16 @@ not influence the C<symbols> key above.
 
 Set the language.  Used primarily for language specific native types.
 
+=item api
+
+Set the API.  C<api = 1> requires FFI::Platypus 0.99 or later.  This
+option was added with Test::Alien version 1.90, so your use line should
+include this version as a safeguard to make sure it works:
+
+ use Test::Alien 1.90;
+ ...
+ ffi_ok ...;
+
 =back
 
 As with L</xs_ok> above, you can use the C<with_subtest> keyword to specify
@@ -922,6 +1157,17 @@ For example:
 
 Tests that the given helper has been defined.
 
+=head2 plugin_ok
+
+[version 2.52]
+
+ plugin_ok $plugin_name, $message;
+ plugin_ok [$plugin_name, @args], $message;
+
+This applies an L<Alien::Build::Plugin> to the interpolator used by L</helper_ok>, L</interpolate_template_is>
+and L</interpolate_run_ok> so that you can test with any helpers that plugin provides.  Useful,
+for example for getting C<%{configure}> from L<Alien::Build::Plugin::Build::Autoconf>.
+
 =head2 interpolate_template_is
 
  interpolate_template_is $template, $string;
@@ -931,6 +1177,35 @@ Tests that the given helper has been defined.
 
 Tests that the given template when evaluated with the appropriate helpers will match
 either the given string or regular expression.
+
+=head2 interpolate_run_ok
+
+[version 2.52]
+
+ my $run = interpolate_run_ok $command;
+ my $run = interpolate_run_ok $command, $message;
+
+This is the same as L</run_ok> except it runs the command through the interpolator first.
+
+=head1 ENVIRONMENT
+
+=over 4
+
+=item C<TEST_ALIEN_ALWAYS_KEEP>
+
+If this is defined then it will override the built in logic that decides if
+the temporary files generated by L</xs_ok> should be kept when the test file
+terminates.  If set to true the generated files will always be kept.  If
+set to false, then they will always be removed.
+
+=item C<TEST_ALIEN_ALIENS_MISSING>
+
+By default, this module will warn you if some tools are used without first
+invoking L</alien_ok>.  This is usually a mistake, but if you really do
+want to use one of these tools with no aliens loaded, you can set this
+environment variable to false.
+
+=back
 
 =head1 SEE ALSO
 
@@ -954,6 +1229,8 @@ either the given string or regular expression.
 
 =item L<Test::Alien::Synthetic>
 
+=item L<Test::Alien::CPP>
+
 =back
 
 =head1 AUTHOR
@@ -964,7 +1241,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -998,7 +1275,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -1014,9 +1291,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

@@ -158,6 +158,8 @@ extern i_img *i_rotate_exact_bg(i_img *im, double amount, const i_color *backp, 
 extern i_img *i_matrix_transform(i_img *im, i_img_dim xsize, i_img_dim ysize, const double *matrix);
 extern i_img *i_matrix_transform_bg(i_img *im, i_img_dim xsize, i_img_dim ysize, const double *matrix,  const i_color *backp, const i_fcolor *fbackp);
 
+extern int i_trim_rect(i_img *im, double transp_threshold, int color_count, const i_trim_colors_t *colors,
+		       i_img_dim *left, i_img_dim *top, i_img_dim *right, i_img_dim *bottom);
 void i_bezier_multi(i_img *im,int l,const double *x,const double *y,const i_color *val);
 int i_poly_aa     (i_img *im,int l,const double *x,const double *y,const i_color *val);
 int i_poly_aa_cfill(i_img *im,int l,const double *x,const double *y,i_fill_t *fill);
@@ -178,7 +180,8 @@ undef_int i_flood_cfill_border(i_img *im, i_img_dim seedx, i_img_dim seedy, i_fi
 
 /* image processing functions */
 
-int i_gaussian    (i_img *im, double stdev);
+int i_gaussian    (i_img *im, double stddev);
+int i_gaussian2    (i_img *im, double stddevX, double stddevY);
 int i_conv        (i_img *im,const double *coeff,int len);
 void i_unsharp_mask(i_img *im, double stddev, double scale);
 
@@ -292,6 +295,7 @@ void i_turbnoise(i_img *im,double xo,double yo,double scale);
 void i_gradgen(i_img *im, int num, i_img_dim *xo, i_img_dim *yo, i_color *ival, int dmeasure);
 int i_nearest_color(i_img *im, int num, i_img_dim *xo, i_img_dim *yo, i_color *ival, int dmeasure);
 i_img *i_diff_image(i_img *im, i_img *im2, double mindist);
+i_img *i_rgbdiff_image(i_img *im, i_img *im2);
 int
 i_fountain(i_img *im, double xa, double ya, double xb, double yb, 
            i_fountain_type type, i_fountain_repeat repeat, 

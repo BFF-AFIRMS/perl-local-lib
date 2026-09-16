@@ -1,9 +1,9 @@
 package Net::DNS::Question;
 
-#
-# $Id: Question.pm 1726 2018-12-15 12:59:56Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1726 $)[1];
+use strict;
+use warnings;
+
+our $VERSION = (qw$Id: Question.pm 2002 2025-01-07 09:57:46Z willem $)[2];
 
 
 =head1 NAME
@@ -12,9 +12,9 @@ Net::DNS::Question - DNS question record
 
 =head1 SYNOPSIS
 
-    use Net::DNS::Question;
+	use Net::DNS::Question;
 
-    $question = new Net::DNS::Question('example.com', 'AAAA', 'IN');
+	$question = Net::DNS::Question->new('example.com', 'AAAA', 'IN');
 
 =head1 DESCRIPTION
 
@@ -24,12 +24,10 @@ section of a DNS packet.
 =cut
 
 
-use strict;
-use warnings;
 use integer;
 use Carp;
 
-use Net::DNS::Parameters;
+use Net::DNS::Parameters qw(%classbyname %typebyname :class :type);
 use Net::DNS::Domain;
 use Net::DNS::DomainName;
 
@@ -38,12 +36,12 @@ use Net::DNS::DomainName;
 
 =head2 new
 
-    $question = new Net::DNS::Question('example.com', 'AAAA', 'IN');
-    $question = new Net::DNS::Question('example.com', 'A', 'IN');
-    $question = new Net::DNS::Question('example.com');
+	$question = Net::DNS::Question->new('example.com', 'AAAA', 'IN');
+	$question = Net::DNS::Question->new('example.com', 'A', 'IN');
+	$question = Net::DNS::Question->new('example.com');
 
-    $question = new Net::DNS::Question('2001::DB8::dead:beef', 'PTR', 'IN');
-    $question = new Net::DNS::Question('2001::DB8::dead:beef');
+	$question = Net::DNS::Question->new('2001::DB8::dead:beef', 'PTR', 'IN');
+	$question = Net::DNS::Question->new('2001::DB8::dead:beef');
 
 Creates a question object from the domain, type, and class passed as
 arguments. One or both type and class arguments may be omitted and
@@ -78,8 +76,8 @@ sub new {
 		}
 	}
 
-	$self->{qname}	= new Net::DNS::DomainName1035($qname);
-	$self->{qtype}	= typebyname( $qtype || 'A' );
+	$self->{qname}	= Net::DNS::DomainName1035->new($qname);
+	$self->{qtype}	= typebyname( $qtype   || 'A' );
 	$self->{qclass} = classbyname( $qclass || 'IN' );
 
 	return $self;
@@ -88,9 +86,9 @@ sub new {
 
 =head2 decode
 
-    $question = decode Net::DNS::Question(\$data, $offset);
+	$question = Net::DNS::Question->decode(\$data, $offset);
 
-    ($question, $offset) = decode Net::DNS::Question(\$data, $offset);
+	($question, $offset) = Net::DNS::Question->decode(\$data, $offset);
 
 Decodes the question record at the specified location within a DNS
 wire-format packet.  The first argument is a reference to the buffer
@@ -108,22 +106,23 @@ An exception is raised if the object cannot be created
 use constant QFIXEDSZ => length pack 'n2', (0) x 2;
 
 sub decode {
-	my $self = bless {}, shift;
-	my ( $data, $offset ) = @_;
+	my ( $class, @argument ) = @_;
+	my ( $data,  $offset )	 = @argument;
+	my $self = bless {}, $class;
 
-	( $self->{qname}, $offset ) = decode Net::DNS::DomainName1035(@_);
+	( $self->{qname}, $offset ) = Net::DNS::DomainName1035->decode(@argument);
 
 	my $next = $offset + QFIXEDSZ;
 	die 'corrupt wire-format data' if length $$data < $next;
 	@{$self}{qw(qtype qclass)} = unpack "\@$offset n2", $$data;
 
-	wantarray ? ( $self, $next ) : $self;
+	return wantarray ? ( $self, $next ) : $self;
 }
 
 
 =head2 encode
 
-    $data = $question->encode( $offset, $hash );
+	$data = $question->encode( $offset, $hash );
 
 Returns the Net::DNS::Question in binary format suitable for
 inclusion in a DNS packet buffer.
@@ -135,29 +134,14 @@ table used to index compressed names within the packet.
 =cut
 
 sub encode {
-	my $self = shift;
-
-	pack 'a* n2', $self->{qname}->encode(@_), @{$self}{qw(qtype qclass)};
-}
-
-
-=head2 print
-
-    $object->print;
-
-Prints the record to the standard output.  Calls the string() method
-to get the string representation.
-
-=cut
-
-sub print {
-	print shift->string, "\n";
+	my ( $self, @opaque ) = @_;
+	return pack 'a* n2', $self->{qname}->encode(@opaque), @{$self}{qw(qtype qclass)};
 }
 
 
 =head2 string
 
-    print "string = ", $question->string, "\n";
+	print "string = ", $question->string, "\n";
 
 Returns a string representation of the question record.
 
@@ -165,14 +149,28 @@ Returns a string representation of the question record.
 
 sub string {
 	my $self = shift;
+	return join "\t", $self->{qname}->string, $self->qclass, $self->qtype;
+}
 
-	join "\t", $self->{qname}->string, $self->qclass, $self->qtype;
+
+=head2 print
+
+	$object->print;
+
+Prints the record to the standard output.  Calls the string() method
+to get the string representation.
+
+=cut
+
+sub print {
+	print &string, "\n";
+	return;
 }
 
 
 =head2 name
 
-    $name = $question->name;
+	$name = $question->name;
 
 Internationalised domain name corresponding to the qname attribute.
 
@@ -183,25 +181,24 @@ further queries.
 When required to communicate with humans, the 'proper' domain name
 should be extracted from a query or reply packet.
 
-    $query = new Net::DNS::Packet( $example, 'ANY' );
-    $reply = $resolver->send($query) or die;
-    ($question) = $reply->question;
-    $name = $question->name;
+	$query = Net::DNS::Packet->new( $example, 'SOA' );
+	$reply = $resolver->send($query) or die;
+	($question) = $reply->question;
+	$name = $question->name;
 
 =cut
 
 sub name {
-	my $self = shift;
-
-	croak 'immutable object: argument invalid' if scalar @_;
-	$self->{qname}->xname;
+	my ( $self, @argument ) = @_;
+	for (@argument) { croak 'immutable object: argument invalid' }
+	return $self->{qname}->xname;
 }
 
 
 =head2 qname, zname
 
-    $qname = $question->qname;
-    $zname = $question->zname;
+	$qname = $question->qname;
+	$zname = $question->zname;
 
 Fully qualified domain name in the form required for a query
 transmitted to a nameserver.  In dynamic update packets, this
@@ -210,20 +207,19 @@ attribute is known as zname() and refers to the zone name.
 =cut
 
 sub qname {
-	my $self = shift;
-
-	croak 'immutable object: argument invalid' if scalar @_;
-	$self->{qname}->name;
+	my ( $self, @argument ) = @_;
+	for (@argument) { croak 'immutable object: argument invalid' }
+	return $self->{qname}->name;
 }
 
-sub zname { &qname; }
+sub zname { return &qname; }
 
 
 =head2 qtype, ztype, type
 
-    $qtype = $question->type;
-    $qtype = $question->qtype;
-    $ztype = $question->ztype;
+	$qtype = $question->type;
+	$qtype = $question->qtype;
+	$ztype = $question->ztype;
 
 Returns the question type attribute.  In dynamic update packets,
 this attribute is known as ztype() and refers to the zone type.
@@ -231,21 +227,20 @@ this attribute is known as ztype() and refers to the zone type.
 =cut
 
 sub type {
-	my $self = shift;
-
-	croak 'immutable object: argument invalid' if scalar @_;
-	typebyval( $self->{qtype} );
+	my ( $self, @argument ) = @_;
+	for (@argument) { croak 'immutable object: argument invalid' }
+	return typebyval( $self->{qtype} );
 }
 
-sub qtype { &type; }
-sub ztype { &type; }
+sub qtype { return &type; }
+sub ztype { return &type; }
 
 
 =head2 qclass, zclass, class
 
-    $qclass = $question->class;
-    $qclass = $question->qclass;
-    $zclass = $question->zclass;
+	$qclass = $question->class;
+	$qclass = $question->qclass;
+	$zclass = $question->zclass;
 
 Returns the question class attribute.  In dynamic update packets,
 this attribute is known as zclass() and refers to the zone class.
@@ -253,14 +248,13 @@ this attribute is known as zclass() and refers to the zone class.
 =cut
 
 sub class {
-	my $self = shift;
-
-	croak 'immutable object: argument invalid' if scalar @_;
-	classbyval( $self->{qclass} );
+	my ( $self, @argument ) = @_;
+	for (@argument) { croak 'immutable object: argument invalid' }
+	return classbyval( $self->{qclass} );
 }
 
-sub qclass { &class; }
-sub zclass { &class; }
+sub qclass { return &class; }
+sub zclass { return &class; }
 
 
 ########################################
@@ -270,7 +264,7 @@ sub _dns_addr {				## Map IP address into reverse lookup namespace
 
 	# IP address must contain address characters only
 	s/[%].+$//;						# discard RFC4007 scopeid
-	return undef unless m#^[a-fA-F0-9:./]+$#;
+	return unless m#^[a-fA-F0-9:./]+$#;
 
 	my ( $address, $pfxlen ) = split m#/#;
 
@@ -286,7 +280,7 @@ sub _dns_addr {				## Map IP address into reverse lookup namespace
 	return unless m#^[:\w]+:([.\w]*)(/\d+)?$#;
 	my $rhs = $1 || '0';
 	return _dns_addr($rhs) if m#^[:0]*:0*:[fF]{4}:[^:]+$#;	# IPv4
-	$rhs = sprintf '%x%0.2x:%x%0.2x', map $_ || 0, split( /\./, $rhs, 4 ) if /\./;
+	$rhs = sprintf '%x%0.2x:%x%0.2x', map { $_ || 0 } split( /\./, $rhs, 4 ) if /\./;
 	$address =~ s/:[^:]*$/:0$rhs/;
 	my @parse = split /:/, ( reverse "0$address" ), 9;
 	my @xpand = map { /./ ? $_ : ('0') x ( 9 - @parse ) } @parse;	 # expand ::
@@ -317,7 +311,7 @@ All rights reserved.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -334,8 +328,8 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::DomainName>, L<Net::DNS::Packet>,
-RFC 1035 Section 4.1.2
+L<perl> L<Net::DNS> L<Net::DNS::DomainName> L<Net::DNS::Packet>
+L<RFC1035(4.1.2)|https://iana.org/go/rfc1035#section-4.1.2>
 
 =cut
 

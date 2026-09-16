@@ -1,14 +1,11 @@
 package Net::DNS::RR::URI;
 
-#
-# $Id: URI.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: URI.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,20 +13,19 @@ Net::DNS::RR::URI - DNS URI resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::Text;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	my $limit = $offset + $self->{rdlength};
 	@{$self}{qw(priority weight)} = unpack( "\@$offset n2", $$data );
 	$offset += 4;
-	$self->{target} = decode Net::DNS::Text( $data, $offset, $limit - $offset );
+	$self->{target} = Net::DNS::Text->decode( $data, $offset, $limit - $offset );
+	return;
 }
 
 
@@ -37,7 +33,7 @@ sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
 	my $target = $self->{target};
-	pack 'n2 a*', @{$self}{qw(priority weight)}, $target->raw;
+	return pack 'n2 a*', @{$self}{qw(priority weight)}, $target->raw;
 }
 
 
@@ -45,45 +41,44 @@ sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
 	my $target = $self->{target};
-	my @rdata = ( $self->priority, $self->weight, $target->string );
+	my @rdata  = ( $self->priority, $self->weight, $target->string );
+	return @rdata;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	map $self->$_(shift), qw(priority weight target);
+	for (qw(priority weight target)) { $self->$_( shift @argument ) }
+	return;
 }
 
 
 sub priority {
-	my $self = shift;
-
-	$self->{priority} = 0 + shift if scalar @_;
-	$self->{priority} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{priority} = 0 + $_ }
+	return $self->{priority} || 0;
 }
 
 
 sub weight {
-	my $self = shift;
-
-	$self->{weight} = 0 + shift if scalar @_;
-	$self->{weight} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{weight} = 0 + $_ }
+	return $self->{weight} || 0;
 }
 
 
 sub target {
-	my $self = shift;
-
-	$self->{target} = new Net::DNS::Text(shift) if scalar @_;
-	$self->{target}->value if $self->{target};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{target} = Net::DNS::Text->new($_) }
+	return $self->{target} ? $self->{target}->value : undef;
 }
 
 
 # order RRs by numerically increasing priority, decreasing weight
 my $function = sub {
 	my ( $a, $b ) = ( $Net::DNS::a, $Net::DNS::b );
-	$a->{priority} <=> $b->{priority}
+	return $a->{priority} <=> $b->{priority}
 			|| $b->{weight} <=> $a->{weight};
 };
 
@@ -98,8 +93,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name URI priority weight target');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name URI priority weight target');
 
 =head1 DESCRIPTION
 
@@ -117,8 +112,8 @@ other unpredictable behaviour.
 
 =head2 priority
 
-    $priority = $rr->priority;
-    $rr->priority( $priority );
+	$priority = $rr->priority;
+	$rr->priority( $priority );
 
 The priority of the target URI in this RR.
 The range of this number is 0-65535.
@@ -128,8 +123,8 @@ load across targets with equal priority.
 
 =head2 weight
 
-    $weight = $rr->weight;
-    $rr->weight( $weight );
+	$weight = $rr->weight;
+	$rr->weight( $weight );
 
 A server selection mechanism. The weight field specifies a relative
 weight for entries with the same priority.  Larger weights SHOULD be
@@ -138,8 +133,8 @@ range of this number is 0-65535.
 
 =head2 target
 
-    $target = $rr->target;
-    $rr->target( $target );
+	$target = $rr->target;
+	$rr->target( $target );
 
 The URI of the target. Resolution of the URI is according to the
 definitions for the Scheme of the URI.
@@ -158,7 +153,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -175,7 +170,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, 
-RFC7553
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC7553|https://iana.org/go/rfc7553>
 
 =cut

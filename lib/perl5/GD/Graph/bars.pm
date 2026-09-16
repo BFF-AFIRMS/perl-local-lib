@@ -145,39 +145,6 @@ sub draw_data_set_h
             $self->{_data}->error);
 
     my $topvalues = $self->_top_values;
-    #
-    # Draw all shadows.
-    for my $i (0 .. $#values) 
-    {
-        my $value = $values[$i];
-        next unless defined $value;
-
-        my $l = $self->_get_bottom($ds, $i);
-        my ($r, $xp) = $self->val_to_pixel($i + 1, $value, $ds);
-
-        # calculate top and bottom of bar
-        my ($t, $b);
-        my $window = $self->{x_step} - $self->{bargroup_spacing};
-
-        if (ref $self eq 'GD::Graph::mixed' || $self->{overwrite})
-        {
-            $t = $xp - $window/2 + $bar_s + 1;
-            $b = $xp + $window/2 - $bar_s;
-        }
-        else
-        {
-            $t = $xp 
-                - $window/2
-                + ($ds - 1) * $window/$self->{_data}->num_sets
-                + $bar_s + 1; # GRANTM thinks this +1 should be conditional on bargroup_spacing being absent
-            $b = $xp 
-                - $window/2
-                + $ds * $window/$self->{_data}->num_sets
-                - $bar_s;
-        }
-
-        $self->_draw_shadow($ds, $i, $value, $topvalues, $l, $t, $r, $b);
-    }
 
     for my $i (0 .. $#values) 
     {
@@ -222,6 +189,8 @@ sub draw_data_set_h
         }
 
         # draw the bar
+        $self->_draw_shadow($ds, $i, $value, $topvalues, $l, $t, $r, $b);
+
         if ($value < 0) { ($r,$l) = ($l,$r) } 
 
         $self->{graph}->filledRectangle($l, $t, $r, $b, $dsci)
@@ -260,39 +229,7 @@ sub draw_data_set_v
         $ds_adj   =  grep { $_  eq 'bars' } @types[0..$ds-1];
     }
 
-    # Draw all shadows.
-    for my $i (0 .. $#values) 
-    {
-        my $value = $values[$i];
-        next unless defined $value;
-
-        my $bottom = $self->_get_bottom($ds, $i);
-        my ($xp, $t) = $self->val_to_pixel($i + 1, $value, $ds);
-        my ($l, $r);
-        my $window = $self->{x_step} - $self->{bargroup_spacing};
-
-        if ($self->{overwrite})
-        {
-            $l = $xp - $window/2 + $bar_s + 1;
-            $r = $xp + $window/2 - $bar_s;
-        }
-        else
-        {
-            $l = $xp 
-                - $window/2
-                + ($ds_adj - 1) * $window/$bar_sets
-                + $bar_s + 1; # GRANTM thinks this +1 should be conditional on bargroup_spacing being absent
-            $r = $xp 
-                - $window/2
-                + $ds_adj * $window/$bar_sets
-                - $bar_s;
-        }
-
-        $self->_draw_shadow($ds, $i, $value, $topvalues, $l, $t, $r, $bottom);
-    }
-
-    # Then all bars.
-    for my $i (0 .. $#values) 
+    for (my $i = 0; $i < @values; $i++) 
     {
         my $value = $values[$i];
         next unless defined $value;
@@ -335,6 +272,7 @@ sub draw_data_set_v
         }
 
         # draw the bar
+        $self->_draw_shadow($ds, $i, $value, $topvalues, $l, $t, $r, $bottom);
 
         if ($value < 0) { ($bottom,$t) = ($t,$bottom) } 
         $self->{graph}->filledRectangle($l, $t, $r, $bottom, $dsci)
@@ -362,8 +300,6 @@ sub draw_values
     my $text_angle = $self->{values_vertical} ? PI/2 : 0;
     my @numPoints = $self->{_data}->num_points();
     my @datasets = $has_args ? @_ : 1 .. $self->{_data}->num_sets;
-
-    my ($l, $r, $b, $t) = ($self->{left}, $self->{right}, $self->{bottom}, $self->{top});
 
     for my $dsn ( @datasets )
     {   # CONTRIB Romeo Juncu
@@ -422,11 +358,6 @@ sub draw_values
             }
 
             $self->{gdta_values}->set_text($value);
-            if ( $self->{'hide_overlapping_values'} ) {
-                my @bbox = $self->{gdta_values}->bounding_box($xp, $yp, $text_angle);
-                next if grep $_ < $l || $_ > $r, @bbox[0, 2];
-                next if grep $_ < $t || $_ > $b, @bbox[1, 5];
-            }
             $self->{gdta_values}->draw($xp, $yp, $text_angle);
         }
     }

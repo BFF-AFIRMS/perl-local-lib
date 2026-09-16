@@ -1,14 +1,11 @@
 package Net::DNS::RR::RT;
 
-#
-# $Id: RT.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: RT.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,62 +13,58 @@ Net::DNS::RR::RT - DNS RT resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::DomainName;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset, @opaque ) = @_;
+	my ( $self, $data, $offset, @opaque ) = @_;
 
-	$self->{preference} = unpack( "\@$offset n", $$data );
-	$self->{intermediate} = decode Net::DNS::DomainName2535( $data, $offset + 2, @opaque );
+	$self->{preference}   = unpack( "\@$offset n", $$data );
+	$self->{intermediate} = Net::DNS::DomainName2535->decode( $data, $offset + 2, @opaque );
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
-	my $self = shift;
-	my ( $offset, @opaque ) = @_;
+	my ( $self, $offset, @opaque ) = @_;
 
-	pack 'n a*', $self->preference, $self->{intermediate}->encode( $offset + 2, @opaque );
+	return pack 'n a*', $self->preference, $self->{intermediate}->encode( $offset + 2, @opaque );
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	join ' ', $self->preference, $self->{intermediate}->string;
+	return join ' ', $self->preference, $self->{intermediate}->string;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->preference(shift);
-	$self->intermediate(shift);
+	for (qw(preference intermediate)) { $self->$_( shift @argument ) }
+	return;
 }
 
 
 sub preference {
-	my $self = shift;
-
-	$self->{preference} = 0 + shift if scalar @_;
-	$self->{preference} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{preference} = 0 + $_ }
+	return $self->{preference} || 0;
 }
 
 
 sub intermediate {
-	my $self = shift;
-
-	$self->{intermediate} = new Net::DNS::DomainName2535(shift) if scalar @_;
-	$self->{intermediate}->name if $self->{intermediate};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{intermediate} = Net::DNS::DomainName2535->new($_) }
+	return $self->{intermediate} ? $self->{intermediate}->name : undef;
 }
 
 
 my $function = sub {			## sort RRs in numerically ascending order.
-	$Net::DNS::a->{'preference'} <=> $Net::DNS::b->{'preference'};
+	return $Net::DNS::a->{'preference'} <=> $Net::DNS::b->{'preference'};
 };
 
 __PACKAGE__->set_rrsort_func( 'preference', $function );
@@ -85,8 +78,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name RT preference intermediate');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name RT preference intermediate');
 
 =head1 DESCRIPTION
 
@@ -104,16 +97,16 @@ other unpredictable behaviour.
 
 =head2 preference
 
-    $preference = $rr->preference;
-    $rr->preference( $preference );
+	$preference = $rr->preference;
+	$rr->preference( $preference );
 
- A 16 bit integer representing the preference of the route.
+A 16 bit integer representing the preference of the route.
 Smaller numbers indicate more preferred routes.
 
 =head2 intermediate
 
-    $intermediate = $rr->intermediate;
-    $rr->intermediate( $intermediate );
+	$intermediate = $rr->intermediate;
+	$rr->intermediate( $intermediate );
 
 The domain name of a host which will serve as an intermediate
 in reaching the host specified by the owner name.
@@ -134,7 +127,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -151,6 +144,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1183 Section 3.3
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1183(3.3)|https://iana.org/go/rfc1183#section-3.3>
 
 =cut

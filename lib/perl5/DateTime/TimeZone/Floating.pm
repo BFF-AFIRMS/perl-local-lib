@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use namespace::autoclean;
 
-our $VERSION = '2.35';
+our $VERSION = '2.69';
 
 use parent 'Class::Singleton', 'DateTime::TimeZone::OffsetOnly';
 
@@ -59,7 +59,7 @@ DateTime::TimeZone::Floating - A time zone that is always local
 
 =head1 VERSION
 
-version 2.35
+version 2.69
 
 =head1 SYNOPSIS
 
@@ -67,9 +67,9 @@ version 2.35
 
 =head1 DESCRIPTION
 
-This class is used to provide the DateTime::TimeZone API needed by
-DateTime.pm, but for floating times, as defined by the RFC 2445 spec.
-A floating time has no time zone, and has an effective offset of zero.
+This class is used to provide the DateTime::TimeZone API needed by DateTime.pm,
+but for floating times, as defined by the RFC 2445 spec. A floating time has no
+time zone, and has an effective offset of zero.
 
 =head1 USAGE
 
@@ -81,8 +81,6 @@ C<category()> method returns C<undef>.
 
 Bugs may be submitted at L<https://github.com/houseabsolute/DateTime-TimeZone/issues>.
 
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
-
 =head1 SOURCE
 
 The source code repository for DateTime-TimeZone can be found at L<https://github.com/houseabsolute/DateTime-TimeZone>.
@@ -93,7 +91,7 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2019 by Dave Rolsky.
+This software is copyright (c) 2026 by Dave Rolsky.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

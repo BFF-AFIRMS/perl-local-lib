@@ -6,7 +6,7 @@ use 5.006;
 use strict;
 
 # Set the version for CPAN
-our $VERSION = '1.264'; # VERSION
+our $VERSION = '1.291';
 
 our ( $XS_COMPATIBLE, @XS_EXCLUDE ) = ( '0.845' );
 
@@ -93,8 +93,8 @@ more often stated now as a truism:
 
 B<"Only perl can parse Perl">
 
-One example of the sorts of things the prevent Perl being easily parsed are
-function signatures, as demonstrated by the following.
+One example of the sorts of things that prevent Perl from being easily parsed
+is function signatures, as demonstrated by the following.
 
   @result = (dothis $foo, $bar);
   
@@ -113,10 +113,10 @@ the statement being parsed.
 The information might not just be elsewhere in the file, it might not even be
 in the same file at all. It might also not be able to determine this
 information without the prior execution of a C<BEGIN {}> block, or the
-loading and execution of one or more external modules. Or worse the &dothis
+loading and execution of one or more external modules. Or worse the C<&dothis>
 function may not even have been written yet.
 
-B<When parsing Perl as code, you must also execute it>
+B<When parsing Perl as code, you must also execute it.>
 
 Even perl itself never really fully understands the structure of the source
 code after and indeed B<as> it processes it, and in that sense doesn't
@@ -169,7 +169,7 @@ at once. For the academics, parsing Perl suffers from the "Halting Problem".
 
 Once you can accept that we will never be able to parse Perl well enough
 to meet the standards of things that treat Perl as code, it is worth
-re-examining C<why> we want to "parse" Perl at all.
+re-examining I<why> we want to "parse" Perl at all.
 
 What are the things that people might want a "Perl parser" for?
 
@@ -294,7 +294,7 @@ anyone wanting to help out is encouraged to contact the author.
 =head2 General Layout
 
 PPI is built upon two primary "parsing" components, L<PPI::Tokenizer>
-and L<PPI::Lexer>, and a large tree of about 50 classes which implement
+and L<PPI::Lexer>, and a large tree of about 70 classes which implement
 the various the I<Perl Document Object Model> (PDOM).
 
 The PDOM is conceptually similar in style and intent to the regular DOM or
@@ -373,7 +373,7 @@ syntax.
 
 =head2 The PDOM Class Tree
 
-The following lists all of the 67 current PDOM classes, listing with indentation
+The following lists all of the 72 current PDOM classes, listing with indentation
 based on inheritance.
 
    PPI::Element
@@ -544,7 +544,7 @@ via the included L<PPI::Dumper>).
 
 Please note that in this example, strings are only listed for the
 B<actual> L<PPI::Token> that contains that string. Structures are listed
-with the type of brace characters it represents noted.
+with the type of brace characters they represent noted.
 
 The L<PPI::Dumper> module can be used to generate similar trees yourself.
 
@@ -647,7 +647,7 @@ some cases).
 
 The L<PPI::Token::Quote> and L<PPI::Token::QuoteLike> classes provide
 abstract base classes for the many and varied types of quote and
-quote-like things in Perl. However, much of the actual quote login is
+quote-like things in Perl. However, much of the actual quote logic is
 implemented in a separate quote engine, based at
 L<PPI::Token::_QuoteEngine>.
 
@@ -718,11 +718,11 @@ to PPI itself.
 
 The most recent version of PPI is available at the following address.
 
-L<http://search.cpan.org/~mithaldu/PPI/>
+L<https://metacpan.org/pod/PPI>
 
 PPI source is maintained in a GitHub repository at the following address.
 
-L<https://github.com/adamkennedy/PPI>
+L<https://github.com/Perl-Critic/PPI>
 
 Contributions via GitHub pull request are welcome.
 
@@ -734,7 +734,7 @@ If you cannot provide a test or fix, or don't have time to do so,
 then regular bug reports are still accepted and appreciated via the
 GitHub bug tracker.
 
-L<https://github.com/adamkennedy/PPI/issues>
+L<https://github.com/Perl-Critic/PPI/issues>
 
 The C<ppidump> utility that is part of the L<Perl::Critic> distribution
 is a useful tool for demonstrating how PPI is parsing (or misparsing)
@@ -749,9 +749,10 @@ Adam Kennedy E<lt>adamk@cpan.orgE<gt>
 
 =head1 ACKNOWLEDGMENTS
 
-A huge thank you to Phase N Australia (L<http://phase-n.com/>) for
-permitting the original open sourcing and release of this distribution
-from what was originally several thousand hours of commercial work.
+A huge thank you to Phase N Australia
+(L<https://web.archive.org/web/20240304122957/http://www.phase-n.com/>) for
+permitting the original open sourcing and release of this distribution from
+what was originally several thousand hours of commercial work.
 
 Another big thank you to The Perl Foundation
 (L<http://www.perlfoundation.org/>) for funding for the final big

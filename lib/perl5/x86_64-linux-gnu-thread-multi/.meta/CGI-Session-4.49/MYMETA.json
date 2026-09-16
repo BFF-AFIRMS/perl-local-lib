@@ -1,0 +1,59 @@
+{
+   "abstract" : "Persistent session data in CGI applications",
+   "author" : [
+      "Sherzod Ruzmetov <sherzodr@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Module::Build version 0.4234",
+   "keywords" : [
+      "session",
+      "http"
+   ],
+   "license" : [
+      "artistic_1"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "CGI-Session",
+   "no_index" : {
+      "package" : [
+         "CGI::Session::Test::SimpleObjectClass",
+         "CGI::Session::Test::Default",
+         "OverloadedObjectClass",
+         "OverloadedClass"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "Test::More" : 0
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "Module::Build" : 0.38
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "CGI" : 3.26,
+            "Crypt::SysRandom" : 0.007,
+            "Data::Dumper" : 0,
+            "Scalar::Util" : 0
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "license" : [
+         "http://opensource.org/licenses/artistic-license.php"
+      ],
+      "repository" : {
+         "url" : "http://github.com/cromedome/cgi-session"
+      }
+   },
+   "version" : "4.49",
+   "x_serialization_backend" : "JSON::PP version 4.16"
+}

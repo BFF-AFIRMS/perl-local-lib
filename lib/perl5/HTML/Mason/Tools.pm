@@ -9,7 +9,7 @@
 #
 
 package HTML::Mason::Tools;
-$HTML::Mason::Tools::VERSION = '1.58';
+$HTML::Mason::Tools::VERSION = '1.60';
 use strict;
 use warnings;
 

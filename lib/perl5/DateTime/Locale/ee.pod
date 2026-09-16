@@ -97,7 +97,7 @@ Ewe locale.
   dzodze
   tedoxe
   afɔfĩe
-  dama
+  dame
   masa
   siamlɔm
   deasiamime
@@ -143,7 +143,7 @@ Ewe locale.
   dzodze
   tedoxe
   afɔfĩe
-  dama
+  dame
   masa
   siamlɔm
   deasiamime
@@ -351,6 +351,12 @@ Ewe locale.
    1995-12-22T09:05:02 = fiɖ
   -0010-09-15T04:44:23 = mem
 
+=head3 EBh (E h B)
+
+   2008-02-05T18:30:30 = bla 6 B
+   1995-12-22T09:05:02 = fiɖ 9 B
+  -0010-09-15T04:44:23 = mem 4 B
+
 =head3 EBhm ('ga' h:mm 'le' E B 'me')
 
    2008-02-05T18:30:30 = ga 6:30 le bla B me
@@ -381,6 +387,12 @@ Ewe locale.
    1995-12-22T09:05:02 = fiɖ 22
   -0010-09-15T04:44:23 = mem 15
 
+=head3 Eh (E h a)
+
+   2008-02-05T18:30:30 = bla 6 ɣetrɔ
+   1995-12-22T09:05:02 = fiɖ 9 ŋdi
+  -0010-09-15T04:44:23 = mem 4 ŋdi
+
 =head3 Ehm (E a 'ga' h:mm)
 
    2008-02-05T18:30:30 = bla ɣetrɔ ga 6:30
@@ -399,6 +411,18 @@ Ewe locale.
    1995-12-22T09:05:02 = 1995 Yŋ
   -0010-09-15T04:44:23 = -10 HYV
 
+=head3 GyM (G y-MM)
+
+   2008-02-05T18:30:30 = Yŋ 2008-02
+   1995-12-22T09:05:02 = Yŋ 1995-12
+  -0010-09-15T04:44:23 = HYV -10-09
+
+=head3 GyMEd (G y-MM-dd, E)
+
+   2008-02-05T18:30:30 = Yŋ 2008-02-05, bla
+   1995-12-22T09:05:02 = Yŋ 1995-12-22, fiɖ
+  -0010-09-15T04:44:23 = HYV -10-09-15, mem
+
 =head3 GyMMM (MMM y G)
 
    2008-02-05T18:30:30 = dzd 2008 Yŋ
@@ -416,6 +440,12 @@ Ewe locale.
    2008-02-05T18:30:30 = dzd 5 lia, 2008 Yŋ
    1995-12-22T09:05:02 = dzm 22 lia, 1995 Yŋ
   -0010-09-15T04:44:23 = any 15 lia, -10 HYV
+
+=head3 GyMd (G y-MM-dd)
+
+   2008-02-05T18:30:30 = Yŋ 2008-02-05
+   1995-12-22T09:05:02 = Yŋ 1995-12-22
+  -0010-09-15T04:44:23 = HYV -10-09-15
 
 =head3 H (HH)
 
@@ -446,6 +476,12 @@ Ewe locale.
    2008-02-05T18:30:30 = ga 18:30 le UTC
    1995-12-22T09:05:02 = ga 09:05 le UTC
   -0010-09-15T04:44:23 = ga 04:44 le UTC
+
+=head3 Hv (HH v)
+
+   2008-02-05T18:30:30 = 18 UTC
+   1995-12-22T09:05:02 = 09 UTC
+  -0010-09-15T04:44:23 = 04 UTC
 
 =head3 M (L)
 
@@ -543,6 +579,12 @@ Ewe locale.
    1995-12-22T09:05:02 = ŋdi ga 9:05 le UTC
   -0010-09-15T04:44:23 = ŋdi ga 4:44 le UTC
 
+=head3 hv (h a v)
+
+   2008-02-05T18:30:30 = 6 ɣetrɔ UTC
+   1995-12-22T09:05:02 = 9 ŋdi UTC
+  -0010-09-15T04:44:23 = 4 ŋdi UTC
+
 =head3 ms ('aɖabaƒoƒo' mm:ss)
 
    2008-02-05T18:30:30 = aɖabaƒoƒo 30:30
@@ -631,6 +673,26 @@ No
 =head3 Local first day of the week
 
 1 (dzoɖa)
+
+=head2 Strftime Patterns
+
+=head3 %c (%a %b %e %H:%M:%S %Y) - date time format
+
+   2008-02-05T18:30:30 = bla dzd  5 18:30:30 2008
+   1995-12-22T09:05:02 = fiɖ dzm 22 09:05:02 1995
+  -0010-09-15T04:44:23 = mem any 15 04:44:23 -10
+
+=head3 %x (%m/%d/%y) - date format
+
+   2008-02-05T18:30:30 = 02/05/08
+   1995-12-22T09:05:02 = 12/22/95
+  -0010-09-15T04:44:23 = 09/15/10
+
+=head3 %X (%H:%M:%S) - time format
+
+   2008-02-05T18:30:30 = 18:30:30
+   1995-12-22T09:05:02 = 09:05:02
+  -0010-09-15T04:44:23 = 04:44:23
 
 =head1 SUPPORT
 

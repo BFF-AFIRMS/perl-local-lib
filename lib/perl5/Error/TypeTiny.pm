@@ -1,139 +1,117 @@
 package Error::TypeTiny;
 
-use 5.006001;
+use 5.008001;
 use strict;
 use warnings;
 
 BEGIN {
 	$Error::TypeTiny::AUTHORITY = 'cpan:TOBYINK';
-	$Error::TypeTiny::VERSION   = '1.004004';
+	$Error::TypeTiny::VERSION   = '2.010001';
 }
 
-use overload
-	q[""]    => sub { $_[0]->to_string },
-	q[bool]  => sub { 1 },
-	fallback => 1,
-;
+$Error::TypeTiny::VERSION =~ tr/_//d;
 
-our %CarpInternal;
-$CarpInternal{$_}++ for qw(
-	Types::Standard::_Stringable
-	Exporter::Tiny
-	Eval::TypeTiny::Sandbox
-	
-	Devel::TypeTiny::Perl56Compat
-	Devel::TypeTiny::Perl58Compat
-	Error::TypeTiny
-	Error::TypeTiny::Assertion
-	Error::TypeTiny::Compilation
-	Error::TypeTiny::WrongNumberOfParameters
-	Eval::TypeTiny
-	Reply::Plugin::TypeTiny
-	Test::TypeTiny
-	Type::Coercion
-	Type::Coercion::FromMoose
-	Type::Coercion::Union
-	Type::Library
-	Type::Params
-	Type::Parser
-	Type::Registry
-	Types::Common::Numeric
-	Types::Common::String
-	Types::Standard
-	Types::Standard::ArrayRef
-	Types::Standard::CycleTuple
-	Types::Standard::Dict
-	Types::Standard::HashRef
-	Types::Standard::Map
-	Types::Standard::ScalarRef
-	Types::Standard::StrMatch
-	Types::Standard::Tied
-	Types::Standard::Tuple
-	Types::TypeTiny
-	Type::Tiny
-	Type::Tiny::Class
-	Type::Tiny::Duck
-	Type::Tiny::Enum
-	Type::Tiny::_HalfOp
-	Type::Tiny::Intersection
-	Type::Tiny::Role
-	Type::Tiny::Union
-	Type::Utils
+require Type::Tiny;
+__PACKAGE__->Type::Tiny::_install_overloads(
+	q[""]   => sub { local $@; $_[0]->to_string },
+	q[bool] => sub { 1 },
 );
 
-sub new
-{
-	my $class = shift;
-	my %params = (@_==1) ? %{$_[0]} : @_;
+require Carp;
+*CarpInternal = \%Carp::CarpInternal;
+
+our %CarpInternal;
+$CarpInternal{$_}++ for @Type::Tiny::InternalPackages;
+
+sub new {
+	my $class  = shift;
+	my %params = ( @_ == 1 ) ? %{ $_[0] } : @_;
 	return bless \%params, $class;
 }
 
-sub throw
-{
+sub throw {
+	my $next = $_[0]->can( 'throw_cb' );
+	splice( @_, 1, 0, undef );
+	goto $next;
+}
+
+sub throw_cb {
 	my $class = shift;
+	my $callback = shift;
 	
-	my ($level, @caller, %ctxt) = 0;
-	while (do {
-		my $caller = caller $level;
-		defined $caller and $CarpInternal{$caller};
-	}) { $level++ };
-	if ( ((caller($level - 1))[1]||"") =~ /^(?:parameter validation for|exportable function) '(.+?)'$/ )
+	my ( $level, @caller, %ctxt ) = 0;
+	while (
+		do {
+			my $caller = caller $level;
+			defined $caller and $CarpInternal{$caller};
+		}
+		)
 	{
-		my ($pkg, $func) = ($1 =~ m{^(.+)::(\w+)$});
-		$level++ if caller($level) eq ($pkg||"");
+		$level++;
 	}
-	# Moo's Method::Generate::Constructor puts an eval in the stack trace,
-	# that is useless for debugging, so show the stack frame one above.
-	$level++ if (
-		(caller($level))[1] =~ /^\(eval \d+\)$/ and
-		(caller($level))[3] eq '(eval)' # (caller())[3] is $subroutine
-	);
-	@ctxt{qw/ package file line /} = caller($level);
+	if ( ( ( caller( $level - 1 ) )[1] || "" ) =~
+		/^(?:parameter validation for|exportable function) '(.+?)'$/ )
+	{
+		my ( $pkg, $func ) = ( $1 =~ m{^(.+)::(\w+)$} );
+		$level++ if caller( $level ) eq ( $pkg || "" );
+	}
+	
+	{
+		no warnings 'uninitialized';
+		# Moo's Method::Generate::Constructor puts an eval in the stack trace,
+		# that is useless for debugging, so show the stack frame one above.
+		$level++
+			if (
+			( caller( $level ) )[1] =~ /^\(eval \d+\)$/
+			and ( caller( $level ) )[3] eq '(eval)'    # (caller())[3] is $subroutine
+			);
+		@ctxt{qw/ package file line /} = caller( $level );
+	}
 	
 	my $stack = undef;
-	if (our $StackTrace)
-	{
+	if ( our $StackTrace ) {
 		require Devel::StackTrace;
 		$stack = "Devel::StackTrace"->new(
 			ignore_package => [ keys %CarpInternal ],
 		);
 	}
 	
-	die(
-		our $LastError = $class->new(
-			context     => \%ctxt,
-			stack_trace => $stack,
-			@_,
-		)
+	our $LastError = $class->new(
+		context     => \%ctxt,
+		stack_trace => $stack,
+		@_,
 	);
-}
+	
+	$callback ? $callback->( $LastError ) : die( $LastError );
+} #/ sub throw
 
-sub message     { $_[0]{message} ||= $_[0]->_build_message };
-sub context     { $_[0]{context} };
-sub stack_trace { $_[0]{stack_trace} };
+sub message     { $_[0]{message} ||= $_[0]->_build_message }
+sub context     { $_[0]{context} }
+sub stack_trace { $_[0]{stack_trace} }
 
-sub to_string
-{
+sub to_string {
 	my $e = shift;
 	my $c = $e->context;
 	my $m = $e->message;
-	
-	$m =~ /\n\z/s ? $m :
-	$c            ? sprintf("%s at %s line %s.\n", $m, $c->{file}||'file?', $c->{line}||'NaN') :
-	sprintf("%s\n", $m);
-}
 
-sub _build_message
-{
+	$m =~ /\n\z/s
+		? $m
+		: $c ? sprintf(
+		"%s at %s line %s.\n", $m, $c->{file} || 'file?',
+		$c->{line} || 'NaN'
+		)
+		: sprintf( "%s\n", $m );
+} #/ sub to_string
+
+sub _build_message {
 	return 'An exception has occurred';
 }
 
-sub croak
-{
-	my ($fmt, @args) = @_;
+sub croak {
+	my ( $fmt, @args ) = @_;
 	@_ = (
 		__PACKAGE__,
-		message => sprintf($fmt, @args),
+		message => sprintf( $fmt, @args ),
 	);
 	goto \&throw;
 }
@@ -152,19 +130,18 @@ Error::TypeTiny - exceptions for Type::Tiny and friends
 
 =head1 SYNOPSIS
 
+   use feature 'try';
    use Data::Dumper;
-   use Try::Tiny;
-   use Types::Standard qw(Str);
+   use Types::Standard qw( Str );
    
    try {
-      Str->assert_valid(undef);
+      Str->assert_valid( undef );
    }
-   catch {
-      my $exception = shift;
+   catch ( $exception ) {
       warn "Encountered Error: $exception";
-      warn Dumper($exception->explain)
-         if $exception->isa("Error::TypeTiny::Assertion");
-   };
+      warn Dumper( $exception->explain )
+         if $exception->isa( "Error::TypeTiny::Assertion" );
+   }
 
 =head1 STATUS
 
@@ -187,6 +164,13 @@ Moose-style constructor function.
 =item C<< throw(%attributes) >>
 
 Constructs an exception and passes it to C<die>.
+
+Automatically populates C<context> and C<stack_trace> if appropriate.
+
+=item C<< throw_cb($callback, %attributes) >>
+
+Constructs an exception and passes it to C<< $callback >> which should
+be a coderef; if undef, uses C<die>.
 
 Automatically populates C<context> and C<stack_trace> if appropriate.
 
@@ -246,9 +230,10 @@ Stringification is overloaded to call C<to_string>.
 
 =over
 
-=item C<< %Error::TypeTiny::CarpInternal >>
+=item C<< %Carp::CarpInternal >>
 
-Serves a similar purpose to C<< %Carp::CarpInternal >>.
+Error::TypeTiny honours this package variable from L<Carp>.
+(C< %Error::TypeTiny::CarpInternal> is an alias for it.)
 
 =item C<< $Error::TypeTiny::StackTrace >>
 
@@ -275,7 +260,7 @@ package variable may save your bacon.)
 =head1 BUGS
 
 Please report any bugs to
-L<http://rt.cpan.org/Dist/Display.html?Queue=Type-Tiny>.
+L<https://github.com/tobyink/p5-type-tiny/issues>.
 
 =head1 SEE ALSO
 
@@ -290,7 +275,7 @@ Toby Inkster E<lt>tobyink@cpan.orgE<gt>.
 
 =head1 COPYRIGHT AND LICENCE
 
-This software is copyright (c) 2013-2014, 2017-2019 by Toby Inkster.
+This software is copyright (c) 2013-2014, 2017-2025 by Toby Inkster.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
@@ -300,4 +285,3 @@ the same terms as the Perl 5 programming language system itself.
 THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-

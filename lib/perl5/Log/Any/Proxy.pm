@@ -5,7 +5,7 @@ use warnings;
 package Log::Any::Proxy;
 
 # ABSTRACT: Log::Any generator proxy object
-our $VERSION = '1.707';
+our $VERSION = '1.720';
 
 use Log::Any::Adapter::Util ();
 use overload;
@@ -47,7 +47,7 @@ sub new {
         require Carp;
         Carp::croak("$class requires an 'adapter' parameter");
     }
-    unless ( $self->{category} ) {
+    unless ( defined $self->{category} ) {
         require Carp;
         Carp::croak("$class requires a 'category' parameter");
     }
@@ -67,7 +67,7 @@ sub clone {
 
 sub init { }
 
-for my $attr (qw/adapter filter formatter prefix context/) {
+for my $attr (qw/adapter category filter formatter prefix context/) {
     no strict 'refs';
     *{$attr} = sub { return $_[0]->{$attr} };
 }
@@ -78,7 +78,6 @@ my %aliases = Log::Any::Adapter::Util::log_level_aliases();
 foreach my $name ( Log::Any::Adapter::Util::logging_methods(), keys(%aliases) )
 {
     my $realname    = $aliases{$name} || $name;
-    my $namef       = $name . "f";
     my $is_name     = "is_$name";
     my $is_realname = "is_$realname";
     my $numeric     = Log::Any::Adapter::Util::numeric_level($realname);
@@ -87,50 +86,51 @@ foreach my $name ( Log::Any::Adapter::Util::logging_methods(), keys(%aliases) )
         my ($self) = @_;
         return $self->{adapter}->$is_realname;
     };
-    *{$name} = sub {
-        my ( $self, @parts ) = @_;
-        return if !$self->{adapter}->$is_realname && !defined wantarray;
+    for my $f ( '', 'f' ) {
+        *{"$name$f"} = sub {
+            my ( $self, @parts ) = @_;
+            my $adapter = $self->{adapter};
+            return if !$adapter->$is_realname && !defined wantarray;
 
-        my $structured_logging =
-            $self->{adapter}->can('structured') && !$self->{filter};
-
-        my $data_from_parts = pop @parts
-            if ( @parts && ( ( ref $parts[-1] || '' ) eq ref {} ) );
-        my $data_from_context = $self->{context};
-        my $data =
-            { map {%$_} grep {$_ && %$_} $data_from_context, $data_from_parts };
-
-        if ($structured_logging) {
-            unshift @parts, $self->{prefix} if $self->{prefix};
-            $self->{adapter}
-              ->structured( $realname, $self->{category}, @parts, grep {%$_} $data );
-            return unless defined wantarray;
-        }
-
-        @parts = grep { defined($_) && length($_) } @parts;
-        push @parts, _stringify_params($data) if %$data;
-
-        my $message = join( " ", @parts );
-        if ( length $message && !$structured_logging ) {
-            $message =
-              $self->{filter}->( $self->{category}, $numeric, $message )
-              if defined $self->{filter};
-            if ( defined $message and length $message ) {
-                $message = "$self->{prefix}$message"
-                  if defined $self->{prefix} && length $self->{prefix};
-                $self->{adapter}->$realname($message);
+            if ($f eq 'f') {
+                my $message =
+                  $self->{formatter}->( $self->{category}, $numeric, @parts );
+                return unless defined $message and length $message;
+                @parts = ( $message );
             }
-        }
-        return $message if defined wantarray;
-    };
-    *{$namef} = sub {
-        my ( $self, @args ) = @_;
-        return if !$self->{adapter}->$is_realname && !defined wantarray;
-        my $message =
-          $self->{formatter}->( $self->{category}, $numeric, @args );
-        return unless defined $message and length $message;
-        return $self->$name($message);
-    };
+
+            my $structured_logging =
+                !$self->{filter} && $adapter->can('structured');
+
+            my $data_from_parts = pop @parts
+                if ( @parts && ( ( ref $parts[-1] || '' ) eq ref {} ) );
+            my $data_from_context = $self->{context};
+            my $data =
+                { map {%$_} grep {$_ && %$_} $data_from_context, $data_from_parts };
+
+            if ($structured_logging) {
+                unshift @parts, $self->{prefix} if $self->{prefix};
+                $adapter->$structured_logging( $realname, $self->{category}, @parts, grep {%$_} $data );
+                return unless defined wantarray;
+            }
+
+            @parts = grep { defined($_) && length($_) } @parts;
+            push @parts, _stringify_params($data) if %$data;
+
+            my $message = join( " ", @parts );
+            if ( length $message && !$structured_logging ) {
+                $message =
+                  $self->{filter}->( $self->{category}, $numeric, $message )
+                  if defined $self->{filter};
+                if ( defined $message and length $message ) {
+                    $message = "$self->{prefix}$message"
+                      if defined $self->{prefix} && length $self->{prefix};
+                    $adapter->$realname($message);
+                }
+            }
+            return $message if defined wantarray;
+        };
+    }
 }
 
 1;
@@ -150,7 +150,7 @@ Log::Any::Proxy - Log::Any generator proxy object
 
 =head1 VERSION
 
-version 1.707
+version 1.720
 
 =head1 SYNOPSIS
 
@@ -228,6 +228,11 @@ The default formatter does the following:
 If defined, this string will be prepended to all messages.  It will not
 include a trailing space, so add that yourself if you want.  This is less
 flexible/powerful than L</filter>, but avoids an extra function call.
+
+=head2 context
+
+Logging context data hashref. All the key/value pairs added to this hash
+will be printed with every log message.
 
 =head1 USAGE
 

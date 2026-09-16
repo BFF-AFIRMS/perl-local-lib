@@ -4,19 +4,19 @@ use strict;
 use warnings FATAL => 'all';
 use base qw(Exporter);
 
-our $VERSION = '1.004000';
-$VERSION = eval $VERSION;
+our $VERSION = '1.004008';
+$VERSION =~ tr/_//d;
 
 sub _choose_json_module {
     return 'Cpanel::JSON::XS' if $INC{'Cpanel/JSON/XS.pm'};
-    return 'JSON::XS'         if $INC{'JSON/XS.pm'};
+    return 'JSON::XS'         if $INC{'JSON/XS.pm'} && eval { JSON::XS->VERSION(3.0); 1 };
 
     my @err;
 
     return 'Cpanel::JSON::XS' if eval { require Cpanel::JSON::XS; 1; };
     push @err, "Error loading Cpanel::JSON::XS: $@";
 
-    return 'JSON::XS' if eval { require JSON::XS; 1; };
+    return 'JSON::XS' if eval { require JSON::XS; JSON::XS->VERSION(3.0); 1; };
     push @err, "Error loading JSON::XS: $@";
 
     return 'JSON::PP' if eval { require JSON::PP; 1 };
@@ -52,14 +52,18 @@ sub new {
 }
 
 use Scalar::Util ();
+use constant HAVE_BUILTIN => "$]" >= 5.036;
+use if HAVE_BUILTIN, experimental => 'builtin';
 
 sub is_bool {
-  die 'is_bool is not a method' if $_[1];
+  die 'is_bool is not a method' if @_ > 1;
 
-  Scalar::Util::blessed($_[0])
-    and ($_[0]->isa('JSON::XS::Boolean')
+  HAVE_BUILTIN and builtin::is_bool($_[0])
+  or
+  !!Scalar::Util::blessed($_[0])
+    and ($_[0]->isa('JSON::PP::Boolean')
       or $_[0]->isa('Cpanel::JSON::XS::Boolean')
-      or $_[0]->isa('JSON::PP::Boolean'));
+      or $_[0]->isa('JSON::XS::Boolean'));
 }
 
 # (mostly) CopyPasta from JSON.pm version 2.90
@@ -121,7 +125,8 @@ JSON::MaybeXS - Use L<Cpanel::JSON::XS> with a fallback to L<JSON::XS> and L<JSO
 =head1 DESCRIPTION
 
 This module first checks to see if either L<Cpanel::JSON::XS> or
-L<JSON::XS> is already loaded, in which case it uses that module. Otherwise
+L<JSON::XS> (at at least version 3.0)
+is already loaded, in which case it uses that module. Otherwise
 it tries to load L<Cpanel::JSON::XS>, then L<JSON::XS>, then L<JSON::PP>
 in order, and either uses the first module it finds or throws an error.
 
@@ -174,10 +179,29 @@ module, and takes a string of JSON text to deserialise to a perl data structure.
 
   my $data_structure = decode_json($json_text);
 
-=head2 to_json, from_json
+=head2 to_json
 
-See L<JSON> for details.  These are included to support legacy code
-B<only>.
+This function is equivalent to calling C<< JSON()->new->encode($data_structure) >>.
+It takes a perl data structure which is serialised to JSON text without encoding
+it to UTF-8. You should only use this function if you expect another layer to
+handle the UTF-8 encoding of the resulting JSON text.
+
+  my $json_text = to_json($data_structure);
+
+Additional arguments can be passed and will be handled as in L<JSON/to_json>,
+this is included to support legacy code B<only>.
+
+=head2 from_json
+
+This function is equivalent to calling C<< JSON()->new->decode($json_text) >>. It
+takes a string of unencoded JSON text to deserialise to a perl data structure. You
+should only use this function if another layer is already handling the UTF-8
+decoding of the input JSON text.
+
+  my $data_structure = from_json($json_text);
+
+Additional arguments can be passed and will be handled as in L<JSON/from_json>,
+this is included to support legacy code B<only>.
 
 =head2 JSON
 
@@ -204,6 +228,8 @@ and are used to represent JSON C<true> and C<false> values in Perl.
 Since this is a bare sub in the various backend classes, it cannot be called as
 a class method like the other interfaces; it must be called as a function, with
 no invocant.  It supports the representation used in all JSON backends.
+
+Available since version 1.002004.
 
 =head1 CONSTRUCTOR
 

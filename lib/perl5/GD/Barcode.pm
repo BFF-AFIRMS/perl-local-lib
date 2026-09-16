@@ -1,92 +1,79 @@
 package GD::Barcode;
-require Exporter;
+use parent qw(Exporter);
 use strict;
-use vars qw($VERSION @ISA $errStr);
-@ISA = qw(Exporter);
-$VERSION=1.15;
-my @aLoaded = ();
-#------------------------------------------------------------------------------
-# new (for GD::Barcode)
-#------------------------------------------------------------------------------
-sub new($$$;$) {
-        my($sClass, $sType, $sTxt, $rhPrm) = @_;
-        my $oThis = {};
-        unless(grep(/^$sType$/, @aLoaded)) {
-        eval "require 'GD/Barcode/$sType.pm';";
-        if($@) {
-                $errStr = "Can't load $sType : $@";
-                return undef;
-                }
-                push(@aLoaded, $sType);
-        }
-        bless $oThis, "GD::Barcode::$sType";
-        return undef if($errStr = $oThis->init($sTxt, $rhPrm));
-        return $oThis;
+use warnings;
+
+use vars qw( @ISA $errStr);
+use parent qw(Exporter);
+our $VERSION = '2.02';
+
+sub new {
+    my ( $sClass, $sType, $sTxt, $rhPrm ) = @_;
+    my $oThis = {};
+    my $module = "GD::Barcode::$sType";
+    eval "require $module;";
+    if ($@) {
+        $errStr = "Can't load $sType : $@";
+        return;
+    }
+    bless $oThis, $module;
+    return if ( $errStr = $oThis->init( $sTxt, $rhPrm ) );
+    return $oThis;
 }
-#------------------------------------------------------------------------------
-# barPtn (for GD::Barcode)
-#------------------------------------------------------------------------------
+
 sub barPtn {
-    my($bar, $table) = @_;
-    my($sWk, $sRes);
+    my ( $bar, $table ) = @_;
+    my $sRes;
 
     $sRes = '';
-    foreach $sWk (split(//, $bar)) {
-                $sRes .= $table->{$sWk};
+    foreach my $sWk ( split( //, $bar ) ) {
+        $sRes .= $table->{$sWk};
     }
     return $sRes;
 }
-#------------------------------------------------------------------------------
-# dumpCode (for GD::Barcode) for Code39, NW7...
-#------------------------------------------------------------------------------
+
 sub dumpCode {
-    my( $sCode ) = @_;
-    my($sWk, $sRes, $sClr);
+    my ($sCode) = @_;
+    my ( $sRes, $sClr );
 
-#Init
+    #Init
     $sRes = '';
-    $sClr = '1';  # 1: Black, 0:White
+    $sClr = '1';    # 1: Black, 0:White
 
-    foreach $sWk (split(//, $sCode)) {
-                $sRes .= ($sWk eq '1')? $sClr x 3 : $sClr;      #3 times or Normal
-                $sClr = ($sClr eq '0')? '1': '0';
+    foreach my $sWk ( split( //, $sCode ) ) {
+        $sRes .= ( $sWk eq '1' ) ? $sClr x 3 : $sClr;    #3 times or Normal
+        $sClr = ( $sClr eq '0' ) ? '1' : '0';
     }
     return $sRes;
 }
-#------------------------------------------------------------------------------
-# plot (for GD::Barcode)
-#------------------------------------------------------------------------------
-sub plot($$$$$) {
-  my($sBarcode, $iWidth, $iHeight, $fH, $iStart) = @_;
-  #Create Image
-  my ($gdNew, $cWhite, $cBlack);
-  eval {
-    $gdNew = GD::Image->new($iWidth, $iHeight);
-    $cWhite = $gdNew->colorAllocate(255, 255, 255);
-    $cBlack = $gdNew->colorAllocate(  0,   0,   0);
 
-    my $iPos =$iStart;
-    foreach my $cWk (split(//,$sBarcode)) {
-        if($cWk eq '0') {
-            $gdNew->line($iPos, 0, $iPos, $iHeight - $fH, $cWhite);
+sub plot {
+    my ( $sBarcode, $iWidth, $iHeight, $fH, $iStart ) = @_;
+
+    #Create Image
+    my ( $gdNew, $cWhite, $cBlack );
+    eval {
+        $gdNew = GD::Image->new( $iWidth, $iHeight );
+        $cWhite = $gdNew->colorAllocate( 255, 255, 255 );
+        $cBlack = $gdNew->colorAllocate( 0,   0,   0 );
+        $gdNew->filledRectangle( 0, 0, $iWidth, $iHeight, $cWhite );
+
+        my $iPos = $iStart;
+        foreach my $cWk ( split( //, $sBarcode ) ) {
+            if ( $cWk eq '0' ) {
+                $gdNew->line( $iPos, 0, $iPos, $iHeight - $fH, $cWhite );
+            }
+            elsif ( $cWk eq 'G' ) {
+                $gdNew->line( $iPos, 0, $iPos, $iHeight - 2 * ( $fH / 3 ),
+                    $cBlack );
+            }
+            else {    #$cWk eq "1" etc.
+                $gdNew->line( $iPos, 0, $iPos, $iHeight - $fH, $cBlack );
+            }
+            $iPos++;
         }
-        elsif ($cWk eq 'G') {
-            $gdNew->line($iPos, 0, $iPos, $iHeight - 2*($fH/3), $cBlack);
-        }
-        else {                              #$cWk eq "1" etc.
-            $gdNew->line($iPos, 0, $iPos, $iHeight - $fH, $cBlack);
-        }
-        $iPos++;
-    }
-  };
-  return ($gdNew, $cBlack);
-}
-#------------------------------------------------------------------------------
-# Text (for GD::Barcode)
-#------------------------------------------------------------------------------
-sub Text($) {
-        my($oThis) = @_;
-        return $oThis->{text};
+    };
+    return ( $gdNew, $cBlack );
 }
 1;
 __END__
@@ -123,14 +110,14 @@ From 1.14, you can use this module even if no GD (except plot method).
 
 I<$oGdBar> = GD::Barcode::UPCE->new(I<$sType>, I<$sTxt>);
 
-Constructor. 
+Constructor.
 Creates a GD::Barcode::I<$sType> object for I<$sTxt>.
 
 =head2 plot()
 
 I<$oGd> = $oGdBar->plot([Height => I<$iHeight>, NoText => I<0 | 1>]);
 
-creates GD object with barcode image for the I<$sTxt> specified at L<new> method.
+creates GD object with barcode image for the I<$sTxt> specified at L</new> method.
 I<$iHeight> is height of the image. If I<NoText> is 1, the image has no text image of I<$sTxt>.
 
  ex.
@@ -142,7 +129,7 @@ I<$iHeight> is height of the image. If I<NoText> is 1, the image has no text ima
 
 I<$sPtn> = $oGdBar->barcode();
 
-returns a barcode pattern in string with '1' and '0'. 
+returns a barcode pattern in string with '1' and '0'.
 '1' means black, '0' means white.
 
  ex.
@@ -160,7 +147,7 @@ has error message.
 
 $oGdBar->{$text}
 
-has barcode text based on I<$sTxt> specified in L<new> method.
+has barcode text based on I<$sTxt> specified in L</new> method.
 
 =head1 AUTHOR
 
@@ -168,7 +155,7 @@ Kawai Takanori GCD00051@nifty.ne.jp
 
 =head1 COPYRIGHT
 
-The GD::Barocde module is Copyright (c) 2000 Kawai Takanori. Japan.
+The GD::Barcode module is Copyright (c) 2000 Kawai Takanori. Japan.
 All rights reserved.
 
 You may distribute under the terms of either the GNU General Public

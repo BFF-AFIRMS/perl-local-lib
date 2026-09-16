@@ -1,9 +1,9 @@
 package Net::DNS::Text;
 
-#
-# $Id: Text.pm 1726 2018-12-15 12:59:56Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1726 $)[1];
+use strict;
+use warnings;
+
+our $VERSION = (qw$Id: Text.pm 2043 2026-01-14 13:35:59Z willem $)[2];
 
 
 =head1 NAME
@@ -12,16 +12,16 @@ Net::DNS::Text - DNS text representation
 
 =head1 SYNOPSIS
 
-    use Net::DNS::Text;
+	use Net::DNS::Text;
 
-    $object = new Net::DNS::Text('example');
-    $string = $object->string;
+	$object = Net::DNS::Text->new('example');
+	$string = $object->string;
 
-    $object = decode Net::DNS::Text( \$data, $offset );
-    ( $object, $next ) = decode Net::DNS::Text( \$data, $offset );
+	$object = Net::DNS::Text->decode( \$data, $offset );
+	( $object, $next ) = Net::DNS::Text->decode( \$data, $offset );
 
-    $data = $object->encode;
-    $text = $object->value;
+	$data = $object->encode;
+	$text = $object->value;
 
 =head1 DESCRIPTION
 
@@ -34,8 +34,6 @@ lifetime.
 =cut
 
 
-use strict;
-use warnings;
 use integer;
 use Carp;
 
@@ -54,7 +52,7 @@ use constant UTF8 => scalar eval {	## not UTF-EBCDIC  [see Unicode TR#16 3.6]
 
 =head2 new
 
-    $object = new Net::DNS::Text('example');
+	$object = Net::DNS::Text->new('example');
 
 Creates a text object which encapsulates a single character
 string component of a resource record.
@@ -68,23 +66,21 @@ interpretation.
 
 =cut
 
-my ( %escape, %unescape );		## precalculated ASCII escape tables
+my ( %escape, %escapeUTF8, %unescape );	## precalculated escape tables
 
 sub new {
 	my $self = bless [], shift;
-	croak 'argument undefined' unless defined $_[0];
-
 	local $_ = &_encode_utf8;
 
 	s/^\042(.*)\042$/$1/s;					# strip paired quotes
 
-	s/\134\134/\134\060\071\062/g;				# disguise escaped escape
-	s/\134([\060-\071]{3})/$unescape{$1}/eg;		# numeric escape
-	s/\134(.)/$1/g;						# character escape
+	s/\134([\060-\071]{3})/$unescape{$1}/eg;		# restore numeric escapes
+	s/\134([^\134])/$1/g;					# restore character escapes
+	s/\134\134/\134/g;					# restore escaped escapes
 
 	while ( length $_ > 255 ) {
 		my $chunk = substr( $_, 0, 255 );		# carve into chunks
-		substr( $chunk, -length($1) ) = '' if $chunk =~ /.([\300-\377][\200-\277]*)$/;
+		$chunk =~ s/[\300-\377][\200-\277]*$//;
 		push @$self, $chunk;
 		substr( $_, 0, length $chunk ) = '';
 	}
@@ -96,9 +92,9 @@ sub new {
 
 =head2 decode
 
-    $object = decode Net::DNS::Text( \$buffer, $offset );
+	$object = Net::DNS::Text->decode( \$buffer, $offset );
 
-    ( $object, $next ) = decode Net::DNS::Text( \$buffer, $offset );
+	( $object, $next ) = Net::DNS::Text->decode( \$buffer, $offset );
 
 Creates a text object which represents the decoded data at the
 indicated offset within the data buffer.
@@ -133,7 +129,7 @@ sub decode {
 
 =head2 encode
 
-    $data = $object->encode;
+	$data = $object->encode;
 
 Returns the wire-format encoded representation of the text object
 suitable for inclusion in a DNS packet buffer.
@@ -142,13 +138,13 @@ suitable for inclusion in a DNS packet buffer.
 
 sub encode {
 	my $self = shift;
-	join '', map pack( 'C a*', length $_, $_ ), @$self;
+	return join '', map { pack( 'C a*', length $_, $_ ) } @$self;
 }
 
 
 =head2 raw
 
-    $data = $object->raw;
+	$data = $object->raw;
 
 Returns the wire-format encoded representation of the text object
 without the explicit length field.
@@ -157,13 +153,13 @@ without the explicit length field.
 
 sub raw {
 	my $self = shift;
-	join '', map pack( 'a*', $_ ), @$self;
+	return join '', map { pack( 'a*', $_ ) } @$self;
 }
 
 
 =head2 value
 
-    $value = $text->value;
+	$value = $text->value;
 
 Character string representation of the text object.
 
@@ -172,28 +168,41 @@ Character string representation of the text object.
 sub value {
 	return unless defined wantarray;
 	my $self = shift;
-	_decode_utf8( join '', @$self );
+	return _decode_utf8( join '', @$self );
 }
 
 
 =head2 string
 
-    $string = $text->string;
+	$string = $text->string;
 
-Conditionally quoted zone file representation of the text object.
+Conditionally quoted RFC1035 zone file representation of the text object.
 
 =cut
 
 sub string {
 	my $self = shift;
 
-	my @s = map split( '', $_ ), @$self;			# escape special and ASCII non-printable
-	my $string = _decode_utf8( join '', map $escape{$_}, @s );
+	my @s = map { split '', $_ } @$self;			# escape special and ASCII non-printable
+	my $s = _decode_utf8( join '', map { $escape{$_} } @s );
+	return $s =~ /[ \t\n\r\f();]|^$/ ? qq("$s") : $s;	# quote special characters and empty string
+}
 
-	return $string unless $string =~ /[ \t\n\r\f]|^$|;$/;	# unquoted contiguous
 
-	$string =~ s/\\([^"0-9])/$1/g;				# unescape printable characters except \"
-	join '', '"', $string, '"';				# quoted string
+=head2 unicode
+
+	$string = $text->unicode;
+
+Conditionally quoted Unicode representation of the text object.
+
+=cut
+
+sub unicode {
+	my $self = shift;
+
+	my @s = map { split '', $_ } @$self;			# escape special and non-printable
+	my $s = _decode_utf8( join '', map { $escapeUTF8{$_} } @s );
+	return $s =~ /[ \t\n\r\f();]|^$/ ? qq("$s") : $s;	# quote special characters and empty string
 }
 
 
@@ -213,12 +222,13 @@ sub _decode_utf8 {			## UTF-8 to perl internal encoding
 	[ !"#$%&'()*+,\-./0-9:;<=>?@A-Z\[\\\]^_`a-z{|}~?] unless ASCII;
 
 	my $z = length($_) - length($_);			# pre-5.18 taint workaround
-	ASCII ? substr( ( UTF8 ? $utf8 : $ascii )->decode($_), $z ) : $_;
+	return ASCII ? substr( ( UTF8 ? $utf8 : $ascii )->decode($_), $z ) : $_;
 }
 
 
 sub _encode_utf8 {			## perl internal encoding to UTF-8
 	local $_ = shift;
+	croak 'argument undefined' unless defined $_;
 
 	# partial transliteration for non-ASCII character encodings
 	tr
@@ -226,29 +236,28 @@ sub _encode_utf8 {			## perl internal encoding to UTF-8
 	[\040-\176] unless ASCII;
 
 	my $z = length($_) - length($_);			# pre-5.18 taint workaround
-	ASCII ? substr( ( UTF8 ? $utf8 : $ascii )->encode($_), $z ) : $_;
+	return ASCII ? substr( ( UTF8 ? $utf8 : $ascii )->encode($_), $z ) : $_;
 }
 
 
-%escape = eval {			## precalculated ASCII/UTF-8 escape table
-	my @C0 = ( 0 .. 31 );					# control characters
-	my @NA = UTF8 ? ( 192, 193, 216 .. 223, 245 .. 255 ) : ( 128 .. 255 );
+%escape = eval {			## precalculated ASCII escape table
+	my %table = map { ( chr($_) => chr($_) ) } ( 0 .. 127 );
 
-	my %table = (						# transparent,	    \" \( \) \; \\
-		map( ( $_ => $_ ), map pack( 'C', $_ ), ( 0 .. 255 ) ),
-		map( ( pack( 'C', $_ ) => pack( 'C2', 92, $_ ) ), ( 34, 40, 41, 59, 92 ) ),
-		);
-
-	foreach my $n ( @C0, 92, 127, @NA ) {			# numerical escape
+	foreach my $n ( 0 .. 31, 34, 92, 127 .. 255 ) {		# numerical escape
 		my $codepoint = sprintf( '%03u', $n );
 
 		# transliteration for non-ASCII character encodings
 		$codepoint =~ tr [0-9] [\060-\071];
 
-		$table{pack( 'C', $n )} = pack 'C a3', 92, $codepoint;
+		$table{chr($n)} = pack 'C a3', 92, $codepoint;
 	}
 
 	return %table;
+};
+
+%escapeUTF8 = eval {			## precalculated UTF-8 escape table
+	my @octet = UTF8 ? ( 128 .. 191, 194 .. 254 ) : ();
+	return ( %escape, map { ( chr($_) => chr($_) ) } @octet );
 };
 
 
@@ -296,7 +305,7 @@ All rights reserved.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -313,7 +322,9 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, RFC1035, RFC3629, Unicode TR#16
+L<perl> L<Net::DNS>
+L<RFC1035|https://iana.org/go/rfc1035>
+L<RFC3629|https://iana.org/go/rfc3629>
 
 =cut
 

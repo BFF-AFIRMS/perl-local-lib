@@ -23,7 +23,7 @@ MojoX::MIME::Types - MIME Types for Mojolicious
 
 =head1 DESCRIPTION
 
-[Added to MIME::Types 2.07]
+[Added to L<MIME::Types|MIME::Types> 2.07]
 This module is a drop-in replacement for Mojolicious::Types, but
 with a more correct handling plus a complete list of types... a huge
 list of types.
@@ -41,10 +41,10 @@ Mojolicious and the differences you get.
 
 =over 4
 
-=item MojoX::MIME::Types-E<gt>B<new>(%options)
+=item $class-E<gt>B<new>(%options)
 
 Create the 'type' handler for Mojolicious.  When you do not specify your
-own MIME::Type object ($mime_type), it will be instantanted for you.
+own L<MIME::Type|MIME::Type> object (C<mime_types>), it will be instantanted for you.
 You create one yourself when you would like to pass some parameter to
 the object constructor.
 
@@ -65,7 +65,7 @@ Ignored.
 
 =back
 
-example: 
+» example: 
 
   $app->types(MojoX::MIME::Types->new);
 
@@ -80,11 +80,7 @@ example:
 
 =over 4
 
-=item $obj-E<gt>B<mimeTypes>()
-
-Returns the internal mime types object.
-
-=item $obj-E<gt>B<types>( [\%table] )
+=item $obj-E<gt>B<mapping>( [\%table] )
 
 In Mojolicious::Types, this attribute exposes the internal
 administration of types, offering to change it with using a clean
@@ -94,15 +90,26 @@ complex internals.
 B<Avoid this method!>  The returned HASH is expensive to construct,
 changes passed via C<%table> are ignored: L<MIME::Types|MIME::Types> is very complete!
 
+=item $obj-E<gt>B<mimeTypes>()
+
+Returns the internal mime types object.
+
 =back
 
 =head2 Actions
 
 =over 4
 
+=item $obj-E<gt>B<content_type>($controller, \%options)
+
+Set a content type on the controller when not yet set.
+The C<%options> contains C<ext> or C<file> specify an file extension or file
+name which is used to derive the content type.
+Added and marked EXPERIMENTAL in Mojo 7.94.
+
 =item $obj-E<gt>B<detect>( $accept, [$prio] )
 
-Returns a list of filename extensions.  The $accept header in HTTP can
+Returns a list of filename extensions.  The C<$accept> header in HTTP can
 contain multiple types, with a priority indication ('q' attributes).
 The returned list contains a list with extensions, the extensions related
 to the highest priority type first.  The C<$prio>-flag is ignored.
@@ -113,17 +120,22 @@ the "Accept" may contain wildcards ('*') in types for globbing, which
 does not produce extensions.  Better use L<MIME::Types::httpAcceptBest()|MIME::Types/"HTTP support">
 or L<MIME::Types::httpAcceptSelect()|MIME::Types/"HTTP support">.
 
-example: 
+» example: 
 
   my $exts = $types->detect('application/json;q=9');
   my $exts = $types->detect('text/html, application/json;q=9');
 
+=item $obj-E<gt>B<file_type>($filename)
+
+Return the mime type for a filename.
+Added and marked EXPERIMENTAL in Mojo 7.94.
+
 =item $obj-E<gt>B<type>( $ext, [$type|\@types] )
 
-Returns the first type name for an extension $ext, unless you specify
+Returns the first type name for an extension C<$ext>, unless you specify
 type names.
 
-When a single $type or an ARRAY of @types are specified, the C<$self>
+When a single C<$type> or an ARRAY of C<@types> are specified, the current
 object is returned.  Nothing is done with the provided info.
 
 =back
@@ -151,7 +163,7 @@ Start your Mojo application like this:
   }
 
 If you have special options for L<MIME::Types::new()|MIME::Types/"Constructors">, then create
-your own MIME::Types object first:
+your own L<MIME::Types|MIME::Types> object first:
 
   my $mt    = MIME::Types->new(%opts);
   my $types = MojoX::MIME::Types->new(mime_types => $mt);
@@ -179,7 +191,7 @@ There are a few major difference with Mojolicious::Types:
 =item *
 
 the tables maintained by L<MIME::Types|MIME::Types> are complete.  So: there shouldn't
-be a need to add your own types, not via L<types()|MojoX::MIME::Types/"Attributes">, not via L<type()|MojoX::MIME::Types/"Actions">.
+be a need to add your own types, not via C<types()>, not via C<type()>.
 All attempts to add types are ignored; better remove them from your code.
 
 =item *
@@ -202,14 +214,15 @@ L<MIME::Types::httpAcceptSelect()|MIME::Types/"HTTP support"> to replace this br
 
 =head1 SEE ALSO
 
-This module is part of MIME-Types distribution version 2.17,
-built on January 26, 2018. Website: F<http://perl.overmeer.net/CPAN/>
+This module is part of MIME-Types version 2.30,
+built on December 08, 2025. Website: F<http://perl.overmeer.net/CPAN/>
 
 =head1 LICENSE
 
-Copyrights 1999-2018 by [Mark Overmeer <markov@cpan.org>]. For other contributors see ChangeLog.
+For contributors see file ChangeLog.
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
-See F<http://dev.perl.org/licenses/>
+This software is copyright (c) 1999-2025 by Mark Overmeer.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 

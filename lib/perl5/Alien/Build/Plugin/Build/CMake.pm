@@ -2,13 +2,13 @@ package Alien::Build::Plugin::Build::CMake;
 
 use strict;
 use warnings;
-use 5.008001;
+use 5.008004;
 use Config;
 use Alien::Build::Plugin;
 use Capture::Tiny qw( capture );
 
 # ABSTRACT: CMake plugin for Alien::Build
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
 sub cmake_generator
@@ -16,7 +16,7 @@ sub cmake_generator
   if($^O eq 'MSWin32')
   {
     return 'MinGW Makefiles' if is_dmake();
-  
+
     {
       my($out, $err) = capture { system $Config{make}, '/?' };
       return 'NMake Makefiles' if $out =~ /NMAKE/;
@@ -38,9 +38,9 @@ sub cmake_generator
 sub init
 {
   my($self, $meta) = @_;
-  
+
   $meta->prop->{destdir} = $^O eq 'MSWin32' ? 0 : 1;
-  
+
   $meta->add_requires('configure' => 'Alien::Build::Plugin::Build::CMake' => '0.99');
   $meta->add_requires('share'     => 'Alien::cmake3' => '0.02');
 
@@ -74,7 +74,7 @@ sub init
   $meta->interpolator->add_helper('cmake_generator' => \&cmake_generator);
 
   my @args = (
-    -G => '%{cmake_generator}', 
+    -G => '%{cmake_generator}',
     '-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true',
     '-DCMAKE_INSTALL_PREFIX:PATH=%{.install.prefix}',
     '-DCMAKE_INSTALL_LIBDIR:PATH=lib',
@@ -128,7 +128,7 @@ Alien::Build::Plugin::Build::CMake - CMake plugin for Alien::Build
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 SYNOPSIS
 
@@ -214,7 +214,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -248,7 +248,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -264,9 +264,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

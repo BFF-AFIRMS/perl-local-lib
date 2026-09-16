@@ -83,8 +83,8 @@ foreach my $key (sort keys %$map) {
 
     next if $skip{$name};
 
-    my $privPath = "$Config::Config{privlibexp}/$key";
-    my $archPath = "$Config::Config{archlibexp}/$key";
+    my $privPath = "$Config{privlibexp}/$key";
+    my $archPath = "$Config{archlibexp}/$key";
     $privPath =~ s|\\|\/|og;
     $archPath =~ s|\\|\/|og;
     if ($mod->{file} eq $privPath
@@ -114,13 +114,13 @@ foreach my $mod (sort { $a->{name} cmp $b->{name} } @todo ) {
         printf "%-${len}s => '$version',", "'$mod->{name}'" if $version;
     } else {
         printf "%-${len}s => '0', # ", "'$mod->{name}'";
-        my @base = map(_name($_), @{$mod->{used_by}});
+        my @used_by = sort map(_name($_), @{$mod->{used_by}});
         print $seen{$mod->{name}} ? 'S' : ' ';
         print $bin{$mod->{name}}  ? 'X' : ' ';
         print $core{$mod->{name}} ? 'C' : ' ';
         print _modtree && !_modtree->{$mod->{name}} ? '?' : ' ';
         print " # ";
-        print "@base" if @base;
+        print "@used_by" if @used_by;
     }
     print "\n";
 
@@ -204,8 +204,8 @@ You may use B<--xargs> to specify C<@ARGV> when executing the code.
 
 =item B<--xargs>=I<STRING>
 
-If B<-x> is given, splits the C<STRING> using the function 
-C<shellwords> from L<Text::ParseWords> and passes the result 
+If B<-x> is given, splits the C<STRING> using the function
+C<shellwords> from L<Text::ParseWords> and passes the result
 as C<@ARGV> when executing the code.
 
 =item B<-B>, B<--bundle>
@@ -218,7 +218,7 @@ Only show dependencies found in the files listed and do not recurse.
 
 =item B<-V>, B<--verbose>
 
-Verbose mode: Output all files found during the process; 
+Verbose mode: Output all files found during the process;
 show dependencies between modules and availability.
 
 Additionally, warns of any missing dependencies. If you find missing

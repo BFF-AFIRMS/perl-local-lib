@@ -22,7 +22,7 @@ use Carp          ();
 use Params::Util  qw{_STRING _INSTANCE};
 use PPI::Document ();
 
-our $VERSION = '1.264'; # VERSION
+our $VERSION = '1.291';
 
 our @ISA = 'PPI::Document';
 

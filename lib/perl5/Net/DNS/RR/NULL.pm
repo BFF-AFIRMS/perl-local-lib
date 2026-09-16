@@ -1,14 +1,11 @@
 package Net::DNS::RR::NULL;
 
-#
-# $Id: NULL.pm 1528 2017-01-18 21:44:58Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1528 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: NULL.pm 2002 2025-01-07 09:57:46Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -23,8 +20,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name NULL \# length hexdata ...');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name NULL \# length hexdata ...');
 
 =head1 DESCRIPTION
 
@@ -42,14 +39,14 @@ other unpredictable behaviour.
 
 =head2 rdlength
 
-    $rdlength = $rr->rdlength;
+	$rdlength = $rr->rdlength;
 
 Returns the length of the record data section.
 
 =head2 rdata
 
-    $rdata = $rr->rdata;
-    $rr->rdata( $rdata );
+	$rdata = $rr->rdata;
+	$rr->rdata( $rdata );
 
 Returns the record data section as binary data.
 
@@ -67,7 +64,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -84,6 +81,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1035 Section 3.3.10
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1035(3.3.10)|https://iana.org/go/rfc1035#section-3.3.10>
 
 =cut

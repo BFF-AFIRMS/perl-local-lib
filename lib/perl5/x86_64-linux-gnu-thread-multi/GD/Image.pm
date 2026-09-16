@@ -5,7 +5,7 @@ use strict;
 use GD;
 use Symbol 'gensym','qualify_to_ref';
 use vars '$VERSION';
-$VERSION = '2.71';
+$VERSION = '2.91';
 
 =head1 NAME
 
@@ -16,6 +16,49 @@ GD::Image - Image class for the GD image library
 See L<GD>
 
 =head1 DESCRIPTION
+
+Supported Image formats, also returned by C<supported()>,
+as lowercase strings.
+
+=over 4
+
+=item Png
+
+=item Gif
+
+=item Jpeg
+
+=item Tiff
+
+=item Xbm
+
+=item WBMP
+
+=item BMP
+
+=item GifAnim
+
+=item Webp
+
+=item Heif
+
+=item Avif
+
+=back
+
+Unsupported Image formats:
+
+=over 4
+
+=item Gd
+
+=item Gd2
+
+=item Xpm
+
+=item Jxl
+
+=back
 
 See L<GD>
 
@@ -52,15 +95,18 @@ sub _make_filehandle {
 
   # otherwise try qualifying it into caller's package
   my $fh;
-  {   
+  {
     local $^W = 0;  # to avoid uninitialized variable warning from Symbol.pm
-    $fh = qualify_to_ref($thing,caller(2));
+    my $pkg = caller(2);
+    $pkg = "main" unless defined $pkg;;
+    $fh = qualify_to_ref($thing,$pkg);
   }
   return $fh if defined(fileno $fh);
 
-  # otherwise treat it as a file to open
+  # otherwise treat it as a file to open; 3-arg open so the filename is
+  # not interpreted as a command or redirect
   $fh = gensym;
-  if (!open($fh,$thing)) {
+  if (!open($fh,'<',$thing)) {
     die "$thing not found: $!";
     return undef;
   }
@@ -74,14 +120,41 @@ sub new {
       my $method = "newFrom${type}Data";
       return unless $pack->can($method);
       return $pack->$method($_[0]);
+    } elsif (-f $_[0] and $_[0] =~ /\.gd$/) {
+      my $type = 'Gd';
+      return unless my $fh = $pack->_make_filehandle($_[0]);
+      my $method = "newFrom${type}";
+      return unless $pack->can($method);
+      return $pack->$method($fh);
+    } elsif (-f $_[0] and $_[0] =~ /\.gd2$/) {
+      my $type = 'Gd2';
+      return unless my $fh = $pack->_make_filehandle($_[0]);
+      my $method = "newFrom${type}";
+      return unless $pack->can($method);
+      return $pack->$method($fh);
+    } elsif (-f $_[0] and $_[0] =~ /\.wbmp$/) {
+      my $type = 'WBMP';
+      return unless my $fh = $pack->_make_filehandle($_[0]);
+      my $method = "newFrom${type}";
+      return unless $pack->can($method);
+      return $pack->$method($fh);
+    } elsif (-f $_[0] and $_[0] =~ /\.xpm$/) {
+      my $type = 'Xpm';
+      my $method = "newFrom${type}";
+      return unless $pack->can($method);
+      return $pack->$method($_[0]);
     }
     return unless my $fh = $pack->_make_filehandle($_[0]);
     my $magic;
-    return unless read($fh,$magic,4);
+    return unless read($fh,$magic,64);
     return unless my $type = _image_type($magic);
     seek($fh,0,0);
     my $method = "newFrom${type}";
-    return $pack->$method($fh);
+    if ($type eq 'Xpm') {
+      return $pack->$method($_[0]);
+    } else {
+      return $pack->$method($fh);
+    }
   }
   return $pack->_new(@_);
 }
@@ -94,30 +167,6 @@ sub newTrueColor {
 sub newPalette {
   my $pack = shift;
   return $pack->_new(@_, 0);
-}
-
-sub newFromGd {
-    croak("Usage: newFromGd(class,filehandle)") unless @_==2;
-    my($class,$f) = @_;
-    my $fh = $class->_make_filehandle($f);
-    binmode($fh);
-    $class->_newFromGd($fh);
-}
-
-sub newFromGd2 {
-    croak("Usage: newFromGd2(class,filehandle)") unless @_==2;
-    my($class,$f) = @_;
-    my $fh = $class->_make_filehandle($f);
-    binmode($fh);
-    $class->_newFromGd2($fh);
-}
-
-sub newFromGd2Part {
-    croak("Usage: newFromGd2(class,filehandle,srcX,srcY,width,height)") unless @_==6;
-    my($class,$f) = splice(@_,0,2);
-    my $fh = $class->_make_filehandle($f);
-    binmode($fh);
-    $class->_newFromGd2Part($fh,@_);
 }
 
 sub ellipse ($$$$$) {
@@ -154,7 +203,41 @@ sub _image_type {
     ord(substr($data,3,1)) >= 0xc0);
   return 'Gif'  if $magic eq "GIF8";
   return 'Gd2'  if $magic eq "gd2\000";
+  return 'Tiff' if $magic eq "\x4d\x4d\x00\x2a" or
+    $magic eq "\x49\x49\x2a\x00" or
+    $magic eq "IIN1";
+  return 'Bmp' if $magic eq "BMF\000";
+  return 'Webp' if $magic eq "RIFF" and substr($data,8,4) eq "WEBP";
+  return 'Jxl'  if substr($data,0,2) eq "\xFF\x0A"; # naked JPEG XL codestream
+  return 'Jxl'  if substr($data,0,12) eq "\x00\x00\x00\x0CJXL \x0D\x0A\x87\x0A"; # ISOBMFF JPEG XL container
+  if (substr($data,4,4) eq "ftyp") { #possibly ISOBMFF-compliant container like HEIF which us used for AVIF and HEIC
+    #first 4 bytes (they are now in $magic) must contain 32-bit Big Endian size of the 'ftyp' box (including size field and 'ftyp' mark)
+    my $boxsize = unpack("N", $magic);
+    if($boxsize>=16 && ($boxsize & 0x3)==0) { #minimum size of 'ftyp' box is 16 bytes and it must be multiple of 4
+      #Structure of 'ftyp' box (from offset 8):
+      #  uint32 major_brand;
+      #  uint32 minor_version;
+      #  uint32 compatible_brands[]; to end of the box
+      my $brand = substr($data,8,4); #major_brand
+      my %compat;
+      if($boxsize>16) { #compatible_brands list is not empty
+        %compat = map {$_=>1} unpack("(A4)*", substr($data,16,$boxsize-16));
+      }
+      return 'Avif' if $brand eq 'avif' || $compat{'avif'};
+        #Consider recognizing 'avis' brand meaning AV1 image sequence
+
+      return 'Heif' if $brand eq 'mif1' || $brand eq 'heic' || $brand eq 'heix' || $compat{'heic'} || $compat{'heix'} || $compat{'mif1'};
+        #'mif1' stands for 'Multiple Image Format' and is general for the HEIF image container with any codec
+        #'heic' indicates that HEVC Main Profile is utilized
+        #'heix' indicates that HEVC Main 10 profile is utilized
+        #Consider recognizing:
+        #  'msf1' brand meaning 'Multiple Sequence Format' for general image sequence in HEIF
+        #  'hevc' brand for HEVC Main Profile sequence
+        #  'hevx' brand for HEVC Main 10 Profile sequence
+    }
+  }
   return 'Xpm'  if substr($data,0,9) eq "/* XPM */";
+  return 'Xbm'  if substr($data,0,8) eq "#define ";
   return;
 }
 
@@ -162,8 +245,12 @@ sub _image_type {
 sub clone {
   croak("Usage: clone(\$image)") unless @_ == 1;
   my $self = shift;
+  # Prefer the native gdImageClone() (libgd >= 2.4.0); the manual
+  # new()+copy() fallback below explicitly preserves the source
+  # image's truecolor-ness too, matching gdImageClone()'s behavior.
+  return $self->cloneImage if $self->can('cloneImage');
   my ($x,$y) = $self->getBounds;
-  my $new = $self->new($x,$y);
+  my $new = $self->new($x,$y,$self->isTrueColor);
   return unless $new;
   $new->copy($self,0,0,0,0,$x,$y);
   return $new;
@@ -188,7 +275,7 @@ sub newFromJpeg {
 }
 
 sub newFromGif {
-    croak("Usage: newFromGif(class,filehandle,[truecolor])") unless @_>=2;
+    croak("Usage: newFromGif(class,filehandle)") unless @_==2;
     my($class) = shift;
     my($f)     = shift;
     my $fh = $class->_make_filehandle($f);
@@ -196,13 +283,79 @@ sub newFromGif {
     $class->_newFromGif($fh,@_);
 }
 
+sub newFromTiff {
+    croak("Usage: newFromTiff(class,filehandle)") unless @_==2;
+    my($class,$f) = @_;
+    my $fh = $class->_make_filehandle($f);
+    binmode($fh);
+    $class->_newFromTiff($fh);
+}
+
+sub newFromXbm {
+    croak("Usage: newFromXbm(class,filehandle)") unless @_==2;
+    my($class,$f) = @_;
+    my $fh = $class->_make_filehandle($f);
+    binmode($fh);
+    $class->_newFromXbm($fh);
+}
+
+sub newFromWebp {
+    croak("Usage: newFromWebp(class,filehandle)") unless @_==2;
+    my($class,$f) = @_;
+    my $fh = $class->_make_filehandle($f);
+    binmode($fh);
+    $class->_newFromWebp($fh);
+}
+
+sub newFromHeif {
+    croak("Usage: newFromHeif(class,filehandle)") unless @_==2;
+    my($class,$f) = @_;
+    my $fh = $class->_make_filehandle($f);
+    binmode($fh);
+    $class->_newFromHeif($fh);
+}
+
+sub newFromAvif {
+    croak("Usage: newFromAvif(class,filehandle)") unless @_==2;
+    my($class,$f) = @_;
+    my $fh = $class->_make_filehandle($f);
+    binmode($fh);
+    $class->_newFromAvif($fh);
+}
+
 sub newFromWBMP {
-    croak("Usage: newFromWBMP(class,filehandle,[truecolor])") unless @_>=2;
+    croak("Usage: newFromWBMP(class,filehandle)") unless @_==2;
     my($class) = shift;
     my($f)     = shift;
     my $fh = $class->_make_filehandle($f);
     binmode($fh);
     $class->_newFromWBMP($fh,@_);
+}
+
+sub newFromBmp {
+    croak("Usage: newFromBmp(class,filehandle)") unless @_==2;
+    my($class) = shift;
+    my($f)     = shift;
+    my $fh = $class->_make_filehandle($f);
+    binmode($fh);
+    $class->_newFromBmp($fh,@_);
+}
+
+# dynamically generated from your libgd features
+sub supported {
+    return qw(
+	png
+	gif
+	jpeg
+	tiff
+	xbm
+	wbmp
+	bmp
+	gifanim
+	webp
+	heif
+	avif
+      );
 }
 
 # Autoload methods go after __END__, and are processed by the autosplit program.

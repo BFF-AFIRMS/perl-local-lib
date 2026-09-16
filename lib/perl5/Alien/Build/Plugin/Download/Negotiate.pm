@@ -2,13 +2,13 @@ package Alien::Build::Plugin::Download::Negotiate;
 
 use strict;
 use warnings;
+use 5.008004;
 use Alien::Build::Plugin;
-use Module::Load ();
 use Alien::Build::Util qw( _has_ssl );
 use Carp ();
 
 # ABSTRACT: Download negotiation plugin
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
 has '+url' => undef;
@@ -48,6 +48,20 @@ sub pick
   ($fetch, @decoders);
 }
 
+sub _pick_decoder
+{
+  my($self) = @_;
+
+  if(eval { require Mojo::DOM58; Mojo::DOM58->VERSION(1.00); 1 })
+  { return "Decode::Mojo" }
+  elsif(eval { require Mojo::DOM; require Mojolicious; Mojolicious->VERSION('7.00'); 1 })
+  { return "Decode::Mojo" }
+  elsif(eval { require HTML::LinkExtor; 1; })
+  { return "Decode::HTML" }
+  else
+  { return "Decode::Mojo" }
+}
+
 sub _pick
 {
   my($self) = @_;
@@ -62,32 +76,32 @@ sub _pick
   {
     if($self->bootstrap_ssl && ! _has_ssl)
     {
-      return (['Fetch::CurlCommand','Fetch::Wget'], 'Decode::HTML');
+      return (['Fetch::CurlCommand','Fetch::Wget'], __PACKAGE__->_pick_decoder);
     }
     elsif(_has_ssl)
     {
-      return ('Fetch::HTTPTiny', 'Decode::HTML');
+      return ('Fetch::HTTPTiny', __PACKAGE__->_pick_decoder);
     }
-    elsif(do { require Alien::Build::Plugin::Fetch::CurlCommand; Alien::Build::Plugin::Fetch::CurlCommand->protocol_ok('https') })
-    {
-      return ('Fetch::CurlCommand', 'Decode::HTML');
-    }
+    #elsif(do { require Alien::Build::Plugin::Fetch::CurlCommand; Alien::Build::Plugin::Fetch::CurlCommand->protocol_ok('https') })
+    #{
+    #  return ('Fetch::CurlCommand', __PACKAGE__->_pick_decoder);
+    #}
     else
     {
-      return ('Fetch::HTTPTiny', 'Decode::HTML');
+      return ('Fetch::HTTPTiny', __PACKAGE__->_pick_decoder);
     }
   }
   elsif($self->scheme eq 'http')
   {
-    return ('Fetch::HTTPTiny', 'Decode::HTML');
+    return ('Fetch::HTTPTiny', __PACKAGE__->_pick_decoder);
   }
   elsif($self->scheme eq 'ftp')
   {
     if($ENV{ftp_proxy} || $ENV{all_proxy})
     {
       return $self->scheme =~ /^ftps?/
-        ? ('Fetch::LWP', 'Decode::DirListing', 'Decode::HTML')
-        : ('Fetch::LWP', 'Decode::HTML');
+        ? ('Fetch::LWP', 'Decode::DirListing', __PACKAGE__->_pick_decoder)
+        : ('Fetch::LWP', __PACKAGE__->_pick_decoder);
     }
     else
     {
@@ -118,6 +132,17 @@ sub init
     {
       Carp::croak "url is a required property unless you use the start_url directive";
     }
+  }
+
+  if($self->url =~ /^http.*github.com.*releases$/)
+  {
+    Alien::Build->log('!! WARNING !! WARNING !!');
+    Alien::Build->log('!! WARNING !! It looks like this alien is using the regular download negotiator');
+    Alien::Build->log('plugin on a GitHub release page.  This will typically not work due to changes');
+    Alien::Build->log('in the way GitHub release page works now.  The Alien should instead be updated');
+    Alien::Build->log('to use the Download::GitHub plugin, which uses the GitHub API to find available');
+    Alien::Build->log('releases.  See: https://metacpan.org/pod/Alien::Build::Plugin::Download::GitHub');
+    Alien::Build->log('!! WARNING !! WARNING !!');
   }
 
   $meta->add_requires('share' => 'Alien::Build::Plugin::Download::Negotiate' => '0.61')
@@ -181,7 +206,7 @@ Alien::Build::Plugin::Download::Negotiate - Download negotiation plugin
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 SYNOPSIS
 
@@ -189,7 +214,7 @@ version 1.69
  share {
    start_url 'http://ftp.gnu.org/gnu/make';
    plugin 'Download' => (
-     filter => qr/^make-.*\.tar.\gz$/,
+     filter => qr/^make-.*\.tar\.gz$/,
      version => qr/([0-9\.]+)/,
    );
  };
@@ -289,6 +314,8 @@ Returns the fetch plugin and any optional decoders that should be used.
 
 =head1 SEE ALSO
 
+L<Alien::Build::Plugin::Prefer::BadVersion>, L<Alien::Build::Plugin::Prefer::GoodVersion>
+
 L<Alien::Build>, L<alienfile>, L<Alien::Build::MM>, L<Alien>
 
 =head1 AUTHOR
@@ -299,7 +326,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -333,7 +360,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -349,9 +376,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

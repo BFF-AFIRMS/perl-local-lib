@@ -3,9 +3,9 @@ package HTTP::Request;
 use strict;
 use warnings;
 
-our $VERSION = '6.18';
+our $VERSION = '7.04';
 
-use base 'HTTP::Message';
+use parent 'HTTP::Message';
 
 sub new
 {
@@ -92,7 +92,17 @@ sub uri
 sub uri_canonical
 {
     my $self = shift;
-    return $self->{'_uri_canonical'} ||= $self->{'_uri'}->canonical;
+
+    my $uri = $self->{_uri};
+
+    if (defined (my $canon = $self->{_uri_canonical})) {
+        # early bailout if these are the exact same string;
+        # rely on stringification of the URI objects
+        return $canon if $canon eq $uri;
+    }
+
+    # otherwise we need to refresh the memoized value
+    $self->{_uri_canonical} = $uri->canonical;
 }
 
 
@@ -108,20 +118,21 @@ sub as_string
     my($eol) = @_;
     $eol = "\n" unless defined $eol;
 
-    my $req_line = $self->method || "-";
+    # method must be at least one char, matching ^[a-zA-Z0-9!#$%&'*+.^_`|~-]+$
+    my $req_line = (defined $self->method && length $self->method) ? $self->method : "-";
     my $uri = $self->uri;
     $uri = (defined $uri) ? $uri->as_string : "-";
     $req_line .= " $uri";
     my $proto = $self->protocol;
     $req_line .= " $proto" if $proto;
 
-    return join($eol, $req_line, $self->SUPER::as_string(@_));
+    return join($eol, $req_line, $self->SUPER::as_string($eol));
 }
 
 sub dump
 {
     my $self = shift;
-    my @pre = ($self->method || "-", $self->uri || "-");
+    my @pre = ((defined $self->method && length $self->method) ? $self->method : "-", (defined $self->uri) ? $self->uri : "-");
     if (my $prot = $self->protocol) {
 	push(@pre, $prot);
     }
@@ -145,7 +156,7 @@ HTTP::Request - HTTP style request message
 
 =head1 VERSION
 
-version 6.18
+version 7.04
 
 =head1 SYNOPSIS
 
@@ -192,7 +203,8 @@ This constructs a new request object by parsing the given string.
 =item $r->method( $val )
 
 This is used to get/set the method attribute.  The method should be a
-short string like "GET", "HEAD", "PUT", "PATCH" or "POST".
+short string like "DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST",
+"PUT" or "QUERY".
 
 =item $r->uri
 
@@ -251,14 +263,13 @@ to an endpoint.
     use strict;
     use warnings;
 
-    use Encode qw(encode_utf8);
     use HTTP::Request ();
     use JSON::MaybeXS qw(encode_json);
 
     my $url = 'https://www.example.com/api/user/123';
     my $header = ['Content-Type' => 'application/json; charset=UTF-8'];
     my $data = {foo => 'bar', baz => 'quux'};
-    my $encoded_data = encode_utf8(encode_json($data));
+    my $encoded_data = encode_json($data);
 
     my $r = HTTP::Request->new('POST', $url, $header, $encoded_data);
     # at this point, we could send it via LWP::UserAgent
@@ -276,7 +287,6 @@ C<add_part> method from L<HTTP::Message> makes this simple.
     use strict;
     use warnings;
 
-    use Encode qw(encode_utf8);
     use HTTP::Request ();
     use JSON::MaybeXS qw(encode_json);
 
@@ -317,7 +327,7 @@ C<add_part> method from L<HTTP::Message> makes this simple.
     sub build_json_request {
         my ($url, $href) = @_;
         my $header = ['Authorization' => "Bearer $auth_token", 'Content-Type' => 'application/json; charset=UTF-8'];
-        return HTTP::Request->new('POST', $url, $header, encode_utf8(encode_json($href)));
+        return HTTP::Request->new('POST', $url, $header, encode_json($href));
     }
 
 =head1 SEE ALSO
@@ -331,7 +341,7 @@ Gisle Aas <gisle@activestate.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 1994-2017 by Gisle Aas.
+This software is copyright (c) 1994 by Gisle Aas.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

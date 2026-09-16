@@ -3,7 +3,7 @@ package Specio::PartialDump;
 use strict;
 use warnings;
 
-our $VERSION = '0.43';
+our $VERSION = '0.53';
 
 use Scalar::Util qw( looks_like_number reftype blessed );
 
@@ -50,7 +50,7 @@ sub _dump_as_pairs {
     my $truncated;
     if ( defined $MaxElements and ( @what / 2 ) > $MaxElements ) {
         $truncated = 1;
-        @what = splice( @what, 0, $MaxElements * 2 );
+        @what      = splice( @what, 0, $MaxElements * 2 );
     }
 
     return join(
@@ -78,7 +78,7 @@ sub _dump_as_list {
     my $truncated;
     if ( @what > $MaxElements ) {
         $truncated = 1;
-        @what = splice( @what, 0, $MaxElements );
+        @what      = splice( @what, 0, $MaxElements );
     }
 
     return join(
@@ -104,7 +104,7 @@ sub _format {
             : _format_string( $depth, $value )
         )
         )
-        : _format_undef( $depth, $value ),
+        : _format_undef( $depth, $value ),;
 }
 
 sub _format_key {
@@ -213,7 +213,7 @@ Specio::PartialDump - A partially rear-ended copy of Devel::PartialDump without 
 
 =head1 VERSION
 
-version 0.43
+version 0.53
 
 =head1 SYNOPSIS
 
@@ -237,18 +237,9 @@ stringified in a sane way.
 
 =for Pod::Coverage partial_dump
 
-=head1 COPYRIGHT AND LICENSE
-
-This software is copyright (c) 2008 by יובל קוג'מן (Yuval Kogman).
-
-This is free software; you can redistribute it and/or modify it under
-the same terms as the Perl 5 programming language system itself.
-
 =head1 SUPPORT
 
 Bugs may be submitted at L<https://github.com/houseabsolute/Specio/issues>.
-
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
 
 =head1 SOURCE
 
@@ -260,13 +251,9 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2012 - 2018 by Dave Rolsky.
+This software is copyright (c) 2008 by יובל קוג'מן (Yuval Kogman).
 
-This is free software, licensed under:
-
-  The Artistic License 2.0 (GPL Compatible)
-
-The full text of the license can be found in the
-F<LICENSE> file included with this distribution.
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut

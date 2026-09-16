@@ -1,14 +1,11 @@
 package Net::DNS::RR::NSEC3PARAM;
 
-#
-# $Id: NSEC3PARAM.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: NSEC3PARAM.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,18 +13,17 @@ Net::DNS::RR::NSEC3PARAM - DNS NSEC3PARAM resource record
 
 =cut
 
-
 use integer;
 
 use Carp;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	my $size = unpack "\@$offset x4 C", $$data;
 	@{$self}{qw(algorithm flags iterations saltbin)} = unpack "\@$offset CCnx a$size", $$data;
+	return;
 }
 
 
@@ -35,70 +31,68 @@ sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
 	my $salt = $self->saltbin;
-	pack 'CCnCa*', @{$self}{qw(algorithm flags iterations)}, length($salt), $salt;
+	return pack 'CCnCa*', @{$self}{qw(algorithm flags iterations)}, length($salt), $salt;
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	join ' ', $self->algorithm, $self->flags, $self->iterations, $self->salt || '-';
+	return join ' ', $self->algorithm, $self->flags, $self->iterations, $self->salt || '-';
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->algorithm(shift);
-	$self->flags(shift);
-	$self->iterations(shift);
-	my $salt = shift;
+	for (qw(algorithm flags iterations)) { $self->$_( shift @argument ) }
+	my $salt = shift @argument;
 	$self->salt($salt) unless $salt eq '-';
+	return;
 }
 
 
 sub algorithm {
-	my $self = shift;
-
-	$self->{algorithm} = 0 + shift if scalar @_;
-	$self->{algorithm} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{algorithm} = 0 + $_ }
+	return $self->{algorithm} || 0;
 }
 
 
 sub flags {
-	my $self = shift;
-
-	$self->{flags} = 0 + shift if scalar @_;
-	$self->{flags} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{flags} = 0 + $_ }
+	return $self->{flags} || 0;
 }
 
 
 sub iterations {
-	my $self = shift;
-
-	$self->{iterations} = 0 + shift if scalar @_;
-	$self->{iterations} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{iterations} = 0 + $_ }
+	return $self->{iterations} || 0;
 }
 
 
 sub salt {
-	my $self = shift;
-	return unpack "H*", $self->saltbin() unless scalar @_;
-	$self->saltbin( pack "H*", map /[^\dA-F]/i ? croak "corrupt hex" : $_, join "", @_ );
+	my ( $self, @value ) = @_;
+	return unpack "H*", $self->saltbin() unless scalar @value;
+	my @hex = map { /^"*([\dA-Fa-f]*)"*$/ || croak("corrupt hex"); $1 } @value;
+	return $self->saltbin( pack "H*", join "", @hex );
 }
 
 
 sub saltbin {
-	my $self = shift;
-
-	$self->{saltbin} = shift if scalar @_;
-	$self->{saltbin} || "";
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{saltbin} = $_ }
+	return $self->{saltbin} || "";
 }
 
 
 ########################################
 
-sub hashalgo { &algorithm; }					# uncoverable pod
+sub hashalgo { return &algorithm; }				# uncoverable pod
+
+########################################
 
 
 1;
@@ -107,8 +101,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name NSEC3PARAM algorithm flags iterations salt');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name NSEC3PARAM algorithm flags iterations salt');
 
 =head1 DESCRIPTION
 
@@ -135,32 +129,31 @@ other unpredictable behaviour.
 
 =head2 algorithm
 
-    $algorithm = $rr->algorithm;
-    $rr->algorithm( $algorithm );
+	$algorithm = $rr->algorithm;
+	$rr->algorithm( $algorithm );
 
-The Hash Algorithm field is represented as an unsigned decimal
-integer.  The value has a maximum of 255. 
+The 8-bit algorithm field is represented as an unsigned decimal integer. 
 
 =head2 flags
 
-    $flags = $rr->flags;
-    $rr->flags( $flags );
+	$flags = $rr->flags;
+	$rr->flags( $flags );
 
-The Flags field is represented as an unsigned decimal integer.
-The value has a maximum of 255. 
+The Flags field is an unsigned decimal integer
+interpreted as eight concatenated Boolean values. 
 
 =head2 iterations
 
-    $iterations = $rr->iterations;
-    $rr->iterations( $iterations );
+	$iterations = $rr->iterations;
+	$rr->iterations( $iterations );
 
 The Iterations field is represented as an unsigned decimal
 integer.  The value is between 0 and 65535, inclusive. 
 
 =head2 salt
 
-    $salt = $rr->salt;
-    $rr->salt( $salt );
+	$salt = $rr->salt;
+	$rr->salt( $salt );
 
 The Salt field is represented as a contiguous sequence of hexadecimal
 digits. A "-" (unquoted) is used in string format to indicate that the
@@ -168,8 +161,8 @@ salt field is absent.
 
 =head2 saltbin
 
-    $saltbin = $rr->saltbin;
-    $rr->saltbin( $saltbin );
+	$saltbin = $rr->saltbin;
+	$rr->saltbin( $saltbin );
 
 The Salt field as a sequence of octets. 
 
@@ -187,7 +180,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -204,6 +197,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC5155
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC5155(4)|https://iana.org/go/rfc5155#section-4>
 
 =cut

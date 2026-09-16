@@ -1,14 +1,11 @@
 package Net::DNS::RR::TKEY;
 
-#
-# $Id: TKEY.pm 1528 2017-01-18 21:44:58Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1528 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: TKEY.pm 2035 2025-08-14 11:49:15Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,25 +13,23 @@ Net::DNS::RR::TKEY - DNS TKEY resource record
 
 =cut
 
-
 use integer;
 
 use Carp;
 
-use Net::DNS::Parameters;
+use Net::DNS::Parameters qw(:class :type);
 use Net::DNS::DomainName;
 
 use constant ANY  => classbyname qw(ANY);
-use constant TKEY => typebyname qw(TKEY);
+use constant TKEY => typebyname	 qw(TKEY);
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	my $limit = $offset + $self->{rdlength};
 
-	( $self->{algorithm}, $offset ) = decode Net::DNS::DomainName(@_);
+	( $self->{algorithm}, $offset ) = Net::DNS::DomainName->decode( $data, $offset );
 
 	@{$self}{qw(inception expiration mode error)} = unpack "\@$offset N2n2", $$data;
 	$offset += 12;
@@ -48,6 +43,7 @@ sub _decode_rdata {			## decode rdata from wire-format octet string
 	$offset += $other_size + 2;
 
 	croak('corrupt TKEY data') unless $offset == $limit;	# more or less FUBAR
+	return;
 }
 
 
@@ -68,11 +64,7 @@ sub _encode_rdata {			## encode rdata as wire-format octet string
 }
 
 
-sub class {				## overide RR method
-	return 'ANY';
-}
-
-sub encode {				## overide RR method
+sub encode {				## override RR method
 	my $self = shift;
 
 	my $owner = $self->{owner}->encode();
@@ -82,62 +74,55 @@ sub encode {				## overide RR method
 
 
 sub algorithm {
-	my $self = shift;
-
-	$self->{algorithm} = new Net::DNS::DomainName(shift) if scalar @_;
-	$self->{algorithm}->name if $self->{algorithm};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{algorithm} = Net::DNS::DomainName->new($_) }
+	return $self->{algorithm} ? $self->{algorithm}->name : undef;
 }
 
 
 sub inception {
-	my $self = shift;
-
-	$self->{inception} = 0 + shift if scalar @_;
-	$self->{inception} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{inception} = 0 + $_ }
+	return $self->{inception} || 0;
 }
 
 
 sub expiration {
-	my $self = shift;
-
-	$self->{expiration} = 0 + shift if scalar @_;
-	$self->{expiration} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{expiration} = 0 + $_ }
+	return $self->{expiration} || 0;
 }
 
 
 sub mode {
-	my $self = shift;
-
-	$self->{mode} = 0 + shift if scalar @_;
-	$self->{mode} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{mode} = 0 + $_ }
+	return $self->{mode} || 0;
 }
 
 
 sub error {
-	my $self = shift;
-
-	$self->{error} = 0 + shift if scalar @_;
-	$self->{error} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{error} = 0 + $_ }
+	return $self->{error} || 0;
 }
 
 
 sub key {
-	my $self = shift;
-
-	$self->{key} = shift if scalar @_;
-	$self->{key} || "";
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{key} = $_ }
+	return $self->{key} || "";
 }
 
 
 sub other {
-	my $self = shift;
-
-	$self->{other} = shift if scalar @_;
-	$self->{other} || "";
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{other} = $_ }
+	return $self->{other} || "";
 }
 
 
-sub other_data { &other; }					# uncoverable pod
+sub other_data { return &other; }				# uncoverable pod
 
 
 1;
@@ -146,7 +131,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
+	use Net::DNS;
+	$rr = new Net::DNS::RR('example.com IN TKEY ...	');
 
 =head1 DESCRIPTION
 
@@ -164,8 +150,8 @@ other unpredictable behaviour.
 
 =head2 algorithm
 
-    $algorithm = $rr->algorithm;
-    $rr->algorithm( $algorithm );
+	$algorithm = $rr->algorithm;
+	$rr->algorithm( $algorithm );
 
 The algorithm name is in the form of a domain name with the same
 meaning as in [RFC 2845].  The algorithm determines how the secret
@@ -174,47 +160,47 @@ the algorithm specific key.
 
 =head2 inception
 
-    $inception = $rr->inception;
-    $rr->inception( $inception );
+	$inception = $rr->inception;
+	$rr->inception( $inception );
 
 Time expressed as the number of non-leap seconds modulo 2**32 since the
 beginning of January 1970 GMT.
 
 =head2 expiration
 
-    $expiration = $rr->expiration;
-    $rr->expiration( $expiration );
+	$expiration = $rr->expiration;
+	$rr->expiration( $expiration );
 
 Time expressed as the number of non-leap seconds modulo 2**32 since the
 beginning of January 1970 GMT.
 
 =head2 mode
 
-    $mode = $rr->mode;
-    $rr->mode( $mode );
+	$mode = $rr->mode;
+	$rr->mode( $mode );
 
 The mode field specifies the general scheme for key agreement or the
 purpose of the TKEY DNS message, as defined in [RFC2930(2.5)].
 
 =head2 error
 
-    $error = $rr->error;
-    $rr->error( $error );
+	$error = $rr->error;
+	$rr->error( $error );
 
 The error code field is an extended RCODE.
 
 =head2 key
 
-    $key = $rr->key;
-    $rr->key( $key );
+	$key = $rr->key;
+	$rr->key( $key );
 
 Sequence of octets representing the key exchange data.
 The meaning of this data depends on the mode.
 
 =head2 other
 
-    $other = $rr->other;
-    $rr->other( $other );
+	$other = $rr->other;
+	$rr->other( $other );
 
 Content not defined in the [RFC2930] specification but may be used
 in future extensions.
@@ -233,7 +219,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -250,6 +236,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC2930
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC2930|https://iana.org/go/rfc2930>
 
 =cut

@@ -25,7 +25,7 @@ use Params::Util   qw{_INSTANCE};
 use PPI::Element   ();
 use PPI::Exception ();
 
-our $VERSION = '1.264'; # VERSION
+our $VERSION = '1.291';
 
 our @ISA = 'PPI::Element';
 

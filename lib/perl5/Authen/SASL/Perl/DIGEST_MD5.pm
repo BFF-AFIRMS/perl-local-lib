@@ -5,16 +5,22 @@
 
 # See http://www.ietf.org/rfc/rfc2831.txt for details
 
-package Authen::SASL::Perl::DIGEST_MD5;
+package Authen::SASL::Perl::DIGEST_MD5 2.2000;
 
 use strict;
-use vars qw($VERSION @ISA $CNONCE $NONCE);
+use warnings;
+use vars qw(@ISA $CNONCE $NONCE);
+use Crypt::URandom qw(urandom);
 use Digest::MD5 qw(md5_hex md5);
 use Digest::HMAC_MD5 qw(hmac_md5);
 
+warnings::warnif(
+    'deprecated',
+    'The DIGEST-MD5 SASL mechanism is deprecated by RFC6331 and should no longer be used'
+    );
+
 # TODO: complete qop support in server, should be configurable
 
-$VERSION = "2.14";
 @ISA = qw(Authen::SASL::Perl);
 
 my %secflags = (
@@ -201,14 +207,14 @@ sub server_start {
 
   $self->{need_step} = 1;
   $self->{error}     = undef;
-  $self->{nonce}     = md5_hex($NONCE || join (":", $$, time, rand));
+  $self->{nonce}     = $NONCE ? md5_hex($NONCE) : unpack('H32',urandom(16));
 
   $self->init_sec_layer;
 
   my $qop = [ sort keys %{$self->{supported_qop}} ];
 
   ## get the realm using callbacks but default to the host specified
-  ## during the instanciation of the SASL object
+  ## during the instantiation of the SASL object
   my $realm = $self->_call('realm');
   $realm  ||= $self->host;
 
@@ -260,7 +266,7 @@ sub client_step {   # $self, $server_sasl_credentials
 
   my %response = (
     nonce        => $sparams{'nonce'},
-    cnonce       => md5_hex($CNONCE || join (":", $$, time, rand)),
+    cnonce       => $CNONCE ? md5_hex($CNONCE) : unpack('H32',urandom(16)),
     'digest-uri' => $self->service . '/' . $self->host,
     # calc how often the server nonce has been seen; server expects "00000001"
     nc           => sprintf("%08d",     ++$self->{nonce_counts}{$sparams{'nonce'}}),
@@ -746,7 +752,11 @@ __END__
 
 =head1 NAME
 
-Authen::SASL::Perl::DIGEST_MD5 - Digest MD5 Authentication class
+Authen::SASL::Perl::DIGEST_MD5 - (DEPRECATED) Digest MD5 Authentication class
+
+=head1 VERSION
+
+version 2.2000
 
 =head1 SYNOPSIS
 
@@ -765,6 +775,10 @@ Authen::SASL::Perl::DIGEST_MD5 - Digest MD5 Authentication class
 
 This method implements the client and server parts of the DIGEST-MD5 SASL
 algorithm, as described in RFC 2831.
+
+Please note that this mechanism has been moved to the "OBSOLETE" section of
+the L<mechanism registry|https://www.iana.org/assignments/sasl-mechanisms/sasl-mechanisms.xhtml>
+as per L<RFC6331|https://www.rfc-editor.org/rfc/rfc6331.html>.
 
 =head2 CALLBACK
 
@@ -802,7 +816,7 @@ in the initial response.
 
 =head3 server
 
-=over4
+=over 4
 
 =item realm
 

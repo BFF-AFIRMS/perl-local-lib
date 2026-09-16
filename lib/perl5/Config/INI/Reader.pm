@@ -1,8 +1,8 @@
-use strict;
+use v5.12.0;
 use warnings;
-package Config::INI::Reader;
-$Config::INI::Reader::VERSION = '0.025';
-use Mixin::Linewise::Readers 0.105;
+package Config::INI::Reader 0.029;
+
+use Mixin::Linewise::Readers 0.110;
 # ABSTRACT: a subclassable .ini-file parser
 
 #pod =head1 SYNOPSIS
@@ -140,7 +140,7 @@ sub read_handle {
 #pod =cut
 
 sub current_section {
-  defined $_[0]->{section} ? $_[0]->{section} : $_[0]->starting_section;
+  $_[0]->{section} // $_[0]->starting_section;
 }
 
 #pod =head2 parse_section_header
@@ -319,7 +319,7 @@ Config::INI::Reader - a subclassable .ini-file parser
 
 =head1 VERSION
 
-version 0.025
+version 0.029
 
 =head1 SYNOPSIS
 
@@ -363,6 +363,16 @@ L<Config::Tiny>, on which it is based.
 The chief difference is that Config::INI::Reader is designed to be subclassed
 to allow for side-effects and self-reconfiguration to occur during the course
 of reading its input.
+
+=head1 PERL VERSION
+
+This library should run on perls released even a long time ago.  It should work
+on any version of perl released in the last five years.
+
+Although it may work on older versions of perl, no guarantee is made that the
+minimum required version will not be increased.  The version may be increased
+for any reason, and there is no promise that patches will be accepted to lower
+the minimum required perl.
 
 =head1 METHODS FOR READING CONFIG
 
@@ -492,7 +502,7 @@ Originaly derived from L<Config::Tiny>, by Adam Kennedy.
 
 =head1 AUTHOR
 
-Ricardo Signes <rjbs@cpan.org>
+Ricardo Signes <cpan@semiotic.systems>
 
 =head1 COPYRIGHT AND LICENSE
 

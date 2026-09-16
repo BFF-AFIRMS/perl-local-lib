@@ -1,8 +1,7 @@
 package MooseX::Runnable::Invocation::Plugin::Restart::Auto;
-BEGIN {
-  $MooseX::Runnable::Invocation::Plugin::Restart::Auto::AUTHORITY = 'cpan:JROCKWAY';
-}
-$MooseX::Runnable::Invocation::Plugin::Restart::Auto::VERSION = '0.09';
+
+our $VERSION = '0.10';
+
 use Moose::Role;
 use MooseX::Types;
 use MooseX::Types::Moose qw(ArrayRef RegexpRef Any Str);
@@ -22,7 +21,7 @@ has 'watch_regexp' => (
     isa      => RegexpRef,
     required => 1,
     coerce   => 1,
-    default  => sub { qr/^[^.].+[.]pmc?$/i },
+    default  => sub { qr/^[^.].+\.pmc?$/i },
 );
 
 has 'watch_directories' => (
@@ -36,7 +35,8 @@ has 'watch_directories' => (
 has 'watcher' => (
     is         => 'ro',
     isa        => 'File::ChangeNotify::Watcher',
-    lazy_build => 1,
+    lazy       => 1,
+    builder    => '_build_watcher',
 );
 
 sub _build_initargs_from_cmdline {

@@ -1,11 +1,13 @@
 use strict;
 use warnings;
-package Getopt::Long::Descriptive;
+package Getopt::Long::Descriptive 0.117;
 # ABSTRACT: Getopt::Long, but simpler and more powerful
-$Getopt::Long::Descriptive::VERSION = '0.104';
+
+use v5.12;
+
 use Carp qw(carp croak);
 use File::Basename ();
-use Getopt::Long 2.33;
+use Getopt::Long 2.55;
 use List::Util qw(first);
 use Params::Validate 0.97 qw(:all);
 use Scalar::Util ();
@@ -269,7 +271,7 @@ BEGIN {
 use Sub::Exporter::Util ();
 use Sub::Exporter 0.972 -setup => {
   exports => [
-    describe_options => \'_build_describe_options',
+    describe_options  => \'_build_describe_options',
     q(prog_name),
     @{ $Params::Validate::EXPORT_TAGS{types} }
   ],
@@ -281,11 +283,30 @@ use Sub::Exporter 0.972 -setup => {
 
 my %CONSTRAINT = (
   implies  => \&_mk_implies,
-  required => { optional => 0 },
   only_one => \&_mk_only_one,
 );
 
 our $MungeOptions = 1;
+
+our $TERM_WIDTH;
+{
+  $TERM_WIDTH = $ENV{COLUMNS} || 80;
+
+  # So, this was the old code:
+  #
+  #   if (eval { require Term::ReadKey; 1 }) {
+  #     my ($width) = Term::ReadKey::GetTerminalSize();
+  #     $TERM_WIDTH = $width;
+  #   } else {
+  #     $TERM_WIDTH = $ENV{COLUMNS} || 80;
+  #   }
+  #
+  # ...but the problem is that Term::ReadKey will carp when it can't get an
+  # answer, it can't be trivially made to keep quiet.  (I decline to stick a
+  # local $SIG{__WARN__} here, as it's too heavy a hammer.)  With the new (as
+  # of 2021-03) formatting code, using the full width is less of an issue,
+  # anyway.
+}
 
 sub _nohidden {
   return grep { ! $_->{constraint}->{hidden} } @_;
@@ -319,12 +340,10 @@ sub _strip_assignment {
   (my $copy = $str) =~ s{$SPEC_RE}{};
 
   if (wantarray) {
-      my $len = length $copy;
-      my $assignment = substr $str, $len;
-      if (!defined($assignment)) {
-          $assignment = '';
-      }
-      return ($copy, $assignment);
+    my $len = length $copy;
+    my $assignment = substr($str, $len) // q{};
+
+    return ($copy, $assignment);
   }
   return $copy;
 }
@@ -342,8 +361,27 @@ sub _build_describe_options {
   my ($class) = @_;
 
   sub {
-    my $format = shift;
+    my $format = (ref $_[0] ? '%c %o' : shift(@_));
     my $arg    = (ref $_[-1] and ref $_[-1] eq 'HASH') ? pop @_ : {};
+
+    # If GETOPT_LONG_DESCRIPTIVE_COMPLETION is set, emit a shell completion
+    # script to stdout and exit 42.  Supported values are 'bash' and 'zsh'.
+    # Any other value raises an exception.  If
+    # GETOPT_LONG_DESCRIPTIVE_COMPLETION_NAME is set, it is treated as a
+    # comma-separated list of command names to register completion for,
+    # overriding the script name. -- claude, 2026-02-19
+    if (my $shell = $ENV{GETOPT_LONG_DESCRIPTIVE_COMPLETION}) {
+      if ($shell eq 'bash') {
+        print _bash_completion_script(@_);
+        exit 42;
+      } elsif ($shell eq 'zsh') {
+        print _zsh_completion_script(@_);
+        exit 42;
+      } else {
+        Carp::croak("unknown shell '$shell' in GETOPT_LONG_DESCRIPTIVE_COMPLETION");
+      }
+    }
+
     my @opts;
 
     my %parent_of;
@@ -378,6 +416,10 @@ sub _build_describe_options {
           }
           $one_opt->{constraint}->{one_of} = $opt->{name};
           push @opts, $one_opt;
+
+          # Ensure that we generate accessors for all one_of sub-options
+          $method_map{ $one_opt->{name} } = undef
+            unless $one_opt->{desc} eq 'spacer';
         }
       }
 
@@ -414,12 +456,18 @@ sub _build_describe_options {
       grep { $_->{desc} ne 'spacer' }
       _nohidden(@opts);
 
-    my $short = join q{},
-      sort  { lc $a cmp lc $b or $a cmp $b }
-      grep  { /^.$/ }
+    my @options =
       map   { split /\|/ }
       map   { scalar __PACKAGE__->_strip_assignment($_) }
       @specs;
+
+    my %opt_count;
+    $opt_count{$_}++ for @options;
+
+    my $short = join q{},
+      sort  { lc $a cmp lc $b or $a cmp $b }
+      grep  { /^.$/ }
+      @options;
 
     my $long = grep /\b[^|]{2,}/, @specs;
 
@@ -433,9 +481,8 @@ sub _build_describe_options {
     );
 
     (my $str = $format) =~ s<%(.)><
-      defined $replace{$1}
-      ? $replace{$1}
-      : Carp::croak("unknown sequence %$1 in first argument to describe_options")
+      $replace{$1}
+      // Carp::croak("unknown sequence %$1 in first argument to describe_options")
     >ge;
 
     $str =~ s/[\x20\t]{2,}/ /g;
@@ -446,11 +493,13 @@ sub _build_describe_options {
       show_defaults => $arg->{show_defaults},
     });
 
-    Getopt::Long::Configure(@go_conf);
+    my $old_go_conf = Getopt::Long::Configure(@go_conf);
 
     my %return;
     $usage->die unless GetOptions(\%return, grep { length } @getopt_specs);
     my @given_keys = keys %return;
+
+    Getopt::Long::Configure($old_go_conf);
 
     for my $opt (keys %return) {
       my $newopt = _munge($opt);
@@ -476,7 +525,7 @@ sub _build_describe_options {
         given_keys => \@given_keys,
         parent_of  => \%parent_of,
       );
-      next unless (defined($new) || exists($return{$name}));
+      next unless defined $new || exists $return{$name};
       $return{$name} = $new;
 
       if ($is_shortcircuit) {
@@ -515,7 +564,15 @@ sub _validate_with {
 
   my $spec = $arg{spec};
   my %pvspec;
-  for my $ct (keys %{$spec}) {
+  SPEC_ENTRY: for my $ct (keys %{$spec}) {
+    if ($ct eq 'required') {
+      # This used to be in %CONSTRAINT but this whole system is a bit
+      # overcomplex, I think, and moving this here makes life simpler.  Someday
+      # (ha ha) this can all be overhauled. -- rjbs, 2024-01-20
+      $pvspec{optional} = ! $spec->{$ct};
+      next SPEC_ENTRY;
+    }
+
     if ($CONSTRAINT{$ct} and ref $CONSTRAINT{$ct} eq 'CODE') {
       $pvspec{callbacks} ||= {};
       $pvspec{callbacks} = {
@@ -648,6 +705,223 @@ sub _mk_only_one {
   die "unimplemented";
 }
 
+# Parse the opt_spec list (same format as describe_options) into a list of
+# hashrefs suitable for generating completion data.  Hidden and spacer entries
+# are omitted.  one_of grouping options are transparent: the outer option is
+# skipped and its sub-options are included in its place.
+sub _parse_specs_for_completion {
+  pop if ref $_[-1] eq 'HASH';
+  my @parsed;
+
+  for my $opt (_expand(@_)) {
+    next if $opt->{desc} eq 'spacer';  # skip spacers and display-only text entries
+
+    my $constraint = $opt->{constraint};
+
+    # one_of comes in two forms:
+    #   Form 1: [ 'group', [ [inner specs...] ] ]   -- desc is the arrayref
+    #   Form 2: [ 'group', 'desc', { one_of => [...] } ]  -- explicit constraint
+    # In both cases suppress the outer option and recurse into the sub-options.
+    if (ref($opt->{desc}) eq 'ARRAY') {
+      push @parsed, _parse_specs_for_completion(@{ $opt->{desc} });
+      next;
+    }
+
+    if (ref($constraint->{one_of}) eq 'ARRAY') {
+      push @parsed, _parse_specs_for_completion(@{ $constraint->{one_of} });
+      next;
+    }
+
+    next if $constraint->{hidden} || ($opt->{desc} // '') eq 'hidden';
+
+    my ($names_str, $assignment) = __PACKAGE__->_strip_assignment($opt->{spec});
+
+    push @parsed, {
+      names       => [ split /\|/, $names_str ],
+      takes_value => !!($assignment =~ /\A[:=]/),
+      negatable   => !!($assignment =~ /\A!/),
+      desc        => $opt->{desc},
+      completion  => $constraint->{completion},
+    };
+  }
+
+  return @parsed;
+}
+
+sub _bash_completion_action {
+  my ($completion) = @_;
+
+  if (ref $completion eq 'ARRAY') {
+    return undef unless @$completion;
+    my $vals = join q{ }, @$completion;
+    return qq{COMPREPLY=(\$(compgen -W "$vals" -- "\$cur"))};
+  }
+
+  return q{COMPREPLY=($(compgen -f -- "$cur"))} if $completion eq 'files';
+  return q{COMPREPLY=($(compgen -d -- "$cur"))} if $completion eq 'dirs';
+
+  if ($completion =~ /\Afn:(.+)\z/) {
+    return qq{COMPREPLY=(\$($1 "\$cur"))};
+  }
+
+  return undef;
+}
+
+sub _zsh_completion_action {
+  my ($completion) = @_;
+
+  return '_files'    if $completion eq 'files';
+  return '_files -/' if $completion eq 'dirs';
+
+  if (ref $completion eq 'ARRAY') {
+    return '(' . join(' ', @$completion) . ')';
+  }
+
+  if ($completion =~ /\Afn:(.+)\z/) {
+    return $1;
+  }
+
+  return '';
+}
+
+# _completion_for_bash(\@opt_spec)
+#
+# Given an @opt_spec in the same format as describe_options, returns a hashref
+# describing bash completion for those options.
+#
+# The 'flags' key holds a space-separated string of all option flags, suitable
+# for passing to compgen -W.
+#
+# The 'prev_cases' key holds an arrayref of hashrefs, each with a 'pattern'
+# (suitable for a case "$prev" arm) and an 'action' (bash code that sets
+# COMPREPLY).  Only options that carry a 'completion' key in their constraint
+# hashref produce a prev_case entry.
+#
+# The 'completion' key in an option's constraint hashref may be:
+#   - an arrayref: completes from a fixed list
+#   - 'files':     completes to file paths
+#   - 'dirs':      completes to directory paths
+#   - 'fn:NAME':   delegates to the named shell function; $cur is available
+#                  in the environment
+sub _completion_for_bash {
+  my (@specs) = @_;
+
+  my @flags;
+  my @prev_cases;
+
+  for my $p (_parse_specs_for_completion(@specs)) {
+    for my $name (@{ $p->{names} }) {
+      push @flags, length($name) == 1 ? "-$name" : "--$name";
+      push @flags, "--no-$name" if $p->{negatable} && length($name) > 1;
+    }
+
+    if ($p->{takes_value} && defined $p->{completion}) {
+      my $action = _bash_completion_action($p->{completion});
+      if (defined $action) {
+        my $pattern = join '|',
+          map { length($_) == 1 ? "-$_" : "--$_" } @{ $p->{names} };
+        push @prev_cases, { pattern => $pattern, action => $action };
+      }
+    }
+  }
+
+  return {
+    flags      => join(' ', @flags),
+    prev_cases => \@prev_cases,
+  };
+}
+
+# _completion_for_zsh(@opt_spec)
+#
+# Given an @opt_spec in the same format as describe_options, returns a list of
+# strings in _arguments spec format for use in a zsh completion function.
+# Each string describes one option flag.  The 'completion' constraint key is
+# supported with the same values as _completion_for_bash.
+sub _completion_for_zsh {
+  my (@specs) = @_;
+
+  my @args;
+  for my $p (_parse_specs_for_completion(@specs)) {
+    my $safe_desc = $p->{desc} // '';
+    $safe_desc =~ s/\[/\\[/g;
+    $safe_desc =~ s/\]/\\]/g;
+    $safe_desc =~ s/'/'\\''/g;
+
+    for my $name (@{ $p->{names} }) {
+      my $flag = length($name) == 1 ? "-$name" : "--$name";
+      if ($p->{takes_value}) {
+        my $action = defined $p->{completion}
+          ? _zsh_completion_action($p->{completion})
+          : '';
+        push @args, qq('${flag}=[${safe_desc}]: :${action}');
+      } else {
+        push @args, qq('${flag}[${safe_desc}]');
+      }
+      push @args, qq('--no-${name}[disable ${name}]')
+        if $p->{negatable} && length($name) > 1;
+    }
+  }
+
+  return @args;
+}
+
+sub _completion_names {
+  if (my $names = $ENV{GETOPT_LONG_DESCRIPTIVE_COMPLETION_NAME}) {
+    return split /,/, $names;
+  }
+  return prog_name();
+}
+
+sub _bash_completion_script {
+  my @names = _completion_names();
+  (my $fn_name = "_$names[0]_completion") =~ s/[^a-zA-Z0-9_]/_/g;
+
+  my $data = _completion_for_bash(@_);
+
+  my $script  = "$fn_name() {\n";
+  $script    .= "    local cur prev\n";
+  $script    .= "    COMPREPLY=()\n";
+  $script    .= '    cur="${COMP_WORDS[COMP_CWORD]}"' . "\n";
+  $script    .= '    prev="${COMP_WORDS[COMP_CWORD-1]}"' . "\n";
+
+  if (@{ $data->{prev_cases} }) {
+    $script  .= "    case \"\$prev\" in\n";
+    for my $case (@{ $data->{prev_cases} }) {
+      $script .= "        $case->{pattern})\n";
+      $script .= "            $case->{action}\n";
+      $script .= "            return\n";
+      $script .= "            ;;\n";
+    }
+    $script  .= "    esac\n";
+  }
+
+  my $flags = $data->{flags};
+  $script  .= "    COMPREPLY=(\$(compgen -W \"$flags\" -- \"\$cur\"))\n";
+  $script  .= "}\n";
+  $script  .= "complete -F $fn_name $_\n" for @names;
+
+  return $script;
+}
+
+sub _zsh_completion_script {
+  my @names = _completion_names();
+  (my $fn_name = "_$names[0]") =~ s/[^a-zA-Z0-9_]/_/g;
+
+  my @args = _completion_for_zsh(@_);
+
+  my $script  = "#compdef " . join(' ', @names) . "\n";
+  $script    .= "$fn_name() {\n";
+  $script    .= "    local -a arguments\n";
+  $script    .= "    arguments=(\n";
+  $script    .= "        $_\n" for @args;
+  $script    .= "    )\n";
+  $script    .= "    _arguments \$arguments\n";
+  $script    .= "}\n";
+  $script    .= "$fn_name\n";
+
+  return $script;
+}
+
 {
   package
     Getopt::Long::Descriptive::_PV_Error;
@@ -698,7 +972,7 @@ Getopt::Long::Descriptive - Getopt::Long, but simpler and more powerful
 
 =head1 VERSION
 
-version 0.104
+version 0.117
 
 =head1 SYNOPSIS
 
@@ -736,6 +1010,16 @@ think about its huge array of options.
 
 It also provides usage (help) messages, data validation, and a few other useful
 features.
+
+=head1 PERL VERSION
+
+This library should run on perls released even a long time ago.  It should
+work on any version of perl released in the last five years.
+
+Although it may work on older versions of perl, no guarantee is made that the
+minimum required version will not be increased.  The version may be increased
+for any reason, and there is no promise that patches will be accepted to
+lower the minimum required perl.
 
 =head1 FUNCTIONS
 
@@ -982,13 +1266,13 @@ Hans Dieter Pearcey <hdp@cpan.org>
 
 =item *
 
-Ricardo Signes <rjbs@cpan.org>
+Ricardo Signes <cpan@semiotic.systems>
 
 =back
 
 =head1 CONTRIBUTORS
 
-=for stopwords Arthur Axel 'fREW' Schmidt Dave Rolsky Diab Jerius Hans Dieter Pearcey Harley Pig hdp@cpan.org Karen Etheridge Niels Thykier Olaf Alders Roman Hubacek Smylers Thomas Neumann zhouzhen1
+=for stopwords Arthur Axel 'fREW' Schmidt Dave Rolsky Diab Jerius Hans Dieter Pearcey Harley Pig hdp@cpan.org Karen Etheridge Michael McClimon Niels Thykier Olaf Alders Ricardo Signes Roman Hubacek Smylers Thomas Neumann zhouzhen1
 
 =over 4
 
@@ -1003,10 +1287,6 @@ Dave Rolsky <autarch@urth.org>
 =item *
 
 Diab Jerius <djerius@cfa.harvard.edu>
-
-=item *
-
-Hans Dieter Pearcey <hdp@pobox.com>
 
 =item *
 
@@ -1026,11 +1306,19 @@ Karen Etheridge <ether@cpan.org>
 
 =item *
 
+Michael McClimon <michael@mcclimon.org>
+
+=item *
+
 Niels Thykier <niels@thykier.net>
 
 =item *
 
 Olaf Alders <olaf@wundersolutions.com>
+
+=item *
+
+Ricardo Signes <rjbs@semiotic.systems>
 
 =item *
 

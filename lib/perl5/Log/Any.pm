@@ -5,7 +5,7 @@ use warnings;
 package Log::Any;
 
 # ABSTRACT: Bringing loggers and listeners together
-our $VERSION = '1.707';
+our $VERSION = '1.720';
 
 use Log::Any::Manager;
 use Log::Any::Proxy::Null;
@@ -27,6 +27,7 @@ our $OverrideDefaultProxyClass;
 {
     my $manager = Log::Any::Manager->new();
     sub _manager { return $manager }
+    sub has_consumer { $manager->has_consumer }
 }
 
 sub import {
@@ -134,7 +135,7 @@ Log::Any - Bringing loggers and listeners together
 
 =head1 VERSION
 
-version 1.707
+version 1.720
 
 =head1 SYNOPSIS
 
@@ -412,6 +413,8 @@ application could do this:
 
 See the L<Log::Any::Adapter> documentation for more details.
 
+To detect if a consumer exists, use C<< Log::Any->has_consumer >>.
+
 =head1 Q & A
 
 =over
@@ -475,9 +478,21 @@ Stephen Thirlwall <sdt@cpan.org>
 
 =head1 CONTRIBUTORS
 
-=for stopwords bj5004 cm-perl Karen Etheridge Konstantin S. Uvarin Lucas Kanashiro Maros Kollar Maxim Vuets mephinet Nick Tonkin Paul Durden Philipp Gortan Phill Legault Shlomi Fish
+=for stopwords Akron Andrew Grechkin Hewus Fresh bj5004 cm-perl Jonathan Rubin Karen Etheridge Konstantin S. Uvarin Larry Leszczynski Lucas Kanashiro Maros Kollar Maxim Vuets mephinet Michael Conrad Mikko Koivunalho Nick Tonkin Paul Durden Philipp Gortan Phill Legault Samuel Ng Shlomi Fish Sven Willenbuecher Tim Landscheidt Tina Müller XSven
 
 =over 4
+
+=item *
+
+Akron <nils@diewald-online.de>
+
+=item *
+
+Andrew Grechkin <andrew.grechkin@gmail.com>
+
+=item *
+
+Andrew Hewus Fresh <andrew+github@afresh1.com>
 
 =item *
 
@@ -489,11 +504,23 @@ cm-perl <cm-perl@users.noreply.github.com>
 
 =item *
 
+Jonathan <jjrs.pam+github@gmail.com>
+
+=item *
+
+Jonathan Rubin <jon.rubin@grantstreet.com>
+
+=item *
+
 Karen Etheridge <ether@cpan.org>
 
 =item *
 
 Konstantin S. Uvarin <khedin@gmail.com>
+
+=item *
+
+Larry Leszczynski <larryl@cpan.org>
 
 =item *
 
@@ -513,6 +540,14 @@ mephinet <mephinet@gmx.net>
 
 =item *
 
+Michael Conrad <mconrad@intellitree.com>
+
+=item *
+
+Mikko Koivunalho <mikkoi@cpan.org>
+
+=item *
+
 Nick Tonkin <1nickt@users.noreply.github.com>
 
 =item *
@@ -529,7 +564,27 @@ Phill Legault <saladdayllc@gmail.com>
 
 =item *
 
+Samuel Ng <samuel.ng@grantstreet.com>
+
+=item *
+
 Shlomi Fish <shlomif@shlomifish.org>
+
+=item *
+
+Sven Willenbuecher <sven.willenbuecher@kuehne-nagel.com>
+
+=item *
+
+Tim Landscheidt <tim@tim-landscheidt.de>
+
+=item *
+
+Tina Müller <cpan2@tinita.de>
+
+=item *
+
+XSven <XSven@users.noreply.github.com>
 
 =back
 

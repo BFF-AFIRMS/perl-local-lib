@@ -7,8 +7,9 @@ use namespace::autoclean;
 use DateTime::Locale::Util qw( parse_locale_code );
 use Params::ValidationCompiler 0.13 qw( validation_for );
 use Specio::Declare;
+use Storable qw( dclone );
 
-our $VERSION = '1.24';
+our $VERSION = '1.46';
 
 my @FormatLengths;
 
@@ -199,7 +200,12 @@ sub prefers_24_hour_time {
     return $self->{prefers_24_hour_time}
         if exists $self->{prefers_24_hour_time};
 
-    $self->{prefers_24_hour_time} = $self->time_format_short =~ /h|K/ ? 0 : 1;
+    # This regex splits the pattern into parts, but only keeps the parts that aren't quoted. This
+    # lets us ignore literal strings in the pattern when looking for `h|K`. Without this we could
+    # match on a literal `'h'` in the pattern (which fr-CA has at the time of this writing), giving
+    # us a false positive.
+    my @parts = split /(?:'(?:(?:[^']|'')*)')/, $self->time_format_short;
+    return $self->{prefers_24_hour_time} = !( grep {/h|K/} @parts );
 }
 
 sub language_code {
@@ -247,7 +253,7 @@ sub variant_id {
 }
 
 sub locale_data {
-    return %{ $_[0]->{locale_data} };
+    return %{ dclone( $_[0]->{locale_data} ) };
 }
 
 sub STORABLE_freeze {
@@ -288,7 +294,7 @@ DateTime::Locale::FromData - Class for locale objects instantiated from pre-defi
 
 =head1 VERSION
 
-version 1.24
+version 1.46
 
 =head1 SYNOPSIS
 
@@ -337,8 +343,8 @@ component, plus optional territory and variant components. Something like
 
 =head2 $locale->variant
 
-The relevant component from the locale's complete name, like "English"
-or "United States".
+The relevant component from the locale's complete name, like "English" or
+"United States".
 
 =head2 $locale->native_name
 
@@ -411,6 +417,10 @@ a calendar it's okay to have "T" for both Tuesday and Thursday).
 The wide name should always be the full name of thing in question. The narrow
 name should be just one or two characters.
 
+B<These methods return a reference to the data stored in the locale object. If
+you change this reference's contents, this will affect the data in the locale
+object! You should clone the data first if you want to modify it.>
+
 =head2 $locale->date_format_full
 
 =head2 $locale->date_format_long
@@ -440,8 +450,8 @@ method.
 
 =head2 $locale->format_for($name)
 
-These are accessed by passing a name to C<< $locale->format_for(...)  >>,
-where the name is a CLDR-style format specifier.
+These are accessed by passing a name to C<< $locale->format_for(...)  >>, where
+the name is a CLDR-style format specifier.
 
 The return value is a string suitable for passing to C<< $dt->format_cldr >>,
 so you can do something like this:
@@ -457,8 +467,8 @@ Chinese characters for "day" (日) and month (月), so you get something like
 
 =head2 $locale->available_formats
 
-This should return a list of all the format names that could be passed
-to C<< $locale->format_for >>.
+This should return a list of all the format names that could be passed to C<<
+$locale->format_for >>.
 
 See the documentation for individual locales for details and examples of these
 formats. The format names that are available vary by locale.
@@ -475,8 +485,8 @@ formats. The format names that are available vary by locale.
 
 These methods return strings appropriate for the C<< DateTime->strftime >>
 method. However, you are strongly encouraged to use the other format methods,
-which use the CLDR format data. They are primarily included for the benefit
-for L<DateTime::Format::Strptime>.
+which use the CLDR format data. They are primarily included for the benefit for
+L<DateTime::Format::Strptime>.
 
 =head2 $locale->version
 
@@ -488,13 +498,13 @@ Returns a boolean indicating whether or not the locale prefers 24-hour time.
 
 =head2 $locale->first_day_of_week
 
-Returns a number from 1 to 7 indicating the I<local> first day of the
-week, with Monday being 1 and Sunday being 7.
+Returns a number from 1 to 7 indicating the I<local> first day of the week,
+with Monday being 1 and Sunday being 7.
 
 =head2 $locale->locale_data
 
-Returns the original data used to create this locale as a hash. This is here
-to facilitate creating custom locale that via
+Returns a clone of the original data used to create this locale as a hash. This
+is here to facilitate creating custom locales via
 C<DateTime::Locale->register_data_locale>.
 
 =head1 SUPPORT
@@ -503,8 +513,6 @@ Bugs may be submitted at L<https://github.com/houseabsolute/DateTime-Locale/issu
 
 There is a mailing list available for users of this distribution,
 L<mailto:datetime@perl.org>.
-
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
 
 =head1 SOURCE
 
@@ -516,7 +524,7 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2003 - 2019 by Dave Rolsky.
+This software is copyright (c) 2003 - 2026 by Dave Rolsky.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

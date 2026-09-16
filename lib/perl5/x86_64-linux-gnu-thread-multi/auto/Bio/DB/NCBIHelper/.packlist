@@ -1,0 +1,9 @@
+/home/production/cxgn/local-lib/bin/bp_biofetch_genbank_proxy
+/home/production/cxgn/local-lib/bin/bp_download_query_genbank
+/home/production/cxgn/local-lib/bin/bp_query_entrez_taxa
+/home/production/cxgn/local-lib/lib/perl5/Bio/DB/EntrezGene.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/DB/GenBank.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/DB/GenPept.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/DB/NCBIHelper.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/DB/Query/GenBank.pm
+/home/production/cxgn/local-lib/lib/perl5/Bio/DB/Taxonomy/entrez.pm

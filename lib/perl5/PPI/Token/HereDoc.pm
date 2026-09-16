@@ -72,7 +72,7 @@ but for the most part they should more or less DWYM.
 Although technically it can be considered a quote, for the time being
 C<HereDocs> are being treated as a completely separate C<Token> subclass,
 and will not be found in a search for L<PPI::Token::Quote> or
-L<PPI::Token::QuoteLike objects>.
+L<PPI::Token::QuoteLike> objects.
 
 This may change in the future, with it most likely to end up under
 QuoteLike.
@@ -85,9 +85,8 @@ have a relatively large number of unique methods all of their own.
 =cut
 
 use strict;
-use PPI::Token ();
 
-our $VERSION = '1.264'; # VERSION
+our $VERSION = '1.291';
 
 our @ISA = "PPI::Token";
 
@@ -111,11 +110,20 @@ the here-doc, B<excluding> the terminator line.
 
 =cut
 
-sub heredoc {
-	wantarray
-		? @{shift->{_heredoc}}
-		: scalar @{shift->{_heredoc}};
-}
+sub heredoc { @{shift->{_heredoc}} }
+
+=pod
+
+=head2 indentation
+
+The C<indentation> method returns the indentation string of an indented
+here-doc if that can be determined. If the indented here-doc is damaged
+(say, missing terminator) or the here-doc was not indented, it returns
+C<undef>.
+
+=cut
+
+sub indentation { shift->{_indentation} }
 
 =pod
 
@@ -136,7 +144,7 @@ sub terminator {
 sub _is_terminator {
 	my ( $self, $terminator, $line, $indented ) = @_;
 	if ( $indented ) {
-		return $line =~ /^\s*$terminator$/;
+		return $line =~ /^\s*\Q$terminator\E$/;
 	} else {
 		return $line eq $terminator;
 	}
@@ -150,7 +158,7 @@ sub _indent {
 
 sub _is_match_indent {
 	my ( $self, $token, $indent ) = @_;
-	return (grep { /^$indent/ } @{$token->{_heredoc}}) == @{$token->{_heredoc}};
+	return (grep { /^$indent/ || $_ eq "\n" } @{$token->{_heredoc}}) == @{$token->{_heredoc}};
 }
 
 
@@ -235,6 +243,7 @@ sub __TOKENIZER__on_char {
 
 			if ( $token->{_indented} ) {
 				my $indent = $self->_indent( $token );
+				$token->{_indentation} = $indent;
 				# Indentation of here-doc doesn't match delimiter
 				unless ( $self->_is_match_indent( $token, $indent ) ) {
 					push @heredoc, $line;
@@ -277,6 +286,7 @@ sub __TOKENIZER__on_char {
 
 	if ( $token->{_indented} && $token->{_terminator_line} ) {
 		my $indent = $self->_indent( $token );
+		$token->{_indentation} = $indent;
 		if ( $self->_is_match_indent( $token, $indent ) ) {
 			# Remove indent from here-doc as much as possible
 			s/^$indent// for @heredoc;

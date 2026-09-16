@@ -5,7 +5,34 @@ use warnings;
 
 use 5.008;
 
-our $VERSION = '0.43';
+our $VERSION = '0.53';
+
+use Module::Implementation;
+
+use Exporter qw( import );
+
+BEGIN {
+    # This env var exists for the benefit of the PurePerlTests dzil plugin, which only knows how to
+    # set an env var to a true value.
+    if ( $ENV{SPECIO_TEST_PP} ) {
+        ## no critic (Variables::RequireLocalizedPunctuationVars)
+        $ENV{SPECIO_IMPLEMENTATION} = 'PP';
+    }
+
+    my $loader = Module::Implementation::build_loader_sub(
+        implementations => [ 'XS', 'PP' ],
+        symbols         => ['_clone'],
+    );
+    $loader->();
+}
+
+# It's a bit weird to put this in the root module, but this way the env var that
+# Module::Implementation::build_loader_sub uses will be named "SPECIO_IMPLEMENTATION". That way, if
+# in the future there are other optional XS components besides the Clone implementation, we don't
+# end up with a bunch of different env vars.
+#
+## no critic (Modules::ProhibitAutomaticExportation)
+our @EXPORT = qw( _clone );
 
 1;
 
@@ -23,7 +50,7 @@ Specio - Type constraints and coercions for Perl
 
 =head1 VERSION
 
-version 0.43
+version 0.53
 
 =head1 SYNOPSIS
 
@@ -82,22 +109,19 @@ distribution will magically make the Perl interpreter start checking a value's
 type on assignment to a variable. In fact, there's no built-in way to apply a
 type to a variable at all.
 
-Instead, you can explicitly check a value against a type, and optionally
-coerce values to that type.
-
-My long-term goal is to replace Moose's built-in types and L<MooseX::Types>
-with this module.
+Instead, you can explicitly check a value against a type, and optionally coerce
+values to that type.
 
 =head1 WHAT IS A TYPE?
 
-At it's core, a type is simply a constraint. A constraint is code that checks
-a value and returns true or false. Most constraints are represented by
-L<Specio::Constraint::Simple> objects. However, there are other type
-constraint classes for specialized kinds of constraints.
+At it's core, a type is simply a constraint. A constraint is code that checks a
+value and returns true or false. Most constraints are represented by
+L<Specio::Constraint::Simple> objects. However, there are other type constraint
+classes for specialized kinds of constraints.
 
-Types can be named or anonymous, and each type can have a parent type. A
-type's constraint is optional because sometimes you may want to create a named
-subtype of some existing type without adding additional constraints.
+Types can be named or anonymous, and each type can have a parent type. A type's
+constraint is optional because sometimes you may want to create a named subtype
+of some existing type without adding additional constraints.
 
 Constraints can be expressed either in terms of a simple subroutine reference
 or in terms of an inline generator subroutine reference. The former is easier
@@ -146,9 +170,9 @@ The C<Undef> type only accepts C<undef>.
 
 The C<Defined> type accepts anything I<except> C<undef>.
 
-The C<Num> and C<Int> types are stricter about numbers than Perl
-is. Specifically, they do not allow any sort of space in the number, nor do
-they accept "Nan", "Inf", or "Infinity".
+The C<Num> and C<Int> types are stricter about numbers than Perl is.
+Specifically, they do not allow any sort of space in the number, nor do they
+accept "Nan", "Inf", or "Infinity".
 
 The C<ClassName> type constraint checks that the name is valid I<and> that the
 class is loaded.
@@ -163,8 +187,8 @@ below for details.
 
 Perl's overloading is horribly broken and doesn't make much sense at all.
 
-However, unlike Moose, all type constraints allow overloaded objects where
-they make sense.
+However, unlike Moose, all type constraints allow overloaded objects where they
+make sense.
 
 For types where overloading makes sense, we explicitly check that the object
 provides the type overloading we expect. We I<do not> simply try to use the
@@ -209,8 +233,8 @@ the parameter applies to the values (keys are never checked).
 
 The C<Maybe> type is a special parameterized type. It allows for either
 C<undef> or a value. All by itself, it is meaningless, since it is equivalent
-to "Maybe of Item", which is equivalent to Item. When parameterized, it
-accepts either an C<undef> or the type of its parameter.
+to "Maybe of Item", which is equivalent to Item. When parameterized, it accepts
+either an C<undef> or the type of its parameter.
 
 This is useful for optional attributes or parameters. However, you're probably
 better off making your code simply not pass the parameter at all This usually
@@ -231,8 +255,8 @@ not exposed to your code. To access a type, you always call C<t('TypeName')>.
 
 This returns the named type or dies if no such type exists.
 
-Because types are always copied on import, it's safe to create coercions on
-any type. Your coercion from C<Str> to C<Int> will not be seen by any other
+Because types are always copied on import, it's safe to create coercions on any
+type. Your coercion from C<Str> to C<Int> will not be seen by any other
 package, unless that package explicitly imports your C<Int> type.
 
 When you import types, you import every type defined in the package you import
@@ -241,8 +265,8 @@ definition. You I<cannot> define the same type twice internally.
 
 =head1 CREATING A TYPE LIBRARY
 
-By default, all types created inside a package are invisible to other
-packages. If you want to create a type library, you need to inherit from
+By default, all types created inside a package are invisible to other packages.
+If you want to create a type library, you need to inherit from
 L<Specio::Exporter> package:
 
   package MyApp::Type::Library;
@@ -258,9 +282,8 @@ L<Specio::Exporter> package:
       where  => sub { $_[0] =~ /foo/i },
   );
 
-Now the MyApp::Type::Library package will export a single type named
-C<Foo>. It I<does not> re-export the types provided by
-L<Specio::Library::Builtins>.
+Now the MyApp::Type::Library package will export a single type named C<Foo>. It
+I<does not> re-export the types provided by L<Specio::Library::Builtins>.
 
 If you want to make your library re-export some other libraries types, you can
 ask for this explicitly:
@@ -289,9 +312,9 @@ This should just work. Use a Specio type anywhere you'd specify a type.
 
 =head1 USING SPECIO WITH L<Moo>
 
-Using Specio with Moo is easy. You can pass Specio constraint objects as
-C<isa> parameters for attributes. For coercions, simply call C<<
-$type->coercion_sub >>.
+Using Specio with Moo is easy. You can pass Specio constraint objects as C<isa>
+parameters for attributes. For coercions, simply call C<< $type->coercion_sub
+>>.
 
     package Foo;
 
@@ -359,18 +382,18 @@ MooseX::Types, which assume that unknown names are class names.
 =item * Anon types are explicit
 
 With L<Moose> and L<MooseX::Types>, you use the same subroutine, C<subtype()>,
-to declare both named and anonymous types. With Specio, you use C<declare()> for
-named types and C<anon()> for anonymous types.
+to declare both named and anonymous types. With Specio, you use C<declare()>
+for named types and C<anon()> for anonymous types.
 
 =item * Class and object types are separate
 
 Moose and MooseX::Types have C<class_type> and C<duck_type>. The former type
 requires an object, while the latter accepts a class name or object.
 
-With Specio, the distinction between accepting an object versus object or
-class is explicit. There are six declaration helpers, C<object_can_type>,
-C<object_does_type>, C<object_isa_type>, C<any_can_type>, C<any_does_type>,
-and C<any_isa_type>.
+With Specio, the distinction between accepting an object versus object or class
+is explicit. There are six declaration helpers, C<object_can_type>,
+C<object_does_type>, C<object_isa_type>, C<any_can_type>, C<any_does_type>, and
+C<any_isa_type>.
 
 =item * Overloading support is baked in
 
@@ -379,8 +402,8 @@ frustrating to use in many cases.
 
 =item * Types can either have a constraint or inline generator, not both
 
-Moose and MooseX::Types types can be defined with a subroutine reference as
-the constraint, an inline generator subroutine, or both. This is purely for
+Moose and MooseX::Types types can be defined with a subroutine reference as the
+constraint, an inline generator subroutine, or both. This is purely for
 backwards compatibility, and it makes the internals more complicated than they
 need to be.
 
@@ -393,10 +416,40 @@ I simply never got around to implementing this in Moose.
 
 =item * No crazy coercion features
 
-Moose has some bizarre (and mostly) undocumented features relating to
-coercions and parameterizable types. This is a misfeature.
+Moose has some bizarre (and mostly) undocumented features relating to coercions
+and parameterizable types. This is a misfeature.
 
 =back
+
+=head1 OPTIONAL PREREQS
+
+There are several optional prereqs that if installed will make this
+distribution better in some way.
+
+=over 4
+
+=item * L<Ref::Util>
+
+Installing this will speed up a number of type checks for built-in types.
+
+=item * L<XString>
+
+If this is installed it will be loaded instead of the L<B> module if you have
+Perl 5.10 or greater. This module is much more memory efficient than loading
+all of L<B>.
+
+=item * L<Sub::Util> or L<Sub::Name>
+
+If one of these is installed then stack traces that end up in Specio code will
+have much better subroutine names for any frames.
+
+=back
+
+=head1 FORCING PURE PERL MODE
+
+For some use cases (notably fatpacking a program), you may want to force Specio
+to use pure Perl code instead of XS code. This can be done by setting the
+environment variable C<SPECIO_IMPLEMENTATION> to C<PP>.
 
 =head1 WHY THE NAME?
 
@@ -405,16 +458,9 @@ level namespace. Specio is Latin for for "look at" and "spec" is the root for
 the word "species". It's short, relatively easy to type, and not used by any
 other distro.
 
-=head1 LONG-TERM PLANS
-
-Eventually I'd like to see this distro replace Moose's internal type system,
-which would also make MooseX::Types obsolete.
-
 =head1 SUPPORT
 
 Bugs may be submitted at L<https://github.com/houseabsolute/Specio/issues>.
-
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
 
 =head1 SOURCE
 
@@ -435,7 +481,7 @@ software much more, unless I get so many donations that I can consider working
 on free software full time (let's all have a chuckle at that together).
 
 To donate, log into PayPal and send money to autarch@urth.org, or use the
-button at L<http://www.urth.org/~autarch/fs-donation.html>.
+button at L<https://houseabsolute.com/foss-donations/>.
 
 =head1 AUTHOR
 
@@ -443,9 +489,17 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 CONTRIBUTORS
 
-=for stopwords cpansprout Graham Knop Karen Etheridge
+=for stopwords Andrew Rodland Chris White cpansprout Graham Knop Karen Etheridge Vitaly Lipatov
 
 =over 4
+
+=item *
+
+Andrew Rodland <andrewr@vimeo.com>
+
+=item *
+
+Chris White <chrisw@leehayes.com>
 
 =item *
 
@@ -459,11 +513,15 @@ Graham Knop <haarg@haarg.org>
 
 Karen Etheridge <ether@cpan.org>
 
+=item *
+
+Vitaly Lipatov <lav@altlinux.ru>
+
 =back
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2012 - 2018 by Dave Rolsky.
+This software is Copyright (c) 2012 - 2025 by Dave Rolsky.
 
 This is free software, licensed under:
 

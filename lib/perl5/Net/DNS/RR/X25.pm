@@ -1,14 +1,11 @@
 package Net::DNS::RR::X25;
 
-#
-# $Id: X25.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: X25.pm 2002 2025-01-07 09:57:46Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,50 +13,49 @@ Net::DNS::RR::X25 - DNS X25 resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::Text;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
-	$self->{address} = decode Net::DNS::Text( $data, $offset );
+	$self->{address} = Net::DNS::Text->decode( $data, $offset );
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
-	$self->{address}->encode;
+	return $self->{address}->encode;
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	$self->{address}->string;
+	return $self->{address}->string;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->address(shift);
+	$self->address(@argument);
+	return;
 }
 
 
 sub address {
-	my $self = shift;
-
-	$self->{address} = new Net::DNS::Text(shift) if scalar @_;
-	$self->{address}->value if $self->{address};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{address} = Net::DNS::Text->new($_) }
+	return $self->{address} ? $self->{address}->value : undef;
 }
 
 
-sub PSDNaddress { &address; }
+sub PSDNaddress { return &address; }
 
 
 1;
@@ -68,8 +64,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name X25 PSDNaddress');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name X25 PSDNaddress');
 
 =head1 DESCRIPTION
 
@@ -89,8 +85,8 @@ other unpredictable behaviour.
 
 =head2 address
 
-    $address = $rr->address;
-    $rr->address( $address );
+	$address = $rr->address;
+	$rr->address( $address );
 
 The PSDN-address is a string of decimal digits, beginning with
 the 4 digit DNIC (Data Network Identification Code), as specified
@@ -110,7 +106,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -127,6 +123,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1183 Section 3.1
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1183(3.1)|https://iana.org/go/rfc1183#section-3.1>
 
 =cut

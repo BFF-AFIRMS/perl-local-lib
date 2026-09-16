@@ -4,8 +4,9 @@ use strict;
 use warnings;
 use namespace::autoclean;
 
-our $VERSION = '2.35';
+our $VERSION = '2.69';
 
+use DateTime::Duration;
 use DateTime::TimeZone::OlsonDB::Rule;
 use DateTime::TimeZone::OlsonDB::Zone;
 
@@ -13,10 +14,13 @@ my $x = 1;
 our %MONTHS = map { $_ => $x++ } qw( Jan Feb Mar Apr May Jun
     Jul Aug Sep Oct Nov Dec);
 
+# 2024b accidentally used "April" instead of "Apr".
+$MONTHS{April} = $MONTHS{Apr};
+
 $x = 1;
 our %DAYS = map { $_ => $x++ } qw( Mon Tue Wed Thu Fri Sat Sun );
 
-our $PLUS_ONE_DAY_DUR  = DateTime::Duration->new( days => 1 );
+our $PLUS_ONE_DAY_DUR  = DateTime::Duration->new( days =>  1 );
 our $MINUS_ONE_DAY_DUR = DateTime::Duration->new( days => -1 );
 
 sub new {
@@ -96,7 +100,7 @@ sub _parse_zone {
     my $name = shift;
 
     my $expect = $name ? 5 : 6;
-    my @items = grep { defined && length } split /\s+/, $zone, $expect;
+    my @items  = grep { defined && length } split /\s+/, $zone, $expect;
 
     my %obs;
     unless ($name) {
@@ -178,7 +182,7 @@ sub rules_by_name {
 sub parse_day_spec {
     my ( $day, $month, $year ) = @_;
 
-    return $day if $day =~ /^\d+$/;
+    return ( $month, $day ) if $day =~ /^\d+$/;
 
     if ( $day =~ /^last(\w\w\w)$/ ) {
         my $dow = $DAYS{$1};
@@ -200,7 +204,7 @@ sub parse_day_spec {
             $dt -= $PLUS_ONE_DAY_DUR;
         }
 
-        return $dt->day;
+        return ( $dt->month, $dt->day );
     }
     elsif ( $day =~ /^(\w\w\w)([><])=(\d\d?)$/ ) {
         my $dow = $DAYS{$1};
@@ -218,7 +222,7 @@ sub parse_day_spec {
             $dt += $dur;
         }
 
-        return $dt->day;
+        return ( $dt->month, $dt->day );
     }
     else {
         die "Invalid on spec for rule: $day\n";
@@ -300,7 +304,7 @@ DateTime::TimeZone::OlsonDB - An object to represent an Olson time zone database
 
 =head1 VERSION
 
-version 2.35
+version 2.69
 
 =head1 SYNOPSIS
 
@@ -308,26 +312,24 @@ version 2.35
 
 =head1 DESCRIPTION
 
-This module parses the Olson database time zone definition files and
-creates various objects representing time zone data.
+This module parses the Olson database time zone definition files and creates
+various objects representing time zone data.
 
-Each time zone is broken down into several parts.  The first piece is
-an observance, which is an offset from UTC and an abbreviation.  A
-single zone may contain many observances, reflecting historical
-changes in that time zone over time.  An observance may also refer to
-a set of rules.
+Each time zone is broken down into several parts.  The first piece is an
+observance, which is an offset from UTC and an abbreviation.  A single zone may
+contain many observances, reflecting historical changes in that time zone over
+time.  An observance may also refer to a set of rules.
 
-Rules are named, and may apply to many different zones.  For example,
-the "US" rules apply to most of the time zones in the US,
-unsurprisingly.  Rules are made of an offset from standard time and a
-definition of when that offset changes.  Changes can be a one time
-thing, or they can recur at regular times through a span of years.
+Rules are named, and may apply to many different zones.  For example, the "US"
+rules apply to most of the time zones in the US, unsurprisingly.  Rules are
+made of an offset from standard time and a definition of when that offset
+changes.  Changes can be a one time thing, or they can recur at regular times
+through a span of years.
 
 Each rule may have an associated letter, which is used to generate an
-abbreviated name for the time zone, along with the offset's
-abbreviation.  For example, if the offset's abbreviation is "C%sT",
-and the a rule specifies the letter "S", then the abbreviation when
-that rule is in effect is "CST".
+abbreviated name for the time zone, along with the offset's abbreviation.  For
+example, if the offset's abbreviation is "C%sT", and the a rule specifies the
+letter "S", then the abbreviation when that rule is in effect is "CST".
 
 =head1 USAGE
 
@@ -336,8 +338,6 @@ Not yet documented.  This stuff is a mess.
 =head1 SUPPORT
 
 Bugs may be submitted at L<https://github.com/houseabsolute/DateTime-TimeZone/issues>.
-
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
 
 =head1 SOURCE
 
@@ -349,7 +349,7 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2019 by Dave Rolsky.
+This software is copyright (c) 2026 by Dave Rolsky.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

@@ -351,6 +351,12 @@ Luxembourgish Luxembourg locale.
    1995-12-22T09:05:02 = Fre
   -0010-09-15T04:44:23 = Sam
 
+=head3 EBh (E h B)
+
+   2008-02-05T18:30:30 = Dën. 6 B
+   1995-12-22T09:05:02 = Fre. 9 B
+  -0010-09-15T04:44:23 = Sam. 4 B
+
 =head3 EBhm (E h:mm B)
 
    2008-02-05T18:30:30 = Dën. 6:30 B
@@ -381,23 +387,41 @@ Luxembourgish Luxembourg locale.
    1995-12-22T09:05:02 = Fre., 22.
   -0010-09-15T04:44:23 = Sam., 15.
 
-=head3 Ehm (E, h:mm a)
+=head3 Eh (E h a)
 
-   2008-02-05T18:30:30 = Dën., 6:30 nomëttes
-   1995-12-22T09:05:02 = Fre., 9:05 moies
-  -0010-09-15T04:44:23 = Sam., 4:44 moies
+   2008-02-05T18:30:30 = Dën. 6 nomëttes
+   1995-12-22T09:05:02 = Fre. 9 moies
+  -0010-09-15T04:44:23 = Sam. 4 moies
 
-=head3 Ehms (E, h:mm:ss a)
+=head3 Ehm (E, h:mm a)
 
-   2008-02-05T18:30:30 = Dën., 6:30:30 nomëttes
-   1995-12-22T09:05:02 = Fre., 9:05:02 moies
-  -0010-09-15T04:44:23 = Sam., 4:44:23 moies
+   2008-02-05T18:30:30 = Dën., 6:30 nomëttes
+   1995-12-22T09:05:02 = Fre., 9:05 moies
+  -0010-09-15T04:44:23 = Sam., 4:44 moies
+
+=head3 Ehms (E, h:mm:ss a)
+
+   2008-02-05T18:30:30 = Dën., 6:30:30 nomëttes
+   1995-12-22T09:05:02 = Fre., 9:05:02 moies
+  -0010-09-15T04:44:23 = Sam., 4:44:23 moies
 
 =head3 Gy (y G)
 
    2008-02-05T18:30:30 = 2008 n. Chr.
    1995-12-22T09:05:02 = 1995 n. Chr.
   -0010-09-15T04:44:23 = -10 v. Chr.
+
+=head3 GyM (G y-MM)
+
+   2008-02-05T18:30:30 = n. Chr. 2008-02
+   1995-12-22T09:05:02 = n. Chr. 1995-12
+  -0010-09-15T04:44:23 = v. Chr. -10-09
+
+=head3 GyMEd (G y-MM-dd, E)
+
+   2008-02-05T18:30:30 = n. Chr. 2008-02-05, Dën.
+   1995-12-22T09:05:02 = n. Chr. 1995-12-22, Fre.
+  -0010-09-15T04:44:23 = v. Chr. -10-09-15, Sam.
 
 =head3 GyMMM (MMM y G)
 
@@ -416,6 +440,12 @@ Luxembourgish Luxembourg locale.
    2008-02-05T18:30:30 = 5. Feb. 2008 n. Chr.
    1995-12-22T09:05:02 = 22. Dez. 1995 n. Chr.
   -0010-09-15T04:44:23 = 15. Sep. -10 v. Chr.
+
+=head3 GyMd (G y-MM-dd)
+
+   2008-02-05T18:30:30 = n. Chr. 2008-02-05
+   1995-12-22T09:05:02 = n. Chr. 1995-12-22
+  -0010-09-15T04:44:23 = v. Chr. -10-09-15
 
 =head3 H (HH 'Auer')
 
@@ -447,6 +477,12 @@ Luxembourgish Luxembourg locale.
    1995-12-22T09:05:02 = 09:05 UTC
   -0010-09-15T04:44:23 = 04:44 UTC
 
+=head3 Hv (HH v)
+
+   2008-02-05T18:30:30 = 18 UTC
+   1995-12-22T09:05:02 = 09 UTC
+  -0010-09-15T04:44:23 = 04 UTC
+
 =head3 M (L)
 
    2008-02-05T18:30:30 = 2
@@ -477,11 +513,11 @@ Luxembourgish Luxembourg locale.
    1995-12-22T09:05:02 = week 3 of Dezember
   -0010-09-15T04:44:23 = week 2 of September
 
-=head3 MMMMd (MMMM d)
+=head3 MMMMd (d. MMMM)
 
-   2008-02-05T18:30:30 = Februar 5
-   1995-12-22T09:05:02 = Dezember 22
-  -0010-09-15T04:44:23 = September 15
+   2008-02-05T18:30:30 = 5. Februar
+   1995-12-22T09:05:02 = 22. Dezember
+  -0010-09-15T04:44:23 = 15. September
 
 =head3 MMMd (d. MMM)
 
@@ -501,23 +537,23 @@ Luxembourgish Luxembourg locale.
    1995-12-22T09:05:02 = 22
   -0010-09-15T04:44:23 = 15
 
-=head3 h (h a)
+=head3 h (h a)
 
-   2008-02-05T18:30:30 = 6 nomëttes
-   1995-12-22T09:05:02 = 9 moies
-  -0010-09-15T04:44:23 = 4 moies
+   2008-02-05T18:30:30 = 6 nomëttes
+   1995-12-22T09:05:02 = 9 moies
+  -0010-09-15T04:44:23 = 4 moies
 
-=head3 hm (h:mm a)
+=head3 hm (h:mm a)
 
-   2008-02-05T18:30:30 = 6:30 nomëttes
-   1995-12-22T09:05:02 = 9:05 moies
-  -0010-09-15T04:44:23 = 4:44 moies
+   2008-02-05T18:30:30 = 6:30 nomëttes
+   1995-12-22T09:05:02 = 9:05 moies
+  -0010-09-15T04:44:23 = 4:44 moies
 
-=head3 hms (h:mm:ss a)
+=head3 hms (h:mm:ss a)
 
-   2008-02-05T18:30:30 = 6:30:30 nomëttes
-   1995-12-22T09:05:02 = 9:05:02 moies
-  -0010-09-15T04:44:23 = 4:44:23 moies
+   2008-02-05T18:30:30 = 6:30:30 nomëttes
+   1995-12-22T09:05:02 = 9:05:02 moies
+  -0010-09-15T04:44:23 = 4:44:23 moies
 
 =head3 hmsv (h:mm:ss a v)
 
@@ -530,6 +566,12 @@ Luxembourgish Luxembourg locale.
    2008-02-05T18:30:30 = 6:30 nomëttes UTC
    1995-12-22T09:05:02 = 9:05 moies UTC
   -0010-09-15T04:44:23 = 4:44 moies UTC
+
+=head3 hv (h a v)
+
+   2008-02-05T18:30:30 = 6 nomëttes UTC
+   1995-12-22T09:05:02 = 9 moies UTC
+  -0010-09-15T04:44:23 = 4 moies UTC
 
 =head3 ms (mm:ss)
 
@@ -567,11 +609,11 @@ Luxembourgish Luxembourg locale.
    1995-12-22T09:05:02 = Fre., 22. Dez. 1995
   -0010-09-15T04:44:23 = Sam., 15. Sep. -10
 
-=head3 yMMMM (y MMMM)
+=head3 yMMMM (MMMM y)
 
-   2008-02-05T18:30:30 = 2008 Februar
-   1995-12-22T09:05:02 = 1995 Dezember
-  -0010-09-15T04:44:23 = -10 September
+   2008-02-05T18:30:30 = Februar 2008
+   1995-12-22T09:05:02 = Dezember 1995
+  -0010-09-15T04:44:23 = September -10
 
 =head3 yMMMd (d. MMM y)
 
@@ -613,6 +655,26 @@ Yes
 =head3 Local first day of the week
 
 1 (Méindeg)
+
+=head2 Strftime Patterns
+
+=head3 %c (%a %d. %b %Y %T) - date time format
+
+   2008-02-05T18:30:30 = Dën. 05. Feb. 2008 18:30:30
+   1995-12-22T09:05:02 = Fre. 22. Dez. 1995 09:05:02
+  -0010-09-15T04:44:23 = Sam. 15. Sep. -10 04:44:23
+
+=head3 %x (%d.%m.%Y) - date format
+
+   2008-02-05T18:30:30 = 05.02.2008
+   1995-12-22T09:05:02 = 22.12.1995
+  -0010-09-15T04:44:23 = 15.09.-10
+
+=head3 %X (%T) - time format
+
+   2008-02-05T18:30:30 = 18:30:30
+   1995-12-22T09:05:02 = 09:05:02
+  -0010-09-15T04:44:23 = 04:44:23
 
 =head1 SUPPORT
 

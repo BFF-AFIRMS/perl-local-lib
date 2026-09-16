@@ -56,9 +56,9 @@ If you can't resolve this, then run
 
   perl errep.perl
 
-and include the (large) generated F<report.txt> in your email to:
+and include the (large) generated F<report.txt> in your report at:
 
-  bug-Imager@rt.cpan.org
+  https://github.com/tonycoz/imager/issues
 
 There are other options used to configure how Imager is built:
 
@@ -84,12 +84,32 @@ build Imager with assertions enabled.
 build Imager to trace context object management to C<stderr> for
 debugging.
 
+=item C<--enable=feature>I<< C<,feature> ... >>
+
+=item C<--disable=feature>I<< C<,feature> ... >>
+
+Enable or disable attempting to build bundled modules.  This only has
+an effect on modules are also available on CPAN that are bundled with
+Imager for historical reasons.
+
+You can use C<--enable=none> to prevent attempting to install any of
+the bundled modules.
+
+You can use either of C<--enable> or C<--disable> but not both.
+
 =back
 
 =head2 Build time environment variables
 X<build time environment variables>
 
 =over
+
+=item *
+
+X<< C<IM_ENABLE> >>C<IM_ENABLE> - if set, a comma separated list of
+bundled modules to try to build.  This can be set to C<none> to build
+none of them.  There is no environment variable corresponding to
+C<--disable>.
 
 =item *
 
@@ -145,9 +165,11 @@ X<< C<libpng> >>L<Imager::File::PNG> uses L<< C<libpng>
 |http://www.libpng.org/pub/png/libpng.html >> for PNG image file
 support.
 
-Debian package: C<libpng12-dev>
+Debian package: C<libpng-dev>
 
 Redhat package: C<libpng-devel>
+
+Cygwin: C<libpng-devel>
 
 =head2 TIFF - C<libtiff>
 
@@ -165,6 +187,8 @@ bug, fixed in 3.9.1.
 Debian package: C<libtiff4-dev>
 
 Redhat package: C<libtiff-devel>
+
+Cygwin: C<libtiff-devel>
 
 =head2 GIF - C<libgif>
 
@@ -185,13 +209,20 @@ Debian package: C<libgif-dev>
 
 Redhat package: C<giflib-devel>
 
+Cygwin: C<libgif-devel>
+
 =head2 JPEG - C<libjpeg>
 
 L<Imager::File::JPEG> uses L<< C<libjpeg> |http://www.ijg.org/ >> for JPEG
 image file support.
 
-You may also use
-L<< C<libjpeg-turbo> |http://sourceforge.net/projects/libjpeg-turbo/ >>.
+You may also use L<< C<libjpeg-turbo>
+|http://sourceforge.net/projects/libjpeg-turbo/ >> or L<< C<mozjpeg>
+|https://github.com/mozilla/mozjpeg >> by setting the installed
+library's F<pkgconfig/> directory in `PKG_CONFIG_PATH`, eg:
+
+  PKG_CONFIG_PATH=/home/tony/local/mozjpeg-3.0git/lib/pkgconfig/ perl Makefile.PL
+  PKG_CONFIG_PATH=/home/tony/local/jpeg-turbo-2.0.4git/lib/pkgconfig/ perl Makefile.PL
 
 To install older releases of C<libjpeg> from source, you'll need to
 run:
@@ -203,7 +234,9 @@ binaries.
 
 Redhat package: C<libjpeg-devel>
 
-Debian package: C<libjpeg8-dev>
+Debian package: C<libjpeg-dev>
+
+Cygwin: C<libjpeg-devel>
 
 =head2 Freetype 2.x - C<libfreetype>
 
@@ -216,6 +249,8 @@ This is the recommended library to use for font support.
 Debian package: C<libfreetype6-dev>
 
 Redhat package: C<freetype-devel>
+
+Cygwin: C<libfreetype-devel>
 
 =head2 Win32 GDI fonts
 
@@ -234,6 +269,15 @@ C<w32api-runtime> packages.
 L<Imager::Font::T1> uses L<< C<t1lib> |http://www.t1lib.org/ >> for
 font support, supporting Postscript Type 1 fonts only.
 
+=for stopwords
+abandonware
+
+T1Lib is abandonware, the latest released version has several bugs
+that reliably crash on 64-bit systems.
+
+Expect C<Imager::Font::T1> to be unbundled from the Imager
+distribution at some point.
+
 Debian package: C<libt1-dev>
 
 Redhat package: C<t1lib-devel>
@@ -245,6 +289,8 @@ available for font support, supporting TTF fonts only.
 
 Freetype 1.x is essentially unsupported and shouldn't be used for new
 code.
+
+Expect Freetype 1 support to be removed from Imager at some point.
 
 =head1 PLATFORM SPECIFICS
 
@@ -376,7 +422,8 @@ or possibly, just:
 
   $ perlrebase
 
-will fix the problem.
+will fix the problem.  64-bit Cygwin significantly reduces occurrences
+of this problem.
 
 =head1 Other issues
 

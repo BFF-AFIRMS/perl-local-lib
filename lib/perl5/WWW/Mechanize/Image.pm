@@ -3,39 +3,41 @@ package WWW::Mechanize::Image;
 use strict;
 use warnings;
 
-our $VERSION = '1.91';
+our $VERSION = '2.22';
 
 #ABSTRACT: Image object for WWW::Mechanize
 
 
 sub new {
-    my $class = shift;
-    my $parms = shift || {};
+    my $class  = shift;
+    my $params = shift || {};
 
     my $self = bless {}, $class;
 
-    for my $parm ( qw( url base tag height width alt name attrs ) ) {
+    for my $param (qw( url base tag height width alt name attrs )) {
+
         # Check for what we passed in, not whether it's defined
-        $self->{$parm} = $parms->{$parm} if exists $parms->{$parm};
+        $self->{$param} = $params->{$param} if exists $params->{$param};
     }
 
     # url and tag are always required
-    for ( qw( url tag ) ) {
-        exists $self->{$_} or die "WWW::Mechanize::Image->new must have a $_ argument";
+    for (qw( url tag )) {
+        exists $self->{$_}
+            or die "WWW::Mechanize::Image->new must have a $_ argument";
     }
 
     return $self;
 }
 
 
-sub url     { return ($_[0])->{url}; }
-sub base    { return ($_[0])->{base}; }
-sub name    { return ($_[0])->{name}; }
-sub tag     { return ($_[0])->{tag}; }
-sub height  { return ($_[0])->{height}; }
-sub width   { return ($_[0])->{width}; }
-sub alt     { return ($_[0])->{alt}; }
-sub attrs   { return ($_[0])->{attrs}; }
+sub url    { return ( $_[0] )->{url}; }
+sub base   { return ( $_[0] )->{base}; }
+sub name   { return ( $_[0] )->{name}; }
+sub tag    { return ( $_[0] )->{tag}; }
+sub height { return ( $_[0] )->{height}; }
+sub width  { return ( $_[0] )->{width}; }
+sub alt    { return ( $_[0] )->{alt}; }
+sub attrs  { return ( $_[0] )->{attrs}; }
 
 
 sub URI {
@@ -69,7 +71,7 @@ WWW::Mechanize::Image - Image object for WWW::Mechanize
 
 =head1 VERSION
 
-version 1.91
+version 2.22
 
 =head1 SYNOPSIS
 
@@ -94,43 +96,45 @@ Creates and returns a new C<WWW::Mechanize::Image> object.
 
 =head1 Accessors
 
-=head2 $link->url()
+=head2 $image->url()
 
-URL from the link
+Image URL from the C<src> attribute of the source tag.
 
-=head2 $link->base()
+May be C<undef> if source tag has no C<src> attribute.
+
+=head2 $image->base()
 
 Base URL to which the links are relative.
 
-=head2 $link->name()
+=head2 $image->name()
 
 Name for the field from the NAME attribute, if any.
 
-=head2 $link->tag()
+=head2 $image->tag()
 
 Tag name (either "image" or "input")
 
-=head2 $link->height()
+=head2 $image->height()
 
 Image height
 
-=head2 $link->width()
+=head2 $image->width()
 
 Image width
 
-=head2 $link->alt()
+=head2 $image->alt()
 
 ALT attribute from the source tag, if any.
 
-=head2 $link->attrs()
+=head2 $image->attrs()
 
 Hash ref of all the attributes and attribute values in the tag.
 
-=head2 $link->URI()
+=head2 $image->URI()
 
 Returns the URL as a L<URI::URL> object.
 
-=head2 $link->url_abs()
+=head2 $image->url_abs()
 
 Returns the URL as an absolute URL string.
 
@@ -144,7 +148,7 @@ Andy Lester <andy at petdance.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2004-2016 by Andy Lester.
+This software is copyright (c) 2004 by Andy Lester.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

@@ -2,7 +2,7 @@ package Crypt::Mode;
 
 use strict;
 use warnings;
-our $VERSION = '0.076';
+our $VERSION = '0.091';
 
 ### not used
 
@@ -13,5 +13,23 @@ our $VERSION = '0.076';
 =head1 NAME
 
 Crypt::Mode - [internal only]
+
+=head1 SYNOPSIS
+
+Do not use this module directly.
+
+Use a concrete block-mode module instead.
+
+=head1 SEE ALSO
+
+=over
+
+=item * L<CryptX>
+
+=item * L<Crypt::Mode::CBC>, L<Crypt::Mode::CFB>, L<Crypt::Mode::CTR>, L<Crypt::Mode::ECB>, L<Crypt::Mode::OFB>, L<Crypt::Mode::XTS>
+
+=item * L<Crypt::AuthEnc::ChaCha20Poly1305>, L<Crypt::AuthEnc::GCM>
+
+=back
 
 =cut

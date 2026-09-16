@@ -2,18 +2,19 @@ package alienfile;
 
 use strict;
 use warnings;
+use 5.008004;
 use Alien::Build;
-use base qw( Exporter );
+use Exporter ();
 use Path::Tiny ();
 use Carp ();
 
 sub _path { Path::Tiny::path(@_) }
 
 # ABSTRACT: Specification for defining an external dependency for CPAN
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
-our @EXPORT = qw( requires on plugin probe configure share sys download fetch decode prefer extract patch patch_ffi build build_ffi gather gather_ffi meta_prop ffi log test start_url before after );
+our @EXPORT = qw( requires on plugin probe configure share sys download fetch decode prefer extract patch patch_ffi build build_ffi gather gather_ffi meta_prop ffi log test start_url before after digest );
 
 
 sub requires
@@ -30,7 +31,7 @@ sub requires
 sub plugin
 {
   my($name, @args) = @_;
-  
+
   my $caller = caller;
   $caller->meta->apply_plugin($name, @args);
   return;
@@ -98,6 +99,16 @@ sub start_url
   my $meta = $caller->meta;
   $meta->prop->{start_url} = $url;
   $meta->add_requires('configure' => 'Alien::Build' => '1.19');
+  return;
+}
+
+
+sub digest
+{
+  my($algo, $digest) = @_;
+
+  my $caller = caller;
+  $caller->meta->apply_plugin('Digest', [$algo, $digest]);
   return;
 }
 
@@ -263,9 +274,9 @@ sub test
   my $phase = $meta->{phase};
   Carp::croak "test is not allowed in $phase block"
     if $phase eq 'any' || $phase eq 'configure';
-  
+
   $meta->add_requires('configure' => 'Alien::Build' => '1.14');
-  
+
   if($phase eq 'share')
   {
     my $suffix = $caller->meta->{build_suffix} || '_share';
@@ -322,15 +333,14 @@ sub _add_modifier
   }
 
   foreach my $hook (
-    map { split /,/, $_ }                    # split on , for when multiple hooks must be attachewd (gather in any)
-    map { s/\$/$suffix/; $_ }                # substitute $ at the end for a suffix (_ffi) if any
-    map { "$_" }                             # copy so that we don't subregex on the original
-    $modifiers{$stage}->{$meta->{phase}})    # get the list of modifiers
+    map { split /,/, $_ }                        # split on , for when multiple hooks must be attached (gather in any)
+    map { my $x = $_ ; $x =~ s/\$/$suffix/; $x } # substitute $ at the end for a suffix (_ffi) if any
+    $modifiers{$stage}->{$meta->{phase}})        # get the list of modifiers
   {
     $meta->$method($hook => $sub);
   }
 
-  return;  
+  return;
 }
 
 sub before
@@ -369,7 +379,7 @@ alienfile - Specification for defining an external dependency for CPAN
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 SYNOPSIS
 
@@ -380,22 +390,22 @@ Do-it-yourself approach:
  probe [ 'pkg-config --exists libarchive' ];
  
  share {
-   
+ 
    start_url 'http://libarchive.org/downloads/libarchive-3.2.2.tar.gz';
-   
+ 
    # the first one which succeeds will be used
    download [ 'wget %{.meta.start_url}' ];
    download [ 'curl -o %{.meta.start_url}' ];
-   
+ 
    extract [ 'tar xf %{.install.download}' ];
-   
-   build [ 
+ 
+   build [
      # Note: will not work on Windows, better to use Build::Autoconf plugin
      # if you need windows support
      './configure --prefix=%{.install.prefix} --disable-shared',
      '%{make}',
      '%{make} install',
-   ];   
+   ];
  }
  
  gather [
@@ -418,8 +428,9 @@ With plugins (better):
    );
    plugin Extract => 'tar.gz';
    plugin 'Build::Autoconf';
+   plugin 'Gather::IsolateDynamic';
    build [
-     '%{configure} --disable-shared',
+     '%{configure}',
      '%{make}',
      '%{make} install',
    ];
@@ -428,7 +439,10 @@ With plugins (better):
 =head1 DESCRIPTION
 
 An alienfile is a recipe used by L<Alien::Build> to, probe for system libraries or download from the internet, and build source
-for those libraries.
+for those libraries.  This document acts as reference for the alienfile system, but if you are starting out writing your own Alien
+you should read L<Alien::Build::Manual::AlienAuthor>, which will teach you how to write your own complete Alien using alienfile +
+L<Alien::Build> + L<ExtUtils::MakeMaker>.  Special attention should be taken to the section "a note about dynamic vs. static
+libraries".
 
 =head1 DIRECTIVES
 
@@ -503,9 +517,9 @@ Examples:
  
  # loads the plugin with the badly named class!
  plugin '=Badly::Named::Plugin::Not::In::Alien::Build::Namespace';
-
+ 
  # explicitly loads Alien::Build::Plugin::Prefer::SortVersions
- plugin 'Prefer::SortVersions => (
+ plugin 'Prefer::SortVersions' => (
    filter => qr/^gcc-.*\.tar\.gz$/,
    version => qr/([0-9\.]+)/,
  );
@@ -515,8 +529,10 @@ Examples:
  probe \&code;
  probe \@commandlist;
 
-Instructions for the probe stage.  May be either a
-code reference, or a command list.
+Instructions for the probe stage.  May be either a code reference, or a command list.
+Multiple probes and probe plugins can be given.  These will be used in sequence,
+stopping at the first that detects a system installation.  L<Alien::Build> will use
+a share install if no system installation is detected by the probes.
 
 =head2 configure
 
@@ -550,6 +566,17 @@ System block.  Allowed directives are: download, fetch, decode, prefer, extract,
  };
 
 Set the start URL for download.  This should be the URL to an index page, or the actual tarball of the source.
+
+=head2 digest
+
+[experimental]
+
+ share {
+   digest $algorithm, $digest;
+ };
+
+Check fetched and downloaded files against the given algorithm and
+digest.  Typically you will want to use SHA256 as the algorithm.
 
 =head2 download
 
@@ -701,7 +728,8 @@ Get the meta_prop hash reference.
 
  my $meta = meta;
 
-Returns the meta object for your L<alienfile>.
+Returns the meta object for your L<alienfile>.  For methods that can be used on the
+meta object, see L<Alien::Build/"META METHODS">.
 
 =head2 log
 
@@ -786,7 +814,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -820,7 +848,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -836,9 +864,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

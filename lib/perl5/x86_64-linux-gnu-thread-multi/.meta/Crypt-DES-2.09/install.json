@@ -1,0 +1,1 @@
+{"target":"Crypt::DES","pathname":"T/TI/TIMLEGGE/Crypt-DES-2.09.tar.gz","version":"2.09","name":"Crypt::DES","dist":"Crypt-DES-2.09","provides":{"Crypt::DES":{"file":"DES.pm","version":"2.09"}}}

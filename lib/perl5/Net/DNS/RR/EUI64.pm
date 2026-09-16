@@ -1,14 +1,11 @@
 package Net::DNS::RR::EUI64;
 
-#
-# $Id: EUI64.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: EUI64.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,43 +13,43 @@ Net::DNS::RR::EUI64 - DNS EUI64 resource record
 
 =cut
 
-
 use integer;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	$self->{address} = unpack "\@$offset a8", $$data;
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
-	pack 'a8', $self->{address};
+	return pack 'a8', $self->{address};
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	$self->address;
+	return $self->address;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->address(shift);
+	$self->address(@argument);
+	return;
 }
 
 
 sub address {
 	my ( $self, $address ) = @_;
-	$self->{address} = pack 'C8', map hex($_), split /[:-]/, $address if $address;
-	join '-', unpack 'H2H2H2H2H2H2H2H2', $self->{address} if defined wantarray;
+	$self->{address} = pack 'C8', map { hex($_) } split /[:-]/, $address if $address;
+	return defined(wantarray) ? join '-', unpack( 'H2H2H2H2H2H2H2H2', $self->{address} ) : undef;
 }
 
 
@@ -62,14 +59,14 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name IN EUI64 address');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name IN EUI64 address');
 
-    $rr = new Net::DNS::RR(
-	name	=> 'example.com',
-	type	=> 'EUI64',
-	address => '00-00-5e-ef-10-00-00-2a'
-	);
+	$rr = Net::DNS::RR->new(
+			name	=> 'example.com',
+			type	=> 'EUI64',
+			address => '00-00-5e-ef-10-00-00-2a'
+			);
 
 =head1 DESCRIPTION
 
@@ -111,7 +108,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -128,6 +125,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC7043
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC7043|https://iana.org/go/rfc7043>
 
 =cut

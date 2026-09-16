@@ -2,11 +2,12 @@ package Alien::Build::CommandSequence;
 
 use strict;
 use warnings;
+use 5.008004;
 use Text::ParseWords qw( shellwords );
 use Capture::Tiny qw( capture );
 
 # ABSTRACT: Alien::Build command sequence
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
 sub new
@@ -75,14 +76,14 @@ sub _run_string
 {
   my($build, $cmd) = @_;
   $build->log("+ $cmd");
-  
+
   {
     my $cmd = $cmd;
     $cmd =~ s{\\}{\\\\}g if $^O eq 'MSWin32';
     my @cmd = shellwords($cmd);
     return $built_in{$cmd[0]}->(@cmd) if $built_in{$cmd[0]};
   }
-  
+
   system $cmd;
   die "external command failed" if $?;
 }
@@ -93,7 +94,7 @@ sub _run_with_code
   my $code = pop @cmd;
   $build->log("+ @cmd");
   my %args = ( command => \@cmd );
-  
+
   if($built_in{$cmd[0]})
   {
     my $error;
@@ -133,8 +134,6 @@ sub execute
   my($self, $build) = @_;
   my $intr = $build->meta->interpolator;
 
-  my $prop = $build->_command_prop;
-  
   foreach my $command (@{ $self->{commands} })
   {
     if(ref($command) eq 'CODE')
@@ -144,8 +143,9 @@ sub execute
     elsif(ref($command) eq 'ARRAY')
     {
       my($command, @args) = @$command;
-      my $code = pop @args if $args[-1] && ref($args[-1]) eq 'CODE';
-      
+      my $code;
+      $code = pop @args if $args[-1] && ref($args[-1]) eq 'CODE';
+
       if($args[-1] && ref($args[-1]) eq 'SCALAR')
       {
         my $dest = ${ pop @args };
@@ -158,7 +158,7 @@ sub execute
             die "external command failed" if $args->{exit};
             my $out = $args->{out};
             chomp $out;
-            _apply($dest, $prop, $out);
+            _apply($dest, $build->_command_prop, $out);
           };
         }
         else
@@ -166,9 +166,9 @@ sub execute
           die "illegal destination: $dest";
         }
       }
-      
-      ($command, @args) = map { $intr->interpolate($_, $prop) } ($command, @args);
-      
+
+      ($command, @args) = map { $intr->interpolate($_, $build) } ($command, @args);
+
       if($code)
       {
         _run_with_code $build, $command, @args, $code;
@@ -180,7 +180,7 @@ sub execute
     }
     else
     {
-      my $command = $intr->interpolate($command,$prop);
+      my $command = $intr->interpolate($command, $build);
       _run_string $build, $command;
     }
   }
@@ -200,7 +200,7 @@ Alien::Build::CommandSequence - Alien::Build command sequence
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 CONSTRUCTOR
 
@@ -226,7 +226,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -260,7 +260,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -276,9 +276,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

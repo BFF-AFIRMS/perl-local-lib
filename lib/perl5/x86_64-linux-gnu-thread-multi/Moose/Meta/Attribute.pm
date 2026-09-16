@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 package Moose::Meta::Attribute;
-our $VERSION = '2.2011';
+our $VERSION = '2.4000';
 
 use B ();
 use Scalar::Util 'blessed';
@@ -1355,7 +1355,7 @@ Moose::Meta::Attribute - The Moose attribute metaclass
 
 =head1 VERSION
 
-version 2.2011
+version 2.4000
 
 =head1 DESCRIPTION
 
@@ -1369,7 +1369,10 @@ by that parent class.
 
 =head1 INHERITANCE
 
-C<Moose::Meta::Attribute> is a subclass of L<Class::MOP::Attribute>.
+C<Moose::Meta::Attribute> is a subclass of L<Class::MOP::Attribute> and
+inherits these options:
+C<init_arg> C<builder> C<default> C<initializer> C<accessor> C<reader>
+C<writer> C<predicate> C<clearer> C<definition_context>
 
 =head1 METHODS
 
@@ -1443,8 +1446,8 @@ An attribute which is required must be provided to the constructor. An
 attribute which is required can also have a C<default> or C<builder>,
 which will satisfy its required-ness.
 
-A required attribute must have a C<default>, C<builder> or a
-non-C<undef> C<init_arg>
+If C<init_arg> is C<undef> on a required attribute, it must have a
+C<default> or a C<builder>.
 
 =item * lazy => $bool
 
@@ -1760,7 +1763,7 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =item *
 
-Stevan Little <stevan.little@iinteractive.com>
+Stevan Little <stevan@cpan.org>
 
 =item *
 
@@ -1768,11 +1771,11 @@ Dave Rolsky <autarch@urth.org>
 
 =item *
 
-Jesse Luehrs <doy@tozt.net>
+Jesse Luehrs <doy@cpan.org>
 
 =item *
 
-Shawn M Moore <code@sartak.org>
+Shawn M Moore <sartak@cpan.org>
 
 =item *
 
@@ -1788,7 +1791,7 @@ Florian Ragwitz <rafl@debian.org>
 
 =item *
 
-Hans Dieter Pearcey <hdp@weftsoar.net>
+Hans Dieter Pearcey <hdp@cpan.org>
 
 =item *
 
@@ -1796,7 +1799,7 @@ Chris Prather <chris@prather.org>
 
 =item *
 
-Matt S Trout <mst@shadowcat.co.uk>
+Matt S Trout <mstrout@cpan.org>
 
 =back
 

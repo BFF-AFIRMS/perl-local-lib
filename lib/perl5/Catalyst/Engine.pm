@@ -202,6 +202,7 @@ sub finalize_cookies {
                 -path    => $val->{path},
                 -secure  => $val->{secure} || 0,
                 -httponly => $val->{httponly} || 0,
+                -samesite => $val->{samesite},
             )
         );
         if (!defined $cookie) {
@@ -302,6 +303,7 @@ sub finalize_error {
 (ru) Попробуйте еще раз позже
 (ua) Спробуйте ще раз пізніше
 (it) Per favore riprova più tardi
+(cs) Vraťte se prosím později
 </pre>
 
         $name = '';

@@ -1,14 +1,11 @@
 package Net::DNS::RR::DNSKEY;
 
-#
-# $Id: DNSKEY.pm 1729 2019-01-28 09:45:47Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1729 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: DNSKEY.pm 2059 2026-08-28 10:04:18Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,154 +13,122 @@ Net::DNS::RR::DNSKEY - DNS DNSKEY resource record
 
 =cut
 
-
 use integer;
 
 use Carp;
 
-use constant BASE64 => defined eval 'require MIME::Base64';
-
-#
-# source: http://www.iana.org/assignments/dns-sec-alg-numbers
-#
-{
-	my @algbyname = (
-		'DELETE'	     => 0,			# [RFC4034][RFC4398][RFC8078]
-		'RSAMD5'	     => 1,			# [RFC3110][RFC4034]
-		'DH'		     => 2,			# [RFC2539]
-		'DSA'		     => 3,			# [RFC3755][RFC2536]
-					## Reserved	=> 4,	# [RFC6725]
-		'RSASHA1'	     => 5,			# [RFC3110][RFC4034]
-		'DSA-NSEC3-SHA1'     => 6,			# [RFC5155]
-		'RSASHA1-NSEC3-SHA1' => 7,			# [RFC5155]
-		'RSASHA256'	     => 8,			# [RFC5702]
-					## Reserved	=> 9,	# [RFC6725]
-		'RSASHA512'	     => 10,			# [RFC5702]
-					## Reserved	=> 11,	# [RFC6725]
-		'ECC-GOST'	     => 12,			# [RFC5933]
-		'ECDSAP256SHA256'    => 13,			# [RFC6605]
-		'ECDSAP384SHA384'    => 14,			# [RFC6605]
-		'ED25519'	     => 15,			# [RFC8080]
-		'ED448'		     => 16,			# [RFC8080]
-
-		'INDIRECT'   => 252,				# [RFC4034]
-		'PRIVATEDNS' => 253,				# [RFC4034]
-		'PRIVATEOID' => 254,				# [RFC4034]
-					## Reserved	=> 255,	# [RFC4034]
-		);
-
-	my %algbyval = reverse @algbyname;
-
-	my @algrehash = map /^\d/ ? ($_) x 3 : do { s/[\W_]//g; uc($_) }, @algbyname;
-	my %algbyname = @algrehash;    # work around broken cperl
-
-	sub _algbyname {
-		my $arg = shift;
-		my $key = uc $arg;				# synthetic key
-		$key =~ s/[\W_]//g;				# strip non-alphanumerics
-		my $val = $algbyname{$key};
-		return $val if defined $val;
-		return $key =~ /^\d/ ? $arg : croak qq[unknown algorithm "$arg"];
-	}
-
-	sub _algbyval {
-		my $value = shift;
-		$algbyval{$value} || return $value;
-	}
-}
+use constant BASE64 => defined eval { require MIME::Base64 };
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	my $rdata = substr $$data, $offset, $self->{rdlength};
-	$self->{keybin} = unpack '@4 a*', $rdata;
-	@{$self}{qw(flags protocol algorithm)} = unpack 'n C*', $rdata;
+	@{$self}{qw(flags protocol algorithm keybin)} = unpack 'n C2 a*', $rdata;
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
-	pack 'n C2 a*', @{$self}{qw(flags protocol algorithm keybin)};
+	return pack 'n C2 a*', @{$self}{qw(flags protocol algorithm keybin)};
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	my $algorithm = $self->{algorithm};
-	$self->_annotation( 'Key ID =', $self->keytag ) if $algorithm;
-	return $self->SUPER::_format_rdata() unless BASE64;
-	my @base64 = split /\s+/, MIME::Base64::encode( $self->{keybin} ) || '-';
-	my @rdata = ( @{$self}{qw(flags protocol)}, $algorithm, @base64 );
+	my @rdata = @{$self}{qw(flags protocol algorithm)};
+	if ( my $keybin = $self->keybin ) {
+		$self->_annotation( 'keytag', $self->keytag );
+		return $self->SUPER::_format_rdata() unless BASE64;
+		push @rdata, split /\s+/, MIME::Base64::encode($keybin);
+	} else {
+		push @rdata, '""';
+	}
+	return @rdata;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	my $flags = shift;		## avoid destruction by CDNSKEY algorithm(0)
-	$self->protocol(shift);
-	$self->algorithm(shift);
-	$self->flags($flags);
-	$self->key(@_);
+	$self->flags( shift @argument );
+	$self->protocol( shift @argument );
+	my $algorithm = shift @argument;
+	$self->key(@argument) if $algorithm;
+	$self->algorithm($algorithm);
+	return;
 }
 
 
 sub _defaults {				## specify RR attribute default values
 	my $self = shift;
 
-	$self->algorithm(1);
 	$self->flags(256);
 	$self->protocol(3);
+	$self->algorithm(1);
+	$self->keybin('');
+	return;
 }
 
 
 sub flags {
-	my $self = shift;
-
-	$self->{flags} = 0 + shift if scalar @_;
-	$self->{flags} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{flags} = 0 + $_ }
+	return $self->{flags} || 0;
 }
 
 
 sub zone {
-	my $bit = 0x0100;
-	for ( shift->{flags} ) {
-		my $set = $bit | ( $_ ||= 0 );
-		$_ = (shift) ? $set : ( $set ^ $bit ) if scalar @_;
-		return $_ & $bit;
+	my ( $self, @value ) = @_;
+	if ( scalar @value ) {
+		for ( $self->{flags} |= 0x0100 ) {
+			$_ ^= 0x0100 unless shift @value;
+		}
 	}
+	return $self->{flags} & 0x0100;
 }
 
 
 sub revoke {
-	my $bit = 0x0080;
-	for ( shift->{flags} ) {
-		my $set = $bit | ( $_ ||= 0 );
-		$_ = (shift) ? $set : ( $set ^ $bit ) if scalar @_;
-		return $_ & $bit;
+	my ( $self, @value ) = @_;
+	if ( scalar @value ) {
+		for ( $self->{flags} |= 0x0080 ) {
+			$_ ^= 0x0080 unless shift @value;
+		}
 	}
+	return $self->{flags} & 0x0080;
+}
+
+
+sub adt {
+	my ( $self, @value ) = @_;
+	if ( scalar @value ) {
+		for ( $self->{flags} |= 0x0002 ) {
+			$_ ^= 0x0002 unless shift @value;
+		}
+	}
+	return $self->{flags} & 0x0002;
 }
 
 
 sub sep {
-	my $bit = 0x0001;
-	for ( shift->{flags} ) {
-		my $set = $bit | ( $_ ||= 0 );
-		$_ = (shift) ? $set : ( $set ^ $bit ) if scalar @_;
-		return $_ & $bit;
+	my ( $self, @value ) = @_;
+	if ( scalar @value ) {
+		for ( $self->{flags} |= 0x0001 ) {
+			$_ ^= 0x0001 unless shift @value;
+		}
 	}
+	return $self->{flags} & 0x0001;
 }
 
 
 sub protocol {
-	my $self = shift;
-
-	$self->{protocol} = 0 + shift if scalar @_;
-	$self->{protocol} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{protocol} = 0 + $_ }
+	return $self->{protocol} || 0;
 }
 
 
@@ -177,45 +142,47 @@ sub algorithm {
 
 	return $self->{algorithm} unless defined $arg;
 	return _algbyval( $self->{algorithm} ) if uc($arg) eq 'MNEMONIC';
-	$self->{algorithm} = _algbyname($arg) || die _algbyname('')    # disallow algorithm(0)
+	return $self->{algorithm} = _algbyname($arg) || die _algbyname('')    # disallow algorithm(0)
 }
 
 
 sub key {
-	my $self = shift;
-	return MIME::Base64::encode( $self->keybin(), "" ) unless scalar @_;
-	$self->keybin( MIME::Base64::decode( join "", @_ ) );
+	my ( $self, @value ) = @_;
+	return MIME::Base64::encode( $self->keybin(), "" ) unless scalar @value;
+	return $self->keybin( MIME::Base64::decode( join "", @value ) );
 }
 
 
 sub keybin {
-	my $self = shift;
-
-	$self->{keybin} = shift if scalar @_;
-	$self->{keybin} || "";
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{keybin} = $_ }
+	return $self->{keybin} || "";
 }
 
 
-sub publickey { shift->key(@_); }
+sub publickey {
+	my ( $self, @value ) = @_;
+	return $self->key(@value);
+}
 
 
 sub privatekeyname {
 	my $self = shift;
 	my $name = $self->signame;
-	sprintf 'K%s+%03d+%05d.private', $name, $self->algorithm, $self->keytag;
+	return sprintf 'K%s+%03d+%05d.private', $name, $self->algorithm, $self->keytag;
 }
 
 
 sub signame {
 	my $self = shift;
-	my $name = lc $self->{owner}->fqdn;
+	return lc $self->{owner}->fqdn;
 }
 
 
 sub keylength {
 	my $self = shift;
 
-	my $keybin = $self->keybin || return undef;
+	my $keybin = $self->keybin || return;
 
 	local $_ = _algbyval( $self->{algorithm} );
 
@@ -238,14 +205,14 @@ sub keylength {
 		return ( $T << 6 ) + 512;
 	}
 
-	length($keybin) << 2;		## ECDSA / ECC-GOST
+	return length($keybin) << 2;	## ECDSA / EdDSA
 }
 
 
 sub keytag {
 	my $self = shift;
 
-	my $keybin = $self->keybin || return 0;
+	my $keybin = $self->{keybin} || return;
 
 	# RFC4034 Appendix B.1: most significant 16 bits of least significant 24 bits
 	return unpack 'n', substr $keybin, -3 if $self->{algorithm} == 1;
@@ -260,14 +227,69 @@ sub keytag {
 }
 
 
+########################################
+
+{
+	my @algbyname = (
+		'DELETE'	     => 0,			# [RFC4034][RFC4398][RFC8078]
+		'RSAMD5'	     => 1,			# [RFC3110][RFC4034]
+		'DH'		     => 2,			# [RFC2539]
+		'DSA'		     => 3,			# [RFC3755][RFC2536]
+					## Reserved	=> 4,	# [RFC6725]
+		'RSASHA1'	     => 5,			# [RFC3110][RFC4034]
+		'DSA-NSEC3-SHA1'     => 6,			# [RFC5155]
+		'RSASHA1-NSEC3-SHA1' => 7,			# [RFC5155]
+		'RSASHA256'	     => 8,			# [RFC5702]
+					## Reserved	=> 9,	# [RFC6725]
+		'RSASHA512'	     => 10,			# [RFC5702]
+					## Reserved	=> 11,	# [RFC6725]
+		'ECC-GOST'	     => 12,			# [RFC5933]
+		'ECDSAP256SHA256'    => 13,			# [RFC6605]
+		'ECDSAP384SHA384'    => 14,			# [RFC6605]
+		'ED25519'	     => 15,			# [RFC8080]
+		'ED448'		     => 16,			# [RFC8080]
+		'SM2SM3'	     => 17,			# [RFC9563]
+		'MLDSA44'	     => 18,			# [draft-westerbaan-dnssec-mldsa]
+		'ECC-GOST12'	     => 23,			# [RFC9558]
+
+		'INDIRECT'   => 252,				# [RFC4034]
+		'PRIVATEDNS' => 253,				# [RFC4034]
+		'PRIVATEOID' => 254,				# [RFC4034]
+					## Reserved	=> 255,	# [RFC4034]
+		);
+
+	my %algbyval = reverse @algbyname;
+
+	foreach (@algbyname) { s/[\W_]//g; }			# strip non-alphanumerics
+	my @algrehash = map { /^\d/ ? ($_) x 3 : uc($_) } @algbyname;
+	my %algbyname = @algrehash;				# work around broken cperl
+
+	sub _algbyname {
+		my $arg = shift;
+		my $key = uc $arg;				# synthetic key
+		$key =~ s/[\W_]//g;				# strip non-alphanumerics
+		my $val = $algbyname{$key};
+		return $val if defined $val;
+		return $key =~ /^\d/ ? $arg : croak qq[unknown algorithm $arg];
+	}
+
+	sub _algbyval {
+		my $value = shift;
+		return $algbyval{$value} || return $value;
+	}
+}
+
+########################################
+
+
 1;
 __END__
 
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name DNSKEY flags protocol algorithm publickey');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name DNSKEY flags protocol algorithm publickey');
 
 =head1 DESCRIPTION
 
@@ -285,8 +307,8 @@ other unpredictable behaviour.
 
 =head2 flags
 
-    $flags = $rr->flags;
-    $rr->flags( $flags );
+	$flags = $rr->flags;
+	$rr->flags( $flags );
 
 Unsigned 16-bit number representing Boolean flags.
 
@@ -294,13 +316,13 @@ Unsigned 16-bit number representing Boolean flags.
 
 =item zone
 
- $rr->zone(1);
+	$rr->zone(1);
 
- if ( $rr->zone ) {
-	...
- }
+	if ( $rr->zone ) {
+		...
+	}
 
-Boolean Zone flag.
+Boolean ZONE flag.
 
 =back
 
@@ -308,13 +330,27 @@ Boolean Zone flag.
 
 =item revoke
 
- $rr->revoke(1);
+	$rr->revoke(1);
 
- if ( $rr->revoke ) {
-	...
- }
+	if ( $rr->revoke ) {
+		...
+	}
 
-Boolean Revoke flag.
+Boolean REVOKE flag.
+
+=back
+
+=over 4
+
+=item adt
+
+	$rr->adt(1);
+
+	if ( $rr->adt ) {
+		...
+	}
+
+Authoritative Delegation Types (ADT) flag.
 
 =back
 
@@ -322,27 +358,27 @@ Boolean Revoke flag.
 
 =item sep
 
- $rr->sep(1);
+	$rr->sep(1);
 
- if ( $rr->sep ) {
-	...
- }
+	if ( $rr->sep ) {
+		...
+	}
 
-Boolean Secure Entry Point flag.
+Boolean Secure Entry Point (SEP) flag.
 
 =back
 
 =head2 protocol
 
-    $protocol = $rr->protocol;
-    $rr->protocol( $protocol );
+	$protocol = $rr->protocol;
+	$rr->protocol( $protocol );
 
 The 8-bit protocol number.  This field MUST have value 3.
 
 =head2 algorithm
 
-    $algorithm = $rr->algorithm;
-    $rr->algorithm( $algorithm );
+	$algorithm = $rr->algorithm;
+	$rr->algorithm( $algorithm );
 
 The 8-bit algorithm number describes the public key algorithm.
 
@@ -353,21 +389,21 @@ to perform mnemonic and numeric code translation.
 
 =head2 key
 
-    $key = $rr->key;
-    $rr->key( $key );
+	$key = $rr->key;
+	$rr->key( $key );
 
 Base64 representation of the public key material.
 
 =head2 keybin
 
-    $keybin = $rr->keybin;
-    $rr->keybin( $keybin );
+	$keybin = $rr->keybin;
+	$rr->keybin( $keybin );
 
 Opaque octet string representing the public key material.
 
 =head2 privatekeyname
 
-    $privatekeyname = $rr->privatekeyname;
+	$privatekeyname = $rr->privatekeyname;
 
 Returns the name of the privatekey as it would be generated by
 the BIND dnssec-keygen program. The format of that name being:
@@ -375,6 +411,8 @@ the BIND dnssec-keygen program. The format of that name being:
 	K<fqdn>+<algorithm>+<keyid>.private
 
 =head2 signame
+
+	$signame = $rr->signame;
 
 Returns the canonical signer name of the privatekey.
 
@@ -384,7 +422,7 @@ Returns the length (in bits) of the modulus calculated from the key text.
 
 =head2 keytag
 
-    print "keytag = ", $rr->keytag, "\n";
+	print "keytag = ", $rr->keytag, "\n";
 
 Returns the 16-bit numerical key tag of the key. (RFC2535 4.1.6)
 
@@ -402,7 +440,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -419,8 +457,11 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC4034, RFC3755
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC4034(2)|https://iana.org/go/rfc4034#section-2>
 
-L<Algorithm Numbers|http://www.iana.org/assignments/dns-sec-alg-numbers>
+L<DNSKEY Flags|https://www.iana.org/assignments/dnskey-flags>
+
+L<Algorithm Numbers|https://iana.org/assignments/dns-sec-alg-numbers>
 
 =cut

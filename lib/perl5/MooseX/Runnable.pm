@@ -1,11 +1,8 @@
-package MooseX::Runnable;
-BEGIN {
-  $MooseX::Runnable::AUTHORITY = 'cpan:JROCKWAY';
-}
-# git description: v0.08-3-ge30197d
-$MooseX::Runnable::VERSION = '0.09';
+package MooseX::Runnable; # git description: v0.09-13-gb2ccf60
 # ABSTRACT: Tag a class as a runnable application
 # KEYWORDS: moose extension executable execute script binary run modulino
+
+our $VERSION = '0.10';
 
 use Moose::Role;
 use namespace::autoclean;
@@ -26,7 +23,7 @@ MooseX::Runnable - Tag a class as a runnable application
 
 =head1 VERSION
 
-version 0.09
+version 0.10
 
 =head1 SYNOPSIS
 
@@ -113,36 +110,32 @@ command-line will be parsed with C<MooseX::Getopt>.  Any recognized
 args will be used to instantiate your class, and any extra args will
 be passed to C<run>.
 
-=head1 BUGS
+=head1 CAVEATS
 
 Many of the plugins shipped are unstable; they may go away, change,
 break, etc.  If there is no documentation for a plugin, it is probably
 just a prototype.
 
+=head1 SUPPORT
+
+Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=MooseX-Runnable>
+(or L<bug-MooseX-Runnable@rt.cpan.org|mailto:bug-MooseX-Runnable@rt.cpan.org>).
+
+There is also a mailing list available for users of this distribution, at
+L<http://lists.perl.org/list/moose.html>.
+
+There is also an irc channel available for users of this distribution, at
+L<C<#moose> on C<irc.perl.org>|irc://irc.perl.org/#moose>.
+
 =head1 AUTHOR
 
 Jonathan Rockway <jrockway@cpan.org>
 
-=head1 COPYRIGHT AND LICENSE
-
-This software is copyright (c) 2009 by Jonathan Rockway.
-
-This is free software; you can redistribute it and/or modify it under
-the same terms as the Perl 5 programming language system itself.
-
 =head1 CONTRIBUTORS
 
-=for stopwords Doug Bell Duke Leto Jonathan Rockway Karen Etheridge
+=for stopwords Jonathan Rockway Karen Etheridge Doug Bell Duke Leto
 
 =over 4
-
-=item *
-
-Doug Bell <doug.bell@baml.com>
-
-=item *
-
-Duke Leto <jonathan@leto.net>
 
 =item *
 
@@ -152,6 +145,21 @@ Jonathan Rockway <jon@jrock.us>
 
 Karen Etheridge <ether@cpan.org>
 
+=item *
+
+Doug Bell <doug.bell@baml.com>
+
+=item *
+
+Duke Leto <jonathan@leto.net>
+
 =back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2009 by Jonathan Rockway.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut

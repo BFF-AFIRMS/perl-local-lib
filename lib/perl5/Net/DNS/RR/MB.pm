@@ -1,14 +1,11 @@
 package Net::DNS::RR::MB;
 
-#
-# $Id: MB.pm 1528 2017-01-18 21:44:58Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1528 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: MB.pm 2002 2025-01-07 09:57:46Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,47 +13,45 @@ Net::DNS::RR::MB - DNS MB resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::DomainName;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->{madname} = decode Net::DNS::DomainName1035(@_);
+	$self->{madname} = Net::DNS::DomainName1035->decode(@argument);
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	my $madname = $self->{madname} || return '';
-	$madname->encode(@_);
+	return $self->{madname}->encode(@argument);
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	my $madname = $self->{madname} || return '';
-	$madname->string;
+	return $self->{madname}->string;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->madname(shift);
+	$self->madname(@argument);
+	return;
 }
 
 
 sub madname {
-	my $self = shift;
-
-	$self->{madname} = new Net::DNS::DomainName1035(shift) if scalar @_;
-	$self->{madname}->name if $self->{madname};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{madname} = Net::DNS::DomainName1035->new($_) }
+	return $self->{madname} ? $self->{madname}->name : undef;
 }
 
 
@@ -66,8 +61,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name MB madname');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name MB madname');
 
 =head1 DESCRIPTION
 
@@ -85,8 +80,8 @@ other unpredictable behaviour.
 
 =head2 madname
 
-    $madname = $rr->madname;
-    $rr->madname( $madname );
+	$madname = $rr->madname;
+	$rr->madname( $madname );
 
 A domain name which specifies a host which has the
 specified mailbox.
@@ -105,7 +100,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -122,6 +117,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1035 Section 3.3.3
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1035(3.3.3)|https://iana.org/go/rfc1035#section-3.3.3>
 
 =cut

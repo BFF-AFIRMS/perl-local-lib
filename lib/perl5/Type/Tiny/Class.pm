@@ -1,106 +1,125 @@
 package Type::Tiny::Class;
 
-use 5.006001;
+use 5.008001;
 use strict;
 use warnings;
 
 BEGIN {
-	if ($] < 5.008) { require Devel::TypeTiny::Perl56Compat };
+	$Type::Tiny::Class::AUTHORITY = 'cpan:TOBYINK';
+	$Type::Tiny::Class::VERSION   = '2.010001';
 }
 
-BEGIN {
-	$Type::Tiny::Class::AUTHORITY = 'cpan:TOBYINK';
-	$Type::Tiny::Class::VERSION   = '1.004004';
-}
+$Type::Tiny::Class::VERSION =~ tr/_//d;
 
 use Scalar::Util qw< blessed >;
 
 sub _croak ($;@) { require Error::TypeTiny; goto \&Error::TypeTiny::croak }
 
-use Type::Tiny ();
-our @ISA = 'Type::Tiny';
+use Exporter::Tiny 1.004001 ();
+use Type::Tiny::ConstrainedObject ();
+our @ISA = qw( Type::Tiny::ConstrainedObject Exporter::Tiny );
+
+sub _short_name { 'Class' }
+
+sub _exporter_fail {
+	my ( $class, $name, $opts, $globals ) = @_;
+	my $caller = $globals->{into};
+	
+	$opts->{name}  = $name unless exists $opts->{name}; $opts->{name} =~ s/:://g;
+	$opts->{class} = $name unless exists $opts->{class};
+	my $type = $class->new($opts);
+	
+	$INC{'Type/Registry.pm'}
+		? 'Type::Registry'->for_class( $caller )->add_type( $type )
+		: ( $Type::Registry::DELAYED{$caller}{$type->name} = $type )
+		unless( ref($caller) or $caller eq '-lexical' or $globals->{'lexical'} );
+	return map +( $_->{name} => $_->{code} ), @{ $type->exportables };
+}
 
 sub new {
 	my $proto = shift;
-	return $proto->class->new(@_) if blessed $proto; # DWIM
+	return $proto->class->new( @_ ) if blessed $proto;    # DWIM
 	
-	my %opts = (@_==1) ? %{$_[0]} : @_;
-	_croak "Class type constraints cannot have a parent constraint passed to the constructor" if exists $opts{parent};
-	_croak "Class type constraints cannot have a constraint coderef passed to the constructor" if exists $opts{constraint};
-	_croak "Class type constraints cannot have a inlining coderef passed to the constructor" if exists $opts{inlined};
+	my %opts = ( @_ == 1 ) ? %{ $_[0] } : @_;
 	_croak "Need to supply class name" unless exists $opts{class};
 	
-	if (Type::Tiny::_USE_XS)
-	{
-		my $xsub = Type::Tiny::XS::get_coderef_for("InstanceOf[".$opts{class}."]");
+	if ( Type::Tiny::_USE_XS ) {
+		my $xsub =
+			Type::Tiny::XS::get_coderef_for( "InstanceOf[" . $opts{class} . "]" );
 		$opts{compiled_type_constraint} = $xsub if $xsub;
 	}
-	elsif (Type::Tiny::_USE_MOUSE)
-	{
+	elsif ( Type::Tiny::_USE_MOUSE ) {
 		require Mouse::Util::TypeConstraints;
-		my $maker = "Mouse::Util::TypeConstraints"->can("generate_isa_predicate_for");
-		$opts{compiled_type_constraint} = $maker->($opts{class}) if $maker;
+		my $maker = "Mouse::Util::TypeConstraints"->can( "generate_isa_predicate_for" );
+		$opts{compiled_type_constraint} = $maker->( $opts{class} ) if $maker;
 	}
 	
-	return $proto->SUPER::new(%opts);
-}
+	return $proto->SUPER::new( %opts );
+} #/ sub new
 
-sub class       { $_[0]{class} }
-sub inlined     { $_[0]{inlined} ||= $_[0]->_build_inlined }
+sub class   { $_[0]{class} }
+sub inlined { $_[0]{inlined} ||= $_[0]->_build_inlined }
 
 sub has_inlined { !!1 }
 
-sub _build_constraint
-{
+sub _is_null_constraint { 0 }
+
+sub _build_constraint {
 	my $self  = shift;
 	my $class = $self->class;
-	return sub { blessed($_) and $_->isa($class) };
+	return sub { blessed( $_ ) and $_->isa( $class ) };
 }
 
-sub _build_inlined
-{
+sub _build_inlined {
 	my $self  = shift;
 	my $class = $self->class;
 	
-	if (Type::Tiny::_USE_XS)
-	{
-		my $xsub = Type::Tiny::XS::get_subname_for("InstanceOf[$class]");
-		return sub { my $var = $_[1]; "$xsub\($var\)" } if $xsub;
-	}
-	
+	my $xsub;
+	$xsub = Type::Tiny::XS::get_subname_for( "InstanceOf[$class]" )
+		if Type::Tiny::_USE_XS;
+		
 	sub {
 		my $var = $_[1];
+		return
+			qq{do { use Scalar::Util (); Scalar::Util::blessed($var) and $var->isa(q[$class]) }}
+			if $Type::Tiny::AvoidCallbacks;
+		return "$xsub\($var\)"
+			if $xsub;
 		qq{Scalar::Util::blessed($var) and $var->isa(q[$class])};
 	};
-}
+} #/ sub _build_inlined
 
-sub _build_default_message
-{
+sub _build_default_message {
 	no warnings 'uninitialized';
 	my $self = shift;
-	my $c = $self->class;
-	return sub { sprintf '%s did not pass type constraint (not isa %s)', Type::Tiny::_dd($_[0]), $c } if $self->is_anon;
+	my $c    = $self->class;
+	return sub {
+		sprintf '%s did not pass type constraint (not isa %s)',
+			Type::Tiny::_dd( $_[0] ), $c;
+		}
+		if $self->is_anon;
 	my $name = "$self";
-	return sub { sprintf '%s did not pass type constraint "%s" (not isa %s)', Type::Tiny::_dd($_[0]), $name, $c };
-}
+	return sub {
+		sprintf '%s did not pass type constraint "%s" (not isa %s)',
+			Type::Tiny::_dd( $_[0] ), $name, $c;
+	};
+} #/ sub _build_default_message
 
-sub _instantiate_moose_type
-{
+sub _instantiate_moose_type {
 	my $self = shift;
 	my %opts = @_;
 	delete $opts{parent};
 	delete $opts{constraint};
 	delete $opts{inlined};
 	require Moose::Meta::TypeConstraint::Class;
-	return "Moose::Meta::TypeConstraint::Class"->new(%opts, class => $self->class);
-}
+	return "Moose::Meta::TypeConstraint::Class"
+		->new( %opts, class => $self->class );
+} #/ sub _instantiate_moose_type
 
-sub plus_constructors
-{
+sub plus_constructors {
 	my $self = shift;
 	
-	unless (@_)
-	{
+	unless ( @_ ) {
 		require Types::Standard;
 		push @_, Types::Standard::HashRef(), "new";
 	}
@@ -108,37 +127,29 @@ sub plus_constructors
 	require B;
 	require Types::TypeTiny;
 	
-	my $class = B::perlstring($self->class);
+	my $class = B::perlstring( $self->class );
 	
 	my @r;
-	while (@_)
-	{
+	while ( @_ ) {
 		my $source = shift;
-		Types::TypeTiny::TypeTiny->check($source)
+		Types::TypeTiny::is_TypeTiny( $source )
 			or _croak "Expected type constraint; got $source";
-		
+			
 		my $constructor = shift;
-		Types::TypeTiny::StringLike->check($constructor)
+		Types::TypeTiny::is_StringLike( $constructor )
 			or _croak "Expected string; got $constructor";
-		
-		push @r, $source, sprintf('%s->%s($_)', $class, $constructor);
-	}
+			
+		push @r, $source, sprintf( '%s->%s($_)', $class, $constructor );
+	} #/ while ( @_ )
 	
-	return $self->plus_coercions(\@r);
-}
+	return $self->plus_coercions( \@r );
+} #/ sub plus_constructors
 
-sub has_parent
-{
-	!!1;
-}
-
-sub parent
-{
+sub parent {
 	$_[0]{parent} ||= $_[0]->_build_parent;
 }
 
-sub _build_parent
-{
+sub _build_parent {
 	my $self  = shift;
 	my $class = $self->class;
 	
@@ -149,66 +160,66 @@ sub _build_parent
 	# In these cases, we don't want to list the parent class as a parent
 	# type constraint.
 	#
-	my @isa = grep $class->isa($_), do { no strict "refs"; no warnings; @{"$class\::ISA"} };
-	
-	if (@isa == 0)
-	{
+	my @isa = grep $class->isa( $_ ),
+		do { no strict "refs"; no warnings; @{"$class\::ISA"} };
+		
+	if ( @isa == 0 ) {
 		require Types::Standard;
 		return Types::Standard::Object();
 	}
 	
-	if (@isa == 1)
-	{
-		return ref($self)->new(class => $isa[0])
+	if ( @isa == 1 ) {
+		return ref( $self )->new( class => $isa[0] );
 	}
 	
 	require Type::Tiny::Intersection;
 	"Type::Tiny::Intersection"->new(
-		type_constraints => [ map ref($self)->new(class => $_), @isa ],
+		type_constraints => [ map ref( $self )->new( class => $_ ), @isa ],
 	);
-}
+} #/ sub _build_parent
 
-*__get_linear_isa_dfs = eval { require mro }
+*__get_linear_isa_dfs =
+	eval { require mro }
 	? \&mro::get_linear_isa
 	: sub {
-		no strict 'refs';
-		
-		my $classname = shift;
-		my @lin = ($classname);
-		my %stored;
-		
-		foreach my $parent (@{"$classname\::ISA"})
-		{
-			my $plin = __get_linear_isa_dfs($parent);
-			foreach (@$plin) {
-				next if exists $stored{$_};
-				push(@lin, $_);
-				$stored{$_} = 1;
-			}
+	no strict 'refs';
+	
+	my $classname = shift;
+	my @lin       = ( $classname );
+	my %stored;
+	
+	foreach my $parent ( @{"$classname\::ISA"} ) {
+		my $plin = __get_linear_isa_dfs( $parent );
+		foreach ( @$plin ) {
+			next if exists $stored{$_};
+			push( @lin, $_ );
+			$stored{$_} = 1;
 		}
-		
-		return \@lin;
+	}
+	
+	return \@lin;
 	};
-
-sub validate_explain
-{
+	
+sub validate_explain {
 	my $self = shift;
-	my ($value, $varname) = @_;
+	my ( $value, $varname ) = @_;
 	$varname = '$_' unless defined $varname;
 	
-	return undef if $self->check($value);
-	return ["Not a blessed reference"] unless blessed($value);
+	return undef if $self->check( $value );
+	return ["Not a blessed reference"] unless blessed( $value );
 	
-	my @isa = @{ __get_linear_isa_dfs(ref $value) };
+	my @isa = @{ __get_linear_isa_dfs( ref $value ) };
 	
-	my $display_var = $varname eq q{$_} ? '' : sprintf(' (in %s)', $varname);
+	my $display_var = $varname eq q{$_} ? '' : sprintf( ' (in %s)', $varname );
 	
 	require Type::Utils;
 	return [
-		sprintf('"%s" requires that the reference isa %s', $self, $self->class),
-		sprintf('The reference%s isa %s', $display_var, Type::Utils::english_list(@isa)),
+		sprintf( '"%s" requires that the reference isa %s', $self, $self->class ),
+		sprintf(
+			'The reference%s isa %s', $display_var, Type::Utils::english_list( @isa )
+		),
 	];
-}
+} #/ sub validate_explain
 
 1;
 
@@ -221,6 +232,87 @@ __END__
 =head1 NAME
 
 Type::Tiny::Class - type constraints based on the "isa" method
+
+=head1 SYNOPSIS
+
+Using via L<Types::Standard>:
+
+  package Local::Horse {
+    use Moo;
+    use Types::Standard qw( Str InstanceOf );
+    
+    has name => (
+      is       => 'ro',
+      isa      => Str,
+    );
+    
+    has owner => (
+      is       => 'ro',
+      isa      => InstanceOf[ 'Local::Person' ],
+      default  => sub { Local::Person->new },
+    );
+  }
+
+Using Type::Tiny::Class's export feature:
+
+  package Local::Horse {
+    use Moo;
+    use Types::Standard qw( Str );
+    use Type::Tiny::Class 'Local::Person';
+    
+    has name => (
+      is       => 'ro',
+      isa      => Str,
+    );
+    
+    has owner => (
+      is       => 'ro',
+      isa      => LocalPerson,
+      default  => sub { LocalPerson->new },
+    );
+  }
+
+Using Type::Tiny::Class's object-oriented interface:
+
+  package Local::Horse {
+    use Moo;
+    use Types::Standard qw( Str );
+    use Type::Tiny::Class;
+    
+    my $Person = Type::Tiny::Class->new( class => 'Local::Person' );
+    
+    has name => (
+      is       => 'ro',
+      isa      => Str,
+    );
+    
+    has owner => (
+      is       => 'ro',
+      isa      => $Person,
+      default  => sub { $Person->new },
+    );
+  }
+
+Using Type::Utils's functional interface:
+
+  package Local::Horse {
+    use Moo;
+    use Types::Standard qw( Str );
+    use Type::Utils;
+    
+    my $Person = class_type 'Local::Person';
+    
+    has name => (
+      is       => 'ro',
+      isa      => Str,
+    );
+    
+    has owner => (
+      is       => 'ro',
+      isa      => $Person,
+      default  => sub { $Person->new },
+    );
+  }
 
 =head1 STATUS
 
@@ -322,17 +414,56 @@ Because coercing C<HashRef> via constructor is a common desire, if
 you call C<plus_constructors> with no arguments at all, this is the
 default.
 
-   $classtype->plus_constructors(Types::Standard::HashRef, "new")
+   $classtype->plus_constructors(HashRef, "new")
    $classtype->plus_constructors()  ## identical to above
 
 This is handy for Moose/Mouse/Moo-based classes.
 
+=item C<< stringifies_to($constraint) >>
+
+See L<Type::Tiny::ConstrainedObject>.
+
+=item C<< numifies_to($constraint) >>
+
+See L<Type::Tiny::ConstrainedObject>.
+
+=item C<< with_attribute_values($attr1 => $constraint1, ...) >>
+
+See L<Type::Tiny::ConstrainedObject>.
+
 =back
+
+=head2 Exports
+
+Type::Tiny::Class can be used as an exporter.
+
+  use Type::Tiny::Class 'HTTP::Tiny';
+
+This will export the following functions into your namespace:
+
+=over
+
+=item C<< HTTPTiny >>
+
+=item C<< is_HTTPTiny( $value ) >>
+
+=item C<< assert_HTTPTiny( $value ) >>
+
+=item C<< to_HTTPTiny( $value ) >>
+
+=back
+
+You will also be able to use C<< HTTPTiny->new(...) >> as a shortcut for
+C<< HTTP::Tiny->new(...) >>.
+
+Multiple types can be exported at once:
+
+  use Type::Tiny::Class qw( HTTP::Tiny LWP::UserAgent );
 
 =head1 BUGS
 
 Please report any bugs to
-L<http://rt.cpan.org/Dist/Display.html?Queue=Type-Tiny>.
+L<https://github.com/tobyink/p5-type-tiny/issues>.
 
 =head1 SEE ALSO
 
@@ -348,7 +479,7 @@ Toby Inkster E<lt>tobyink@cpan.orgE<gt>.
 
 =head1 COPYRIGHT AND LICENCE
 
-This software is copyright (c) 2013-2014, 2017-2019 by Toby Inkster.
+This software is copyright (c) 2013-2014, 2017-2025 by Toby Inkster.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
@@ -358,4 +489,3 @@ the same terms as the Perl 5 programming language system itself.
 THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-

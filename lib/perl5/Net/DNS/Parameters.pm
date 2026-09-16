@@ -1,26 +1,22 @@
 package Net::DNS::Parameters;
 
-#
-# $Id: Parameters.pm 1729 2019-01-28 09:45:47Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1729 $)[1];
-
-
 ################################################
 ##
 ##	Domain Name System (DNS) Parameters
-##	(last updated 2019-01-17)
+##	(last updated 2026-08-24)
 ##
 ################################################
 
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: Parameters.pm 2059 2026-08-28 10:04:18Z willem $)[2];
+
 use integer;
 use Carp;
 
 use base qw(Exporter);
-our @EXPORT = qw(
+
+our @EXPORT_OK = qw(
 		classbyname classbyval %classbyname
 		typebyname typebyval %typebyname
 		opcodebyname opcodebyval
@@ -28,6 +24,15 @@ our @EXPORT = qw(
 		ednsoptionbyname ednsoptionbyval
 		dsotypebyname dsotypebyval
 		);
+
+our %EXPORT_TAGS = (
+	class	   => [qw(classbyname classbyval)],
+	type	   => [qw(typebyname typebyval)],
+	opcode	   => [qw(opcodebyname opcodebyval)],
+	rcode	   => [qw(rcodebyname rcodebyval)],
+	ednsoption => [qw(ednsoptionbyname ednsoptionbyval)],
+	dsotype	   => [qw(dsotypebyname dsotypebyval)],
+	);
 
 
 # Registry: DNS CLASSes
@@ -39,12 +44,16 @@ my @classbyname = (
 	ANY  => 255,						# RFC1035
 	);
 our %classbyval = reverse( CLASS0 => 0, @classbyname );
-push @classbyname, map /^\d/ ? $_ : lc($_), @classbyname;
+push @classbyname, map { /^\d/ ? $_ : lc($_) } @classbyname;
 our %classbyname = ( '*' => 255, @classbyname );
 
 
 # Registry: Resource Record (RR) TYPEs
 my @typebyname = (
+	DELEG	   => 65432,					# draft-ietf-deleg-02
+	DELEG	   => 61440,					# draft-ietf-deleg-03
+	DELEGPARAM => 65433,					# draft-ietf-deleg-07
+	DELEGI	   => 65433,					# draft-ietf-deleg-03
 	A	   => 1,					# RFC1035
 	NS	   => 2,					# RFC1035
 	MD	   => 3,					# RFC1035
@@ -66,35 +75,35 @@ my @typebyname = (
 	X25	   => 19,					# RFC1183
 	ISDN	   => 20,					# RFC1183
 	RT	   => 21,					# RFC1183
-	NSAP	   => 22,					# RFC1706
-	'NSAP-PTR' => 23,					# RFC1348 RFC1637 RFC1706
-	SIG	   => 24,					# RFC4034 RFC3755 RFC2535 RFC2536 RFC2537 RFC2931 RFC3110 RFC3008
-	KEY	   => 25,					# RFC4034 RFC3755 RFC2535 RFC2536 RFC2537 RFC2539 RFC3008 RFC3110
+	NSAP	   => 22,					# RFC1706 https://datatracker.ietf.org/doc/status-change-int-tlds-to-historic
+	'NSAP-PTR' => 23,					# RFC1706 https://datatracker.ietf.org/doc/status-change-int-tlds-to-historic
+	SIG	   => 24,					# RFC2536 RFC2931 RFC3110 RFC4034
+	KEY	   => 25,					# RFC2536 RFC2539 RFC3110 RFC4034
 	PX	   => 26,					# RFC2163
 	GPOS	   => 27,					# RFC1712
 	AAAA	   => 28,					# RFC3596
 	LOC	   => 29,					# RFC1876
-	NXT	   => 30,					# RFC3755 RFC2535
+	NXT	   => 30,					# RFC2535 RFC3755
 	EID	   => 31,					# http://ana-3.lcs.mit.edu/~jnc/nimrod/dns.txt
 	NIMLOC	   => 32,					# http://ana-3.lcs.mit.edu/~jnc/nimrod/dns.txt
 	SRV	   => 33,					# RFC2782
 	ATMA	   => 34,					# http://www.broadband-forum.org/ftp/pub/approved-specs/af-dans-0152.000.pdf
-	NAPTR	   => 35,					# RFC2915 RFC2168 RFC3403
+	NAPTR	   => 35,					# RFC3403
 	KX	   => 36,					# RFC2230
 	CERT	   => 37,					# RFC4398
-	A6	   => 38,					# RFC3226 RFC2874 RFC6563
+	A6	   => 38,					# RFC2874 RFC3226 RFC6563
 	DNAME	   => 39,					# RFC6672
-	SINK	   => 40,					# http://tools.ietf.org/html/draft-eastlake-kitchen-sink
-	OPT	   => 41,					# RFC6891 RFC3225
+	SINK	   => 40,					# draft-eastlake-kitchen-sink-02
+	OPT	   => 41,					# RFC3225 RFC6891
 	APL	   => 42,					# RFC3123
-	DS	   => 43,					# RFC4034 RFC3658
+	DS	   => 43,					# RFC4034
 	SSHFP	   => 44,					# RFC4255
 	IPSECKEY   => 45,					# RFC4025
-	RRSIG	   => 46,					# RFC4034 RFC3755
-	NSEC	   => 47,					# RFC4034 RFC3755
-	DNSKEY	   => 48,					# RFC4034 RFC3755
+	RRSIG	   => 46,					# RFC4034
+	NSEC	   => 47,					# RFC4034 RFC9077
+	DNSKEY	   => 48,					# RFC4034
 	DHCID	   => 49,					# RFC4701
-	NSEC3	   => 50,					# RFC5155
+	NSEC3	   => 50,					# RFC5155 RFC9077
 	NSEC3PARAM => 51,					# RFC5155
 	TLSA	   => 52,					# RFC6698
 	SMIMEA	   => 53,					# RFC8162
@@ -106,7 +115,14 @@ my @typebyname = (
 	CDNSKEY	   => 60,					# RFC7344
 	OPENPGPKEY => 61,					# RFC7929
 	CSYNC	   => 62,					# RFC7477
-	ZONEMD	   => 63,					# draft-wessels-dns-zone-digest
+	ZONEMD	   => 63,					# RFC8976
+	SVCB	   => 64,					# RFC9460
+	HTTPS	   => 65,					# RFC9460
+	DSYNC	   => 66,					# RFC9859
+	HHIT	   => 67,					# RFC9886
+	BRID	   => 68,					# RFC9886
+	UNECE	   => 69,					# draft-woodcock-faltstrom-external-registry-rrtypes-00
+	ISO	   => 70,					# draft-woodcock-faltstrom-external-registry-rrtypes-00
 	SPF	   => 99,					# RFC7208
 	UINFO	   => 100,					# IANA-Reserved
 	UID	   => 101,					# IANA-Reserved
@@ -118,22 +134,28 @@ my @typebyname = (
 	LP	   => 107,					# RFC6742
 	EUI48	   => 108,					# RFC7043
 	EUI64	   => 109,					# RFC7043
+	NXNAME	   => 128,					# RFC9824
 	TKEY	   => 249,					# RFC2930
-	TSIG	   => 250,					# RFC2845
+	TSIG	   => 250,					# RFC8945
 	IXFR	   => 251,					# RFC1995
 	AXFR	   => 252,					# RFC1035 RFC5936
 	MAILB	   => 253,					# RFC1035
 	MAILA	   => 254,					# RFC1035
 	ANY	   => 255,					# RFC1035 RFC6895 RFC8482
 	URI	   => 256,					# RFC7553
-	CAA	   => 257,					# RFC6844
+	CAA	   => 257,					# RFC8659
 	AVC	   => 258,					#
-	DOA	   => 259,					# draft-durand-doa-over-dns
-	TA	   => 32768,					# http://cameo.library.cmu.edu/ http://www.watson.org/~weiler/INI1999-19.pdf
-	DLV	   => 32769,					# RFC4431
+	DOA	   => 259,					# draft-durand-doa-over-dns-02
+	AMTRELAY   => 260,					# RFC8777
+	RESINFO	   => 261,					# RFC9606
+	WALLET	   => 262,					#
+	CLA	   => 263,					# draft-johnson-dns-ipn-cla-07
+	IPN	   => 264,					# draft-johnson-dns-ipn-cla-07
+	TA	   => 32768,					# http://www.watson.org/~weiler/INI1999-19.pdf
+	DLV	   => 32769,					# RFC8749 RFC4431
 	);
 our %typebyval = reverse( TYPE0 => 0, @typebyname );
-push @typebyname, map /^\d/ ? $_ : lc($_), @typebyname;
+push @typebyname, map { /^\d/ ? $_ : lc($_) } @typebyname;
 our %typebyname = ( '*' => 255, @typebyname );
 
 
@@ -144,10 +166,10 @@ my @opcodebyname = (
 	STATUS => 2,						# RFC1035
 	NOTIFY => 4,						# RFC1996
 	UPDATE => 5,						# RFC2136
-	DSO    => 6,						# RFC-ietf-dnsop-session-signal-20
+	DSO    => 6,						# RFC8490
 	);
 our %opcodebyval = reverse @opcodebyname;
-push @opcodebyname, map /^\d/ ? $_ : lc($_), @opcodebyname;
+push @opcodebyname, map { /^\d/ ? $_ : lc($_) } @opcodebyname;
 our %opcodebyname = ( NS_NOTIFY_OP => 4, @opcodebyname );
 
 
@@ -163,43 +185,56 @@ my @rcodebyname = (
 	YXRRSET	  => 7,						# RFC2136
 	NXRRSET	  => 8,						# RFC2136
 	NOTAUTH	  => 9,						# RFC2136
-	NOTAUTH	  => 9,						# RFC2845
+	NOTAUTH	  => 9,						# RFC8945
 	NOTZONE	  => 10,					# RFC2136
-	DSOTYPENI => 11,					# RFC-ietf-dnsop-session-signal-20
+	DSOTYPENI => 11,					# RFC8490
 	BADVERS	  => 16,					# RFC6891
-	BADSIG	  => 16,					# RFC2845
-	BADKEY	  => 17,					# RFC2845
-	BADTIME	  => 18,					# RFC2845
+	BADSIG	  => 16,					# RFC8945
+	BADKEY	  => 17,					# RFC8945
+	BADTIME	  => 18,					# RFC8945
 	BADMODE	  => 19,					# RFC2930
 	BADNAME	  => 20,					# RFC2930
 	BADALG	  => 21,					# RFC2930
-	BADTRUNC  => 22,					# RFC4635
+	BADTRUNC  => 22,					# RFC8945
 	BADCOOKIE => 23,					# RFC7873
 	);
 our %rcodebyval = reverse( BADSIG => 16, @rcodebyname );
-push @rcodebyname, map /^\d/ ? $_ : lc($_), @rcodebyname;
+push @rcodebyname, map { /^\d/ ? $_ : lc($_) } @rcodebyname;
 our %rcodebyname = @rcodebyname;
 
 
 # Registry: DNS EDNS0 Option Codes (OPT)
 my @ednsoptionbyname = (
-	LLQ		=> 1,					# http://files.dns-sd.org/draft-sekar-dns-llq.txt
-	UL		=> 2,					# http://files.dns-sd.org/draft-sekar-dns-ul.txt
-	NSID		=> 3,					# RFC5001
-	DAU		=> 5,					# RFC6975
-	DHU		=> 6,					# RFC6975
-	N3U		=> 7,					# RFC6975
-	'CLIENT-SUBNET' => 8,					# RFC7871
-	EXPIRE		=> 9,					# RFC7314
-	COOKIE		=> 10,					# RFC7873
-	'TCP-KEEPALIVE' => 11,					# RFC7828
-	PADDING		=> 12,					# RFC7830
-	CHAIN		=> 13,					# RFC7901
-	'KEY-TAG'	=> 14,					# RFC8145
-	DEVICEID	=> 26946,				# https://docs.umbrella.com/developer/networkdevices-api/identifying-dns-traffic2
+	LLQ			  => 1,				# RFC8764
+	'UPDATE-LEASE'		  => 2,				# RFC9664
+	NSID			  => 3,				# RFC5001
+	DAU			  => 5,				# RFC6975
+	DHU			  => 6,				# RFC6975
+	N3U			  => 7,				# RFC6975
+	'CLIENT-SUBNET'		  => 8,				# RFC7871
+	EXPIRE			  => 9,				# RFC7314
+	COOKIE			  => 10,			# RFC7873
+	'TCP-KEEPALIVE'		  => 11,			# RFC7828
+	PADDING			  => 12,			# RFC7830
+	CHAIN			  => 13,			# RFC7901
+	'KEY-TAG'		  => 14,			# RFC8145
+	'EXTENDED-ERROR'	  => 15,			# RFC8914
+	'CLIENT-TAG'		  => 16,			# draft-bellis-dnsop-edns-tags-01
+	'SERVER-TAG'		  => 17,			# draft-bellis-dnsop-edns-tags-01
+	'REPORT-CHANNEL'	  => 18,			# RFC9567
+	ZONEVERSION		  => 19,			# RFC9660
+	'MQTYPE-QUERY'		  => 20,			# RFC10029
+	'MQTYPE-RESPONSE'	  => 21,			# RFC10029
+	'EDE-EXTRA-TEXT-LANGUAGE' => 22,			# draft-muks-dns-filtering-05
+	'FILTERING-CONTACT'	  => 23,			# draft-muks-dns-filtering-05
+	'FILTERING-ORGANIZATION'  => 24,			# draft-muks-dns-filtering-05
+	'FILTERING-DB'		  => 25,			# draft-muks-dns-filtering-05
+	'STRUCTURED-ERROR'	  => 26,			# RFC-ietf-dnsop-structured-dns-error-27
+	'UMBRELLA-IDENT' => 20292,				# https://developer.cisco.com/docs/cloud-security/#!integrating-network-devic
+	DEVICEID	 => 26946,				# https://developer.cisco.com/docs/cloud-security/#!network-devices-getting-s
 	);
 our %ednsoptionbyval = reverse @ednsoptionbyname;
-push @ednsoptionbyname, map /^\d/ ? $_ : lc($_), @ednsoptionbyname;
+push @ednsoptionbyname, map { /^\d/ ? $_ : lc($_) } @ednsoptionbyname;
 our %ednsoptionbyname = @ednsoptionbyname;
 
 
@@ -212,27 +247,75 @@ my @dnsflagbyname = (
 	AD => 0x0020,						# RFC4035 RFC6840
 	CD => 0x0010,						# RFC4035 RFC6840
 	);
-push @dnsflagbyname, map /^\d/ ? $_ : lc($_), @dnsflagbyname;
+push @dnsflagbyname, map { /^\d/ ? $_ : lc($_) } @dnsflagbyname;
 our %dnsflagbyname = @dnsflagbyname;
 
 
 # Registry: EDNS Header Flags (16 bits)
 my @ednsflagbyname = (
 	DO => 0x8000,						# RFC4035 RFC3225 RFC6840
+	CO => 0x4000,						# RFC9824
+	DE => 0x2000,						# draft-ietf-dnsop-delext-08
 	);
-push @ednsflagbyname, map /^\d/ ? $_ : lc($_), @ednsflagbyname;
+push @ednsflagbyname, map { /^\d/ ? $_ : lc($_) } @ednsflagbyname;
 our %ednsflagbyname = @ednsflagbyname;
 
 
 # Registry: DSO Type Codes
 my @dsotypebyname = (
-	KEEPALIVE	  => 0x0001,				# RFC-ietf-dnsop-session-signal-20
-	RETRYDELAY	  => 0x0002,				# RFC-ietf-dnsop-session-signal-20
-	ENCRYPTIONPADDING => 0x0003,				# RFC-ietf-dnsop-session-signal-20
+	KEEPALIVE	  => 0x0001,				# RFC8490
+	RETRYDELAY	  => 0x0002,				# RFC8490
+	ENCRYPTIONPADDING => 0x0003,				# RFC8490
+	SUBSCRIBE	  => 0x0040,				# RFC8765
+	PUSH		  => 0x0041,				# RFC8765
+	UNSUBSCRIBE	  => 0x0042,				# RFC8765
+	RECONFIRM	  => 0x0043,				# RFC8765
 	);
 our %dsotypebyval = reverse @dsotypebyname;
-push @dsotypebyname, map /^\d/ ? $_ : lc($_), @dsotypebyname;
+push @dsotypebyname, map { /^\d/ ? $_ : lc($_) } @dsotypebyname;
 our %dsotypebyname = @dsotypebyname;
+
+
+# Registry: Extended DNS Error Codes
+my @dnserrorbyval = (
+	0  => 'Other Error',					# RFC8914
+	1  => 'Unsupported DNSKEY Algorithm',			# RFC8914
+	2  => 'Unsupported DS Digest Type',			# RFC8914
+	3  => 'Stale Answer',					# RFC8914 RFC8767
+	4  => 'Forged Answer',					# RFC8914
+	5  => 'DNSSEC Indeterminate',				# RFC8914
+	6  => 'DNSSEC Bogus',					# RFC8914
+	7  => 'Signature Expired',				# RFC8914
+	8  => 'Signature Not Yet Valid',			# RFC8914
+	9  => 'DNSKEY Missing',					# RFC8914
+	10 => 'RRSIGs Missing',					# RFC8914
+	11 => 'No Zone Key Bit Set',				# RFC8914
+	12 => 'NSEC Missing',					# RFC8914
+	13 => 'Cached Error',					# RFC8914
+	14 => 'Not Ready',					# RFC8914
+	15 => 'Blocked',					# RFC8914
+	16 => 'Censored',					# RFC8914
+	17 => 'Filtered',					# RFC8914
+	18 => 'Prohibited',					# RFC8914
+	19 => 'Stale NXDomain Answer',				# RFC8914
+	20 => 'Not Authoritative',				# RFC8914
+	21 => 'Not Supported',					# RFC8914
+	22 => 'No Reachable Authority',				# RFC8914
+	23 => 'Network Error',					# RFC8914
+	24 => 'Invalid Data',					# RFC8914
+	25 => 'Signature Expired before Valid',			# https://github.com/NLnetLabs/unbound/pull/604#discussion_r802678343
+	26 => 'Too Early',					# RFC9250
+	27 => 'Unsupported NSEC3 Iterations Value',		# RFC9276
+	28 => 'Unable to conform to policy',			# draft-homburg-dnsop-codcp-00
+	29 => 'Synthesized',					# https://github.com/PowerDNS/pdns/pull/12334
+	30 => 'Invalid Query Type',				# RFC9824
+	31 => 'Rate Limited',					# draft-muks-dns-ede-rate-limited-02
+	32 => 'Over Quota',					# draft-muks-dns-ede-rate-limited-02
+	33 => 'Negative Trust Anchor',				# draft-farrokhi-dnsop-ede-nta-00
+	34 => 'New Delegation Only',				# draft-ietf-deleg-10
+	35 => 'Blocked by Upstream DNS Server',			# RFC-ietf-dnsop-structured-dns-error-27
+	);
+our %dnserrorbyval = @dnserrorbyval;
 
 
 ########
@@ -242,29 +325,29 @@ our %dsotypebyname = @dsotypebyname;
 sub classbyname {
 	my $name = shift;
 
-	$classbyname{$name} || $classbyname{uc $name} || do {
+	return $classbyname{$name} || $classbyname{uc $name} || return do {
 		croak qq[unknown class "$name"] unless $name =~ m/^(CLASS)?(\d+)/i;
 		my $val = 0 + $2;
-		croak qq[classbyname("$name") out of range] if $val > 0xffff;
+		croak qq[classbyname("$name") out of range] if $val > 0x7fff;
 		return $val;
-			}
+	}
 }
 
 sub classbyval {
-	my $val = shift;
+	my $arg = shift;
 
-	$classbyval{$val} || do {
-		$val += 0;
-		croak qq[classbyval($val) out of range] if $val > 0xffff;
-		return "CLASS$val";
-			}
+	return $classbyval{$arg} || return do {
+		my $val = ( $arg += 0 ) & 0x7fff;		# MSB used by mDNS
+		croak qq[classbyval($arg) out of range] if $arg > 0xffff;
+		return $classbyval{$arg} = $classbyval{$val} || "CLASS$val";
+	}
 }
 
 
 sub typebyname {
 	my $name = shift;
 
-	$typebyname{$name} || do {
+	return $typebyname{$name} || return do {
 		if ( $name =~ m/^(TYPE)?(\d+)/i ) {
 			my $val = 0 + $2;
 			croak qq[typebyname("$name") out of range] if $val > 0xffff;
@@ -272,114 +355,112 @@ sub typebyname {
 		}
 		_typespec("$name.RRNAME") unless $typebyname{uc $name};
 		return $typebyname{uc $name} || croak qq[unknown type "$name"];
-			}
+	}
 }
 
 sub typebyval {
 	my $val = shift;
 
-	$typebyval{$val} || do {
+	return $typebyval{$val} || return do {
 		$val += 0;
 		croak qq[typebyval($val) out of range] if $val > 0xffff;
 		$typebyval{$val} = "TYPE$val";
 		_typespec("$val.RRTYPE");
 		return $typebyval{$val};
-			}
+	}
 }
 
 
 sub opcodebyname {
 	my $arg = shift;
-	return $opcodebyname{$arg} if defined $opcodebyname{$arg};
-	return 0 + $arg if $arg =~ /^\d/;
+	my $val = $opcodebyname{$arg};
+	return $val if defined $val;
+	return $arg if $arg =~ /^\d/;
 	croak qq[unknown opcode "$arg"];
 }
 
 sub opcodebyval {
 	my $val = shift;
-	$opcodebyval{$val} || return $val;
+	return $opcodebyval{$val} || return "$val";
 }
 
 
 sub rcodebyname {
 	my $arg = shift;
-	return $rcodebyname{$arg} if defined $rcodebyname{$arg};
-	return 0 + $arg if $arg =~ /^\d/;
+	my $val = $rcodebyname{$arg};
+	return $val if defined $val;
+	return $arg if $arg =~ /^\d/;
 	croak qq[unknown rcode "$arg"];
 }
 
 sub rcodebyval {
 	my $val = shift;
-	$rcodebyval{$val} || return $val;
+	return $rcodebyval{$val} || return "$val";
 }
 
 
 sub ednsoptionbyname {
 	my $arg = shift;
-	return $ednsoptionbyname{$arg} if defined $ednsoptionbyname{$arg};
-	return 0 + $arg if $arg =~ /^\d/;
+	my $val = $ednsoptionbyname{$arg};
+	return $val if defined $val;
+	return $arg if $arg =~ /^\d/;
 	croak qq[unknown option "$arg"];
 }
 
 sub ednsoptionbyval {
 	my $val = shift;
-	$ednsoptionbyval{$val} || return $val;
+	return $ednsoptionbyval{$val} || return "$val";
 }
 
 
 sub dsotypebyname {
 	my $arg = shift;
-	return $dsotypebyname{$arg} if defined $dsotypebyname{$arg};
-	return 0 + $arg if $arg =~ /^\d/;
+	my $val = $dsotypebyname{$arg};
+	return $val if defined $val;
+	return $arg if $arg =~ /^\d/;
 	croak qq[unknown DSO type "$arg"];
 }
 
 sub dsotypebyval {
 	my $val = shift;
-	$dsotypebyval{$val} || return $val;
+	return $dsotypebyval{$val} || return "$val";
 }
 
 
-sub register {				## register( 'TOY', 1234 )	(NOT part of published API)
-	my ( $mnemonic, $rrtype ) = map uc($_), @_;		# uncoverable pod
-	$rrtype = rand(255) + 65280 unless $rrtype;
-	for ( typebyval( $rrtype = int $rrtype ) ) {
-		croak qq["$mnemonic" is a CLASS identifier] if $classbyname{$mnemonic};
-		return $rrtype if /^$mnemonic$/;    # duplicate registration
-		croak qq["$mnemonic" conflicts with TYPE$rrtype ($_)] unless /^TYPE\d+$/;
-		my $known = $typebyname{$mnemonic};
-		croak qq["$mnemonic" conflicts with TYPE$known] if $known;
-	}
-	$typebyval{$rrtype} = $mnemonic;
-	return $typebyname{$mnemonic} = $rrtype;
-}
+use constant EXTLANG => defined eval { require Net::DNS::Extlang };
 
-
-use constant EXTLANG => defined eval 'require Net::DNS::Extlang';
-
-our $DNSEXTLANG = EXTLANG ? eval 'Net::DNS::Extlang->new()->domain' : undef;
-
-sub _typespec {				## draft-levine-dnsextlang
-	eval <<'END' if EXTLANG && $DNSEXTLANG;
+sub _typespec {
+	my $generate = defined wantarray;
+	return EXTLANG ? eval <<'END' : '';	## no critic
 	my ($node) = @_;
+	my $instance = Net::DNS::Extlang->new();	## draft-levine-dnsextlang
+	my $basename = $instance->domain || return '';
 
 	require Net::DNS::Resolver;
-	my $resolver = new Net::DNS::Resolver() || return;
-	my $response = $resolver->send( "$node.$DNSEXTLANG", 'TXT' ) || return;
+	my $resolver = Net::DNS::Resolver->new();
+	my $response = $resolver->send( "$node.$basename", 'TXT' ) || return '';
 
-	foreach my $txt ( grep $_->type eq 'TXT', $response->answer ) {
+	foreach my $txt ( grep { $_->type eq 'TXT' } $response->answer ) {
 		my @stanza = $txt->txtdata;
 		my ( $tag, $identifier, @attribute ) = @stanza;
 		next unless defined($tag) && $tag =~ /^RRTYPE=\d+$/;
-		register( $1, $2 ) if $identifier =~ /^(\w+):(\d+)\W*/;
-		return unless defined wantarray;
+		if ( $identifier =~ /^(\w+):(\d+)\W*/ ) {
+			my ( $mnemonic, $rrtype ) = ( uc($1), $2 );
+			croak qq["$mnemonic" is a CLASS identifier] if $classbyname{$mnemonic};
+			for ( typebyval($rrtype) ) {
+				next if /^$mnemonic$/i;		# duplicate registration
+				croak qq["$mnemonic" conflicts with TYPE$rrtype ($_)] unless /^TYPE\d+$/;
+				my $known = $typebyname{$mnemonic};
+				croak qq["$mnemonic" conflicts with TYPE$known] if $known;
+				$typebyval{$rrtype} = $mnemonic;
+				$typebyname{$mnemonic} = $rrtype;
+			}
+		}
+		return unless $generate;
 
-		my $extobj = new Net::DNS::Extlang();
-		my $recipe = $extobj->xlstorerecord( $identifier, @attribute );
-		my @source = split /\n/, $extobj->compilerr($recipe);
-		return sub { defined( $_ = shift @source ) };
+		my $recipe = $instance->xlstorerecord( $identifier, @attribute );
+		return $instance->compilerr($recipe);
 	}
-	return;
 END
 }
 
@@ -395,7 +476,7 @@ Net::DNS::Parameters - DNS parameter assignments
 
 =head1 SYNOPSIS
 
-    use Net::DNS::Parameters;
+	use Net::DNS::Parameters;
 
 
 =head1 DESCRIPTION
@@ -433,7 +514,7 @@ All rights reserved.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific

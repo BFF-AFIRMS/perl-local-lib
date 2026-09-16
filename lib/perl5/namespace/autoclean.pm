@@ -1,14 +1,38 @@
 use strict;
 use warnings;
 
-package namespace::autoclean; # git description: 0.27-4-g47c7088
+package namespace::autoclean; # git description: 0.30-TRIAL-2-ga0e6aea
 # ABSTRACT: Keep imports out of your namespace
 # KEYWORDS: namespaces clean dirty imports exports subroutines methods development
 
-our $VERSION = '0.28';
+our $VERSION = '0.31';
 
 use B::Hooks::EndOfScope 0.12;
 use List::Util qw( first );
+
+BEGIN {
+    if (eval { require Sub::Util } && defined &Sub::Util::subname) {
+        *subname = \&Sub::Util::subname;
+    }
+    else {
+        require B;
+        *subname = sub {
+            my ($coderef) = @_;
+            die 'Not a subroutine reference'
+                unless ref $coderef;
+            my $cv = B::svref_2object($coderef);
+            die 'Not a subroutine reference'
+                unless $cv->isa('B::CV');
+            my $gv = $cv->GV;
+            return undef
+                if $gv->isa('B::SPECIAL');
+            my $stash = $gv->STASH;
+            my $package = $stash->isa('B::SPECIAL') ? '__ANON__' : $stash->NAME;
+            return $package . '::' . $gv->NAME;
+        };
+    }
+}
+
 use namespace::clean 0.20;
 
 #pod =head1 SYNOPSIS
@@ -156,13 +180,13 @@ sub import {
 
     my $cleanee = exists $args{-cleanee} ? $args{-cleanee} : scalar caller;
 
-    my @also = map { $subcast->($_) } (
+    my @also = map $subcast->($_), (
         exists $args{-also}
         ? (ref $args{-also} eq 'ARRAY' ? @{ $args{-also} } : $args{-also})
         : ()
     );
 
-    my @except = map { $subcast->($_) } (
+    my @except = map $subcast->($_), (
         exists $args{-except}
         ? (ref $args{-except} eq 'ARRAY' ? @{ $args{-except} } : $args{-except})
         : ()
@@ -188,7 +212,7 @@ sub _method_check {
     if (
       (defined &Class::MOP::class_of and my $meta = Class::MOP::class_of($package))
     ) {
-        my %methods = map { $_ => 1 } $meta->get_method_list;
+        my %methods = map +($_ => 1), $meta->get_method_list;
         $methods{meta} = 1
           if $meta->isa('Moose::Meta::Role') && Moose->VERSION < 0.90;
         return sub { $_[0] =~ /^\(/ || $methods{$_[0]} };
@@ -197,11 +221,10 @@ sub _method_check {
         my $does = $package->can('does') ? 'does'
                  : $package->can('DOES') ? 'DOES'
                  : undef;
-        require Sub::Identify;
         return sub {
             return 1 if $_[0] =~ /^\(/;
             my $coderef = do { no strict 'refs'; \&{ $package . '::' . $_[0] } };
-            my $code_stash = Sub::Identify::stash_name($coderef);
+            my ($code_stash) = subname($coderef) =~ /\A(.*)::/s;
             return 1 if $code_stash eq $package;
             return 1 if $code_stash eq 'constant';
             # TODO: consider if we really need this eval
@@ -225,7 +248,7 @@ namespace::autoclean - Keep imports out of your namespace
 
 =head1 VERSION
 
-version 0.28
+version 0.31
 
 =head1 SYNOPSIS
 
@@ -387,7 +410,7 @@ There is also a mailing list available for users of this distribution, at
 L<http://lists.perl.org/list/moose.html>.
 
 There is also an irc channel available for users of this distribution, at
-irc://irc.perl.org/#moose.
+L<C<#moose> on C<irc.perl.org>|irc://irc.perl.org/#moose>.
 
 =head1 AUTHOR
 
@@ -395,7 +418,7 @@ Florian Ragwitz <rafl@debian.org>
 
 =head1 CONTRIBUTORS
 
-=for stopwords Karen Etheridge Graham Knop Dave Rolsky Kent Fredric Tomas Doran Shawn M Moore Felix Ostmann Chris Prather Andrew Rodland
+=for stopwords Karen Etheridge Graham Knop Dave Rolsky Kent Fredric Tomas Doran Shawn M Moore Felix Ostmann Andrew Rodland Chris Prather
 
 =over 4
 
@@ -421,19 +444,19 @@ Tomas Doran <bobtfish@bobtfish.net>
 
 =item *
 
-Shawn M Moore <sartak@gmail.com>
+Shawn M Moore <cpan@sartak.org>
 
 =item *
 
-Felix Ostmann <sadrak@sadrak-laptop.(none)>
+Felix Ostmann <sadrak@cpan.org>
 
 =item *
 
-Chris Prather <cprather@hdpublishing.com>
+Andrew Rodland <arodland@cpan.org>
 
 =item *
 
-Andrew Rodland <andrew@hbslabs.com>
+Chris Prather <chris@prather.org>
 
 =back
 

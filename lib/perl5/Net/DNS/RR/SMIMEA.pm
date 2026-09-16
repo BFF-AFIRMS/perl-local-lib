@@ -1,14 +1,11 @@
 package Net::DNS::RR::SMIMEA;
 
-#
-# $Id: SMIMEA.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: SMIMEA.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,23 +13,22 @@ Net::DNS::RR::SMIMEA - DNS SMIMEA resource record
 
 =cut
 
-
 use integer;
 
 use Carp;
 
-use constant BABBLE => defined eval 'require Digest::BubbleBabble';
+use constant BABBLE => defined eval { require Digest::BubbleBabble };
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	my $next = $offset + $self->{rdlength};
 
 	@{$self}{qw(usage selector matchingtype)} = unpack "\@$offset C3", $$data;
 	$offset += 3;
 	$self->{certbin} = substr $$data, $offset, $next - $offset;
+	return;
 }
 
 
@@ -47,61 +43,58 @@ sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
 	$self->_annotation( $self->babble ) if BABBLE;
-	my @cert = split /(\S{64})/, $self->cert;
+	my @cert  = split /(\S{64})/, $self->cert;
 	my @rdata = ( $self->usage, $self->selector, $self->matchingtype, @cert );
+	return @rdata;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->usage(shift);
-	$self->selector(shift);
-	$self->matchingtype(shift);
-	$self->cert(@_);
+	for (qw(usage selector matchingtype)) { $self->$_( shift @argument ) }
+	$self->cert(@argument);
+	return;
 }
 
 
 sub usage {
-	my $self = shift;
-
-	$self->{usage} = 0 + shift if scalar @_;
-	$self->{usage} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{usage} = 0 + $_ }
+	return $self->{usage} || 0;
 }
 
 
 sub selector {
-	my $self = shift;
-
-	$self->{selector} = 0 + shift if scalar @_;
-	$self->{selector} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{selector} = 0 + $_ }
+	return $self->{selector} || 0;
 }
 
 
 sub matchingtype {
-	my $self = shift;
-
-	$self->{matchingtype} = 0 + shift if scalar @_;
-	$self->{matchingtype} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{matchingtype} = 0 + $_ }
+	return $self->{matchingtype} || 0;
 }
 
 
 sub cert {
-	my $self = shift;
-	return unpack "H*", $self->certbin() unless scalar @_;
-	$self->certbin( pack "H*", map /[^\dA-F]/i ? croak "corrupt hex" : $_, join "", @_ );
+	my ( $self, @value ) = @_;
+	return unpack "H*", $self->certbin() unless scalar @value;
+	my @hex = map { /^"*([\dA-Fa-f]*)"*$/ || croak("corrupt hex"); $1 } @value;
+	return $self->certbin( pack "H*", join "", @hex );
 }
 
 
 sub certbin {
-	my $self = shift;
-
-	$self->{certbin} = shift if scalar @_;
-	$self->{certbin} || "";
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{certbin} = $_ }
+	return $self->{certbin} || "";
 }
 
 
-sub certificate { &cert; }
+sub certificate { return &cert; }
 
 
 sub babble {
@@ -115,8 +108,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name SMIMEA usage selector matchingtype certificate');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name SMIMEA usage selector matchingtype certificate');
 
 =head1 DESCRIPTION
 
@@ -138,24 +131,24 @@ other unpredictable behaviour.
 
 =head2 usage
 
-    $usage = $rr->usage;
-    $rr->usage( $usage );
+	$usage = $rr->usage;
+	$rr->usage( $usage );
 
 8-bit integer value which specifies the provided association that
 will be used to match the certificate.
 
 =head2 selector
 
-    $selector = $rr->selector;
-    $rr->selector( $selector );
+	$selector = $rr->selector;
+	$rr->selector( $selector );
 
 8-bit integer value which specifies which part of the certificate
 presented by the server will be matched against the association data.
 
 =head2 matchingtype
 
-    $matchingtype = $rr->matchingtype;
-    $rr->matchingtype( $matchingtype );
+	$matchingtype = $rr->matchingtype;
+	$rr->matchingtype( $matchingtype );
 
 8-bit integer value which specifies how the certificate association
 is presented.
@@ -164,21 +157,21 @@ is presented.
 
 =head2 cert
 
-    $cert = $rr->cert;
-    $rr->cert( $cert );
+	$cert = $rr->cert;
+	$rr->cert( $cert );
 
 Hexadecimal representation of the certificate data.
 
 =head2 certbin
 
-    $certbin = $rr->certbin;
-    $rr->certbin( $certbin );
+	$certbin = $rr->certbin;
+	$rr->certbin( $certbin );
 
 Binary representation of the certificate data.
 
 =head2 babble
 
-    print $rr->babble;
+	print $rr->babble;
 
 The babble() method returns the 'BubbleBabble' representation of the
 digest if the Digest::BubbleBabble package is available, otherwise
@@ -206,7 +199,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -223,7 +216,8 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC8162,
-RFC6698
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC8162|https://iana.org/go/rfc8162>
+L<RFC6698|https://iana.org/go/rfc6698>
 
 =cut

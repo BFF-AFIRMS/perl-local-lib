@@ -1,8 +1,7 @@
 package MooseX::Runnable::Invocation::Role::WithParsedArgs;
-BEGIN {
-  $MooseX::Runnable::Invocation::Role::WithParsedArgs::AUTHORITY = 'cpan:JROCKWAY';
-}
-$MooseX::Runnable::Invocation::Role::WithParsedArgs::VERSION = '0.09';
+
+our $VERSION = '0.10';
+
 use Moose::Role;
 use MooseX::Runnable::Util::ArgParser;
 use namespace::autoclean;
