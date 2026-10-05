@@ -1,21 +1,17 @@
 package Net::DNS::RR::GPOS;
 
-#
-# $Id: GPOS.pm 1528 2017-01-18 21:44:58Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1528 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: GPOS.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
 Net::DNS::RR::GPOS - DNS GPOS resource record
 
 =cut
-
 
 use integer;
 
@@ -24,40 +20,40 @@ use Net::DNS::Text;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	my $limit = $offset + $self->{rdlength};
-	( $self->{latitude},  $offset ) = decode Net::DNS::Text( $data, $offset ) if $offset < $limit;
-	( $self->{longitude}, $offset ) = decode Net::DNS::Text( $data, $offset ) if $offset < $limit;
-	( $self->{altitude},  $offset ) = decode Net::DNS::Text( $data, $offset ) if $offset < $limit;
+	for (qw(latitude longitude altitude)) {
+		my $text;
+		( $text, $offset ) = Net::DNS::Text->decode( $data, $offset );
+		$self->$_( $text->value );
+	}
 	croak('corrupt GPOS data') unless $offset == $limit;	# more or less FUBAR
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
-	return '' unless defined $self->{altitude};
-	join '', map $self->{$_}->encode, qw(latitude longitude altitude);
+	return join '', map { Net::DNS::Text->new($_)->encode } @{$self}{qw(latitude longitude altitude)};
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	return '' unless defined $self->{altitude};
-	join ' ', map $self->{$_}->string, qw(latitude longitude altitude);
+	return map { Net::DNS::Text->new($_)->string } @{$self}{qw(latitude longitude altitude)};
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->latitude(shift);
-	$self->longitude(shift);
-	$self->altitude(shift);
-	die 'too many arguments for GPOS' if scalar @_;
+	$self->latitude( shift @argument );
+	$self->longitude( shift @argument );
+	$self->altitude(@argument);
+	return;
 }
 
 
@@ -65,40 +61,39 @@ sub _defaults {				## specify RR attribute default values
 	my $self = shift;
 
 	$self->_parse_rdata(qw(0.0 0.0 0.0));
+	return;
 }
 
 
 sub latitude {
-	my $self = shift;
-	$self->{latitude} = _fp2text(shift) if scalar @_;
-	_text2fp( $self->{latitude} ) if defined wantarray;
+	my ( $self, @value ) = @_;
+	for (@value) { return $self->{latitude} = _fp($_) }
+	return $self->{latitude};
 }
 
 
 sub longitude {
-	my $self = shift;
-	$self->{longitude} = _fp2text(shift) if scalar @_;
-	_text2fp( $self->{longitude} ) if defined wantarray;
+	my ( $self, @value ) = @_;
+	for (@value) { return $self->{longitude} = _fp($_) }
+	return $self->{longitude};
 }
 
 
 sub altitude {
-	my $self = shift;
-	$self->{altitude} = _fp2text(shift) if scalar @_;
-	_text2fp( $self->{altitude} ) if defined wantarray;
+	my ( $self, @value ) = @_;
+	for (@value) { return $self->{altitude} = _fp($_) }
+	return $self->{altitude};
 }
 
 
 ########################################
 
-sub _fp2text {
-	return new Net::DNS::Text( sprintf( '%1.10g', shift ) );
+sub _fp {
+	no integer;
+	return sprintf( '%1.10g', 0.0 + shift );
 }
 
-sub _text2fp {
-	no integer;
-	return 0.0 + shift->value;
-}
+########################################
 
 
 1;
@@ -107,8 +102,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name GPOS latitude longitude altitude');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name GPOS latitude longitude altitude');
 
 =head1 DESCRIPTION
 
@@ -126,22 +121,22 @@ other unpredictable behaviour.
 
 =head2 latitude
 
-    $latitude = $rr->latitude;
-    $rr->latitude( $latitude );
+	$latitude = $rr->latitude;
+	$rr->latitude( $latitude );
 
 Floating-point representation of latitude, in degrees.
 
 =head2 longitude
 
-    $longitude = $rr->longitude;
-    $rr->longitude( $longitude );
+	$longitude = $rr->longitude;
+	$rr->longitude( $longitude );
 
 Floating-point representation of longitude, in degrees.
 
 =head2 altitude
 
-    $altitude = $rr->altitude;
-    $rr->altitude( $altitude );
+	$altitude = $rr->altitude;
+	$rr->altitude( $altitude );
 
 Floating-point representation of altitude, in metres.
 
@@ -159,7 +154,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -176,6 +171,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1712
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1712|https://iana.org/go/rfc1712>
 
 =cut

@@ -37,9 +37,15 @@ method.
 Below, we just note the remaining differences in semantics between
 XML::Generator methods and XML::Generator::DOM methods.
 
+=head1 LICENSE
+
+This library is free software, you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
 =cut
 
 use strict;
+use warnings;
 use Carp;
 use XML::Generator ();
 use base 'XML::Generator';
@@ -47,7 +53,7 @@ use XML::DOM;
 
 use vars qw( $AUTOLOAD $VERSION );
 
-$VERSION = '0.2';
+our $VERSION = '1.13';
 
 =head1 CONSTRUCTOR
 

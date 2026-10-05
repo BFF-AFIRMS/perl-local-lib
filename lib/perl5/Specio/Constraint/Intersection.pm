@@ -3,19 +3,19 @@ package Specio::Constraint::Intersection;
 use strict;
 use warnings;
 
-our $VERSION = '0.43';
+our $VERSION = '0.53';
 
-use List::Util qw( all );
+use List::Util 1.33 qw( all );
 use Role::Tiny::With;
+use Specio qw( _clone );
 use Specio::OO;
-use Storable qw( dclone );
 
 use Specio::Constraint::Role::Interface;
 with 'Specio::Constraint::Role::Interface';
 
 {
     ## no critic (Subroutines::ProtectPrivateSubs)
-    my $attrs = dclone( Specio::Constraint::Role::Interface::_attrs() );
+    my $attrs = _clone( Specio::Constraint::Role::Interface::_attrs() );
     ## use critic
 
     for my $name (qw( _constraint _inline_generator )) {
@@ -98,7 +98,7 @@ sub _build_inline_generator {
             map { sprintf( '( %s )', $_->_inline_generator->( $_, $_[1] ) ) }
                 @{ $self->of }
         ) . ')';
-        }
+    }
 }
 
 sub _build_inline_environment {
@@ -133,7 +133,7 @@ Specio::Constraint::Intersection - A class for intersection constraints
 
 =head1 VERSION
 
-version 0.43
+version 0.53
 
 =head1 SYNOPSIS
 
@@ -141,8 +141,8 @@ version 0.43
 
 =head1 DESCRIPTION
 
-This is a specialized type constraint class for intersections, which will
-allow a value which matches each one of several distinct types.
+This is a specialized type constraint class for intersections, which will allow
+a value which matches each one of several distinct types.
 
 =for Pod::Coverage parent
 
@@ -175,8 +175,6 @@ L<Specio::Role::Inlinable> roles.
 
 Bugs may be submitted at L<https://github.com/houseabsolute/Specio/issues>.
 
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
-
 =head1 SOURCE
 
 The source code repository for Specio can be found at L<https://github.com/houseabsolute/Specio>.
@@ -187,7 +185,7 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2012 - 2018 by Dave Rolsky.
+This software is Copyright (c) 2012 - 2025 by Dave Rolsky.
 
 This is free software, licensed under:
 

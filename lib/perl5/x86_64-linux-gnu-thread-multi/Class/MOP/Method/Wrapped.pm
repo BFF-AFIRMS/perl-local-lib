@@ -1,11 +1,11 @@
 package Class::MOP::Method::Wrapped;
-our $VERSION = '2.2011';
+our $VERSION = '2.4000';
 
 use strict;
 use warnings;
 
 use Scalar::Util 'blessed';
-use Sub::Name 'subname';
+use Sub::Util 1.40 'set_subname';
 
 use parent 'Class::MOP::Method';
 
@@ -91,7 +91,9 @@ sub wrap {
 
     return $class->SUPER::wrap(
         sub {
-            my $wrapped = subname "${pkg_name}::_wrapped_${method_name}" => $modifier_table->{cache};
+            my $wrapped
+                = set_subname( "${pkg_name}::_wrapped_${method_name}" =>
+                    $modifier_table->{cache} );
             return $wrapped->(@_) ;
         },
         package_name    => $pkg_name,
@@ -217,7 +219,7 @@ Class::MOP::Method::Wrapped - Method Meta Object for methods with before/after/a
 
 =head1 VERSION
 
-version 2.2011
+version 2.4000
 
 =head1 DESCRIPTION
 
@@ -281,7 +283,7 @@ acting as the specified type of modifier.
 
 =item *
 
-Stevan Little <stevan.little@iinteractive.com>
+Stevan Little <stevan@cpan.org>
 
 =item *
 
@@ -289,11 +291,11 @@ Dave Rolsky <autarch@urth.org>
 
 =item *
 
-Jesse Luehrs <doy@tozt.net>
+Jesse Luehrs <doy@cpan.org>
 
 =item *
 
-Shawn M Moore <code@sartak.org>
+Shawn M Moore <sartak@cpan.org>
 
 =item *
 
@@ -309,7 +311,7 @@ Florian Ragwitz <rafl@debian.org>
 
 =item *
 
-Hans Dieter Pearcey <hdp@weftsoar.net>
+Hans Dieter Pearcey <hdp@cpan.org>
 
 =item *
 
@@ -317,7 +319,7 @@ Chris Prather <chris@prather.org>
 
 =item *
 
-Matt S Trout <mst@shadowcat.co.uk>
+Matt S Trout <mstrout@cpan.org>
 
 =back
 

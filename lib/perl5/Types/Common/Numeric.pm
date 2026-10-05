@@ -1,17 +1,15 @@
 package Types::Common::Numeric;
 
-use 5.006001;
+use 5.008001;
 use strict;
 use warnings;
 
 BEGIN {
-	if ($] < 5.008) { require Devel::TypeTiny::Perl56Compat };
+	$Types::Common::Numeric::AUTHORITY = 'cpan:TOBYINK';
+	$Types::Common::Numeric::VERSION   = '2.010001';
 }
 
-BEGIN {
-	$Types::Common::Numeric::AUTHORITY = 'cpan:TOBYINK';
-	$Types::Common::Numeric::VERSION   = '1.004004';
-}
+$Types::Common::Numeric::VERSION =~ tr/_//d;
 
 use Type::Library -base, -declare => qw(
 	PositiveNum PositiveOrZeroNum
@@ -23,7 +21,8 @@ use Type::Library -base, -declare => qw(
 );
 
 use Type::Tiny ();
-use Types::Standard qw( Num Int Bool );
+use Types::Standard qw( Num Int );
+use Types::TypeTiny qw( BoolLike );
 
 sub _croak ($;@) { require Error::TypeTiny; goto \&Error::TypeTiny::croak }
 
@@ -43,13 +42,14 @@ $meta->add_type(
 	constraint => sub { $_ >= 0 },
 	inlined    => sub { undef, qq($_ >= 0) },
 	message    => sub { "Must be a number greater than or equal to zero" },
+	type_default => sub { return 0; },
 );
 
-my ($pos_int, $posz_int);
-if (Type::Tiny::_USE_XS) {
-	$pos_int  = Type::Tiny::XS::get_coderef_for('PositiveInt')
-		if Type::Tiny::XS->VERSION >= 0.013; # fixed bug with "00"
-	$posz_int = Type::Tiny::XS::get_coderef_for('PositiveOrZeroInt');
+my ( $pos_int, $posz_int );
+if ( Type::Tiny::_USE_XS ) {
+	$pos_int = Type::Tiny::XS::get_coderef_for( 'PositiveInt' )
+		if Type::Tiny::XS->VERSION >= 0.013;    # fixed bug with "00"
+	$posz_int = Type::Tiny::XS::get_coderef_for( 'PositiveOrZeroInt' );
 }
 
 $meta->add_type(
@@ -57,13 +57,13 @@ $meta->add_type(
 	parent     => Int,
 	constraint => sub { $_ > 0 },
 	inlined    => sub {
-		if ($pos_int) {
-			my $xsub = Type::Tiny::XS::get_subname_for($_[0]->name);
-			return "$xsub($_[1])" if $xsub;
+		if ( $pos_int ) {
+			my $xsub = Type::Tiny::XS::get_subname_for( $_[0]->name );
+			return "$xsub($_[1])" if $xsub && !$Type::Tiny::AvoidCallbacks;
 		}
 		undef, qq($_ > 0);
 	},
-	message    => sub { "Must be a positive integer" },
+	message => sub { "Must be a positive integer" },
 	$pos_int ? ( compiled_type_constraint => $pos_int ) : (),
 );
 
@@ -72,14 +72,15 @@ $meta->add_type(
 	parent     => Int,
 	constraint => sub { $_ >= 0 },
 	inlined    => sub {
-		if ($posz_int) {
-			my $xsub = Type::Tiny::XS::get_subname_for($_[0]->name);
-			return "$xsub($_[1])" if $xsub;
+		if ( $posz_int ) {
+			my $xsub = Type::Tiny::XS::get_subname_for( $_[0]->name );
+			return "$xsub($_[1])" if $xsub && !$Type::Tiny::AvoidCallbacks;
 		}
 		undef, qq($_ >= 0);
 	},
-	message    => sub { "Must be an integer greater than or equal to zero" },
+	message => sub { "Must be an integer greater than or equal to zero" },
 	$posz_int ? ( compiled_type_constraint => $posz_int ) : (),
+	type_default => sub { return 0; },
 );
 
 $meta->add_type(
@@ -96,6 +97,7 @@ $meta->add_type(
 	constraint => sub { $_ <= 0 },
 	inlined    => sub { undef, qq($_ <= 0) },
 	message    => sub { "Must be a number less than or equal to zero" },
+	type_default => sub { return 0; },
 );
 
 $meta->add_type(
@@ -112,6 +114,7 @@ $meta->add_type(
 	constraint => sub { $_ <= 0 },
 	inlined    => sub { undef, qq($_ <= 0) },
 	message    => sub { "Must be an integer less than or equal to zero" },
+	type_default => sub { return 0; },
 );
 
 $meta->add_type(
@@ -120,50 +123,66 @@ $meta->add_type(
 	constraint => sub { $_ >= -9 and $_ <= 9 },
 	inlined    => sub { undef, qq($_ >= -9), qq($_ <= 9) },
 	message    => sub { "Must be a single digit" },
+	type_default => sub { return 0; },
 );
 
-for my $base (qw/Num Int/) {
+for my $base ( qw/Num Int/ ) {
 	$meta->add_type(
-		name       => "${base}Range",
-		parent     => Types::Standard->get_type($base),
+		name                 => "${base}Range",
+		parent               => Types::Standard->get_type( $base ),
 		constraint_generator => sub {
-			return $meta->get_type("${base}Range") unless @_;
+			return $meta->get_type( "${base}Range" ) unless @_;
 			
-			my $base = Types::Standard->get_type($base);
+			my $base_obj = Types::Standard->get_type( $base );
 			
-			my ($min, $max, $min_excl, $max_excl) = @_;
-			!defined($min) or $base->check($min) or _croak("${base}Range min must be a %s; got %s", lc($base), $min);
-			!defined($max) or $base->check($max) or _croak("${base}Range max must be a %s; got %s", lc($base), $max);
-			!defined($min_excl) or Bool->check($min_excl) or _croak("${base}Range minexcl must be a boolean; got $min_excl");
-			!defined($max_excl) or Bool->check($max_excl) or _croak("${base}Range maxexcl must be a boolean; got $max_excl");
-			
+			Type::Tiny::check_parameter_count_for_parameterized_type( 'Types::Common::Numeric', "${base}Range", \@_, 4 );
+			my ( $min, $max, $min_excl, $max_excl ) = @_;
+			!defined( $min )
+				or $base_obj->check( $min )
+				or _croak(
+				"${base}Range min must be a %s; got %s", lc( $base ),
+				$min
+				);
+			!defined( $max )
+				or $base_obj->check( $max )
+				or _croak(
+				"${base}Range max must be a %s; got %s", lc( $base ),
+				$max
+				);
+			!defined( $min_excl )
+				or BoolLike->check( $min_excl )
+				or _croak( "${base}Range minexcl must be a boolean; got $min_excl" );
+			!defined( $max_excl )
+				or BoolLike->check( $max_excl )
+				or _croak( "${base}Range maxexcl must be a boolean; got $max_excl" );
+				
 			# this is complicated so defer to the inline generator
 			eval sprintf(
 				'sub { %s }',
 				join ' and ',
-					grep defined,
-					$meta->get_type("${base}Range")->inline_generator->(@_)->(undef, '$_[0]'),
+				grep defined,
+				$meta->get_type( "${base}Range" )->inline_generator->( @_ )->( undef, '$_[0]' ),
 			);
 		},
 		inline_generator => sub {
-			my ($min, $max, $min_excl, $max_excl) = @_;
+			my ( $min, $max, $min_excl, $max_excl ) = @_;
 			
 			my $gt = $min_excl ? '>' : '>=';
 			my $lt = $max_excl ? '<' : '<=';
 			
 			return sub {
-				my $v = $_[1];
-				my @code = (undef); # parent constraint
+				my $v    = $_[1];
+				my @code = ( undef );    # parent constraint
 				push @code, "$v $gt $min";
 				push @code, "$v $lt $max" if defined $max;
 				return @code;
 			};
 		},
 		deep_explanation => sub {
-			my ($type, $value, $varname) = @_;
-			my ($min, $max, $min_excl, $max_excl) = @{ $type->parameters || [] };
+			my ( $type, $value, $varname ) = @_;
+			my ( $min, $max, $min_excl, $max_excl ) = @{ $type->parameters || [] };
 			my @whines;
-			if (defined $max) {
+			if ( defined $max ) {
 				push @whines, sprintf(
 					'"%s" expects %s to be %s %d and %s %d',
 					$type,
@@ -173,7 +192,7 @@ for my $base (qw/Num Int/) {
 					$max_excl ? 'less than' : 'at most',
 					$max,
 				);
-			}
+			} #/ if ( defined $max )
 			else {
 				push @whines, sprintf(
 					'"%s" expects %s to be %s %d',
@@ -184,14 +203,14 @@ for my $base (qw/Num Int/) {
 				);
 			}
 			push @whines, sprintf(
-				"length(%s) is %d",
+				"%s is %s",
 				$varname,
-				length($value),
+				$value,
 			);
 			return \@whines;
 		},
 	);
-}
+} #/ for my $base ( qw/Num Int/)
 
 __PACKAGE__->meta->make_immutable;
 
@@ -223,23 +242,41 @@ L<MooseX::Types::Common::Numeric>.
 
 =over
 
-=item C<PositiveNum>
+=item *
 
-=item C<PositiveOrZeroNum>
+B<PositiveNum>
 
-=item C<PositiveInt>
+=item *
 
-=item C<PositiveOrZeroInt>
+B<PositiveOrZeroNum>
 
-=item C<NegativeNum>
+=item *
 
-=item C<NegativeOrZeroNum>
+B<PositiveInt>
 
-=item C<NegativeInt>
+=item *
 
-=item C<NegativeOrZeroInt>
+B<PositiveOrZeroInt>
 
-=item C<SingleDigit>
+=item *
+
+B<NegativeNum>
+
+=item *
+
+B<NegativeOrZeroNum>
+
+=item *
+
+B<NegativeInt>
+
+=item *
+
+B<NegativeOrZeroInt>
+
+=item *
+
+B<SingleDigit>
 
 C<SingleDigit> interestingly accepts the numbers -9 to -1; not
 just 0 to 9. 
@@ -251,7 +288,9 @@ L<MooseX::Types::Common::Numeric>.
 
 =over
 
-=item C<< IntRange[`min, `max] >>
+=item *
+
+B<< IntRange[`min, `max] >>
 
 Type constraint for an integer between min and max. For example:
 
@@ -263,7 +302,9 @@ The maximum can be omitted.
 
 The minimum and maximum are inclusive.
 
-=item C<< NumRange[`min, `max] >>
+=item *
+
+B<< NumRange[`min, `max] >>
 
 Type constraint for a number between min and max. For example:
 
@@ -288,7 +329,7 @@ will be used instead of the usual C<< <= >> or C<< >= >> operators.
 =head1 BUGS
 
 Please report any bugs to
-L<http://rt.cpan.org/Dist/Display.html?Queue=Type-Tiny>.
+L<https://github.com/tobyink/p5-type-tiny/issues>.
 
 =head1 SEE ALSO
 
@@ -304,7 +345,7 @@ Toby Inkster E<lt>tobyink@cpan.orgE<gt>.
 
 =head1 COPYRIGHT AND LICENCE
 
-This software is copyright (c) 2013-2014, 2017-2019 by Toby Inkster.
+This software is copyright (c) 2013-2014, 2017-2025 by Toby Inkster.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
@@ -314,4 +355,3 @@ the same terms as the Perl 5 programming language system itself.
 THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-

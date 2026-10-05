@@ -1,9 +1,11 @@
+use strict; use warnings;
+
 package DBIx::Connector::Driver::Firebird;
 
-use strict;
-use warnings;
-use base 'DBIx::Connector::Driver';
-our $VERSION = '0.56';
+use DBIx::Connector::Driver;
+
+our $VERSION = '0.60';
+our @ISA = qw( DBIx::Connector::Driver );
 
 sub savepoint {
     my ($self, $dbh, $name) = @_;
@@ -23,12 +25,12 @@ sub rollback_to {
 
 __END__
 
-=head1 Name
+=head1 NAME
 
 DBIx::Connector::Driver::Firebird - Firebird-specific connection
 interface
 
-=head1 Description
+=head1 DESCRIPTION
 
 This subclass of L<DBIx::Connector::Driver|DBIx::Connector::Driver>
 provides Firebird-specific implementations of the following methods:
@@ -43,9 +45,9 @@ provides Firebird-specific implementations of the following methods:
 
 =back
 
-=head1 Authors
+=head1 AUTHORS
 
-This module was written and is maintained by:
+This module was written by:
 
 =over
 
@@ -65,7 +67,7 @@ It is based on code written by:
 
 =back
 
-=head1 Copyright and License
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (c) 2009-2016 David E. Wheeler. Some Rights Reserved.
 

@@ -24,7 +24,7 @@ use warnings;
 use base 'Template::Plugin';
 use Data::Dumper;
 
-our $VERSION = 2.70;
+our $VERSION = '3.106';
 our $DEBUG   = 0 unless defined $DEBUG;
 our @DUMPER_ARGS = qw( Indent Pad Varname Purity Useqq Terse Freezer
                        Toaster Deepcopy Quotekeys Bless Maxdepth Sortkeys );
@@ -40,39 +40,46 @@ our $AUTOLOAD;
 
 sub new {
     my ($class, $context, $params) = @_;
-    my ($key, $val);
-    $params ||= { };
-
-
-    foreach my $arg (@DUMPER_ARGS) {
-        no strict 'refs';
-        if (defined ($val = $params->{ lc $arg })
-            or defined ($val = $params->{ $arg })) {
-            ${"Data\::Dumper\::$arg"} = $val;
-        }
-    }
 
     bless { 
         _CONTEXT => $context, 
+        params   => $params || {},
     }, $class;
 }
 
-sub dump {
+sub get_dump_obj {
     my $self = shift;
-    my $content = Dumper @_;
-    return $content;
+
+    my $dumper_obj = Data::Dumper->new( \@_ );
+
+    my $params = $self->{ params };
+
+    foreach my $arg ( @DUMPER_ARGS ) {
+        my $val = exists $params->{ lc $arg } ? $params->{ lc $arg }
+                :                               $params->{    $arg };
+
+        $dumper_obj->$arg( $val ) if defined $val;
+    }
+
+    return $dumper_obj;
 }
 
+sub dump { scalar shift->get_dump_obj( @_ )->Dump() }
 
 sub dump_html {
     my $self = shift;
-    my $content = Dumper @_;
+
+    my $content = $self->dump( @_ );
+
     for ($content) {
         s/&/&amp;/g;
         s/</&lt;/g;
         s/>/&gt;/g;
+        s/"/&quot;/g;
+        s/'/&#39;/g;
         s/\n/<br>\n/g;
     }
+
     return $content;
 }
 
@@ -102,11 +109,16 @@ As a standard plugin, you can also specify its name in lower case:
 
     [% USE dumper %]
 
-The C<Data::Dumper> C<Pad>, C<Indent> and C<Varname> options are supported
-as constructor arguments to affect the output generated.  See L<Data::Dumper>
-for further details.
+The following L<Data::Dumper> options are supported as constructor arguments
+to affect the output generated:
+
+C<Indent>, C<Pad>, C<Varname>, C<Purity>, C<Useqq>, C<Terse>, C<Freezer>,
+C<Toaster>, C<Deepcopy>, C<Quotekeys>, C<Bless>, C<Maxdepth>, C<Sortkeys>.
+
+See L<Data::Dumper> for further details on each option.
 
     [% USE dumper(Indent=0, Pad="<br>") %]
+    [% USE dumper(Sortkeys=1, Terse=1) %]
 
 These options can also be specified in lower case.
 

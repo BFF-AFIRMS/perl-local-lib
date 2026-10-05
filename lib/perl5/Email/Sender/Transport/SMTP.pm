@@ -1,13 +1,13 @@
-package Email::Sender::Transport::SMTP;
+package Email::Sender::Transport::SMTP 2.601;
 # ABSTRACT: send email over SMTP
-$Email::Sender::Transport::SMTP::VERSION = '1.300031';
+
 use Moo;
 
 use Email::Sender::Failure::Multi;
 use Email::Sender::Success::Partial;
 use Email::Sender::Role::HasMessage ();
 use Email::Sender::Util;
-use MooX::Types::MooseLike::Base qw(Bool Int Str HashRef);
+use MooX::Types::MooseLike::Base qw(Bool InstanceOf Int Str HashRef);
 use Net::SMTP 3.07; # SSL support, fixed datasend
 
 use utf8 (); # See below. -- rjbs, 2015-05-14
@@ -27,14 +27,16 @@ use utf8 (); # See below. -- rjbs, 2015-05-14
 #pod
 #pod =over 4
 #pod
-#pod =item C<host>: the name of the host to connect to; defaults to C<localhost>
+#pod =item C<hosts>: an arrayref of names of the host to try, in order; defaults to a single element array containing C<localhost>
+#pod
+#pod The attribute C<host> may be given, instead, which contains a single hostname.
 #pod
 #pod =item C<ssl>: if 'starttls', use STARTTLS; if 'ssl' (or 1), connect securely;
-#pod otherwise, no security
+#pod if 'maybestarttls', use STARTTLS if available; otherwise, no security
 #pod
 #pod =item C<ssl_options>: passed to Net::SMTP constructor for 'ssl' connections or
-#pod to starttls for 'starttls' connections; should contain extra options for
-#pod IO::Socket::SSL
+#pod to starttls for 'starttls' or 'maybestarttls' connections; should contain extra
+#pod options for IO::Socket::SSL
 #pod
 #pod =item C<port>: port to connect to; defaults to 25 for non-SSL, 465 for 'ssl',
 #pod 587 for 'starttls'
@@ -46,11 +48,48 @@ use utf8 (); # See below. -- rjbs, 2015-05-14
 sub BUILD {
   my ($self) = @_;
   Carp::croak("do not pass port number to SMTP transport in host, use port parameter")
-    if $self->host =~ /:/;
+    if grep {; /:/ } $self->hosts;
+
+  if ($self->sasl_username and not defined $self->sasl_password) {
+    $self->_throw("sasl_username but no sasl_password");
+  }
 }
 
-has host => (is => 'ro', isa => Str, default => sub { 'localhost' });
+sub BUILDARGS {
+  my ($self, @rest) = @_;
+  my $arg = $self->SUPER::BUILDARGS(@rest);
+
+  if (exists $arg->{host}) {
+    Carp::croak("can't pass both host and hosts to constructor")
+      if exists $arg->{hosts};
+
+    $arg->{hosts} = [ delete $arg->{host} ];
+  }
+
+  if (exists $arg->{sasl_authenticator} and exists $arg->{sasl_username}) {
+    Carp::croak("can't pass both sasl_authenticator and sasl_username to constructor");
+  }
+
+  return $arg;
+}
+
 has ssl  => (is => 'ro', isa => Str, default => sub { 0 });
+
+has _hosts => (
+  is  => 'ro',
+  isa => sub {
+    die "invalid hosts in Email::Sender::Transport::SMTP constructor"
+      unless defined $_[0]
+          && (ref $_[0] eq 'ARRAY')
+          && (grep {; length } @{ $_[0] }) > 0;
+  },
+  default  => sub {  [ 'localhost' ]  },
+  init_arg => 'hosts',
+);
+
+sub hosts { @{ $_[0]->_hosts } }
+
+sub host  { $_[0]->_hosts->[0] }
 
 has _security => (
   is   => 'ro',
@@ -61,9 +100,10 @@ has _security => (
     return '' unless $ssl;
     $ssl = lc $ssl;
     return 'starttls' if 'starttls' eq $ssl;
+    return 'maybestarttls' if 'maybestarttls' eq $ssl;
     return 'ssl' if $ssl eq 1 or $ssl eq 'ssl';
 
-    Carp::cluck(qq{true "ssl" argument to Email::Sender::Transport::SMTP should be 'ssl' or 'startls' or '1' but got '$ssl'});
+    Carp::cluck(qq{"ssl" argument to Email::Sender::Transport::SMTP was "$ssl" rather than one of the permitted values: maybestarttls, starttls, ssl});
 
     return 1;
   },
@@ -86,14 +126,24 @@ has timeout => (is => 'ro', isa => Int, default => sub { 120 });
 
 #pod =item C<sasl_username>: the username to use for auth; optional
 #pod
-#pod =item C<sasl_password>: the password to use for auth; required if C<username> is provided
-#pod
-#pod =item C<allow_partial_success>: if true, will send data even if some recipients were rejected; defaults to false
+#pod =item C<sasl_password>: the password to use for auth; required if C<sasl_username> is provided
 #pod
 #pod =cut
 
 has sasl_username => (is => 'ro', isa => Str);
 has sasl_password => (is => 'ro', isa => Str);
+
+#pod =item C<sasl_authenticator>: An C<Authen::SASL> instance to use for auth; optional
+#pod
+#pod The C<sasl_authenticator> and C<sasl_username> attributes are mutually exclusive.
+#pod
+#pod =cut
+
+has sasl_authenticator => (is => 'ro', isa => InstanceOf['Authen::SASL']);
+
+#pod =item C<allow_partial_success>: if true, will send data even if some recipients were rejected; defaults to false
+#pod
+#pod =cut
 
 has allow_partial_success => (is => 'ro', isa => Bool, default => sub { 0 });
 
@@ -133,6 +183,20 @@ sub _quoteaddr {
   return join q{@}, qq("$localpart"), $domain;
 }
 
+sub _maybe_auth {
+  my ($self, $smtp) = @_;
+
+  if ($self->sasl_username) {
+    return $smtp->auth($self->sasl_username, $self->sasl_password);
+  }
+
+  if ($self->sasl_authenticator) {
+    return $smtp->auth($self->sasl_authenticator);
+  }
+
+  return 1;
+}
+
 sub _smtp_client {
   my ($self) = @_;
 
@@ -142,8 +206,8 @@ sub _smtp_client {
 
   unless ($smtp) {
     $self->_throw(
-      sprintf "unable to establish SMTP connection to %s port %s",
-        $self->host,
+      sprintf "unable to establish SMTP connection to (%s) port %s",
+        (join q{, }, $self->hosts),
         $self->port,
     );
   }
@@ -153,17 +217,19 @@ sub _smtp_client {
       unless $smtp->starttls(%{ $self->ssl_options });
   }
 
-  if ($self->sasl_username) {
-    $self->_throw("sasl_username but no sasl_password")
-      unless defined $self->sasl_password;
-
-    unless ($smtp->auth($self->sasl_username, $self->sasl_password)) {
-      if ($smtp->message =~ /MIME::Base64|Authen::SASL/) {
-        Carp::confess("SMTP auth requires MIME::Base64 and Authen::SASL");
-      }
-
-      $self->_throw('failed AUTH', $smtp);
+  if ($self->_security eq 'maybestarttls') {
+    if ( $smtp->supports('STARTTLS', 500, ["Command unknown: 'STARTTLS'"]) ) {
+      $self->_throw("can't STARTTLS: " . $smtp->message)
+        unless $smtp->starttls(%{ $self->ssl_options });
     }
+  }
+
+  unless ($self->_maybe_auth($smtp)) {
+    if ($smtp->message =~ /MIME::Base64|Authen::SASL/) {
+      Carp::confess("SMTP auth requires MIME::Base64 and Authen::SASL");
+    }
+
+    $self->_throw('failed AUTH', $smtp);
   }
 
   return $smtp;
@@ -173,7 +239,7 @@ sub _net_smtp_args {
   my ($self) = @_;
 
   return (
-    $self->host,
+    [ $self->hosts ],
     Port    => $self->port,
     Timeout => $self->timeout,
     Debug   => $self->debug,
@@ -255,16 +321,6 @@ sub send_email {
   while (length $msg_string) {
     my $next_hunk = substr $msg_string, 0, $hunk_size, '';
 
-    # For the need to downgrade, see
-    #   https://rt.cpan.org/Ticket/Display.html?id=104433
-    #
-    # The ||0 is there because when we've mocked Net::SMTP, there is no
-    # version.  We can't get the ->VERSION call to hit the mock, because we get
-    # the mock from ->new.  We don't want to create a new SMTP just to get the
-    # version, and we can't rely on $smtp being a Net::SMTP object.
-    # -- rjbs, 2015-08-10
-    utf8::downgrade($next_hunk) if (Net::SMTP->VERSION || 0) < 3.07;
-
     $smtp->datasend($next_hunk) or $FAULT->("error at during DATA");
   }
 
@@ -323,7 +379,7 @@ Email::Sender::Transport::SMTP - send email over SMTP
 
 =head1 VERSION
 
-version 1.300031
+version 2.601
 
 =head1 DESCRIPTION
 
@@ -334,20 +390,32 @@ of partial success.
 For a potentially more efficient version of this transport, see
 L<Email::Sender::Transport::SMTP::Persistent>.
 
+=head1 PERL VERSION
+
+This library should run on perls released even a long time ago.  It should
+work on any version of perl released in the last five years.
+
+Although it may work on older versions of perl, no guarantee is made that the
+minimum required version will not be increased.  The version may be increased
+for any reason, and there is no promise that patches will be accepted to
+lower the minimum required perl.
+
 =head1 ATTRIBUTES
 
 The following attributes may be passed to the constructor:
 
 =over 4
 
-=item C<host>: the name of the host to connect to; defaults to C<localhost>
+=item C<hosts>: an arrayref of names of the host to try, in order; defaults to a single element array containing C<localhost>
+
+The attribute C<host> may be given, instead, which contains a single hostname.
 
 =item C<ssl>: if 'starttls', use STARTTLS; if 'ssl' (or 1), connect securely;
-otherwise, no security
+if 'maybestarttls', use STARTTLS if available; otherwise, no security
 
 =item C<ssl_options>: passed to Net::SMTP constructor for 'ssl' connections or
-to starttls for 'starttls' connections; should contain extra options for
-IO::Socket::SSL
+to starttls for 'starttls' or 'maybestarttls' connections; should contain extra
+options for IO::Socket::SSL
 
 =item C<port>: port to connect to; defaults to 25 for non-SSL, 465 for 'ssl',
 587 for 'starttls'
@@ -356,7 +424,11 @@ IO::Socket::SSL
 
 =item C<sasl_username>: the username to use for auth; optional
 
-=item C<sasl_password>: the password to use for auth; required if C<username> is provided
+=item C<sasl_password>: the password to use for auth; required if C<sasl_username> is provided
+
+=item C<sasl_authenticator>: An C<Authen::SASL> instance to use for auth; optional
+
+The C<sasl_authenticator> and C<sasl_username> attributes are mutually exclusive.
 
 =item C<allow_partial_success>: if true, will send data even if some recipients were rejected; defaults to false
 
@@ -378,11 +450,11 @@ documentation.
 
 =head1 AUTHOR
 
-Ricardo Signes <rjbs@cpan.org>
+Ricardo Signes <cpan@semiotic.systems>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2017 by Ricardo Signes.
+This software is copyright (c) 2024 by Ricardo Signes.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

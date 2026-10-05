@@ -5,73 +5,159 @@ sub _clean_eval { eval $_[0] }
 use strict;
 use warnings;
 
+our $VERSION = '2.006009';
+$VERSION =~ tr/_//d;
+
 use Sub::Defer qw(defer_sub);
 use Scalar::Util qw(weaken);
-use Exporter qw(import);
+use Exporter ();
+BEGIN { *import = \&Exporter::import }
 use Carp qw(croak);
 BEGIN { our @CARP_NOT = qw(Sub::Defer) }
-use B ();
 BEGIN {
-  *_HAVE_IS_UTF8 = defined &utf8::is_utf8 ? sub(){1} : sub(){0};
-  *_HAVE_PERLSTRING = defined &B::perlstring ? sub(){1} : sub(){0};
-  *_BAD_BACKSLASH_ESCAPE = _HAVE_PERLSTRING() && "$]" == 5.010_000 ? sub(){1} : sub(){0};
-}
+  my $TRUE  = sub(){!!1};
+  my $FALSE = sub(){!!0};
+  *_HAVE_IS_UTF8          = defined &utf8::is_utf8 ? $TRUE : $FALSE;
+  *_CAN_TRACK_BOOLEANS    = defined &builtin::is_bool ? $TRUE : $FALSE;
+  *_CAN_TRACK_NUMBERS     = defined &builtin::created_as_number ? $TRUE : $FALSE;
+  *_HAVE_HEX_FLOAT        = !$ENV{SUB_QUOTE_NO_HEX_FLOAT} && "$]" >= 5.022 ? $TRUE : $FALSE;
 
-our $VERSION = '2.006003';
-$VERSION = eval $VERSION;
+  # This may not be perfect, as we can't tell the format purely from the size
+  # but it should cover the common cases, and other formats are more likely to
+  # be less precise.
+  my $nvsize = 8 * length pack 'F', 0;
+  my $nvmantbits
+    = $nvsize == 16   ? 11
+    : $nvsize == 32   ? 24
+    : $nvsize == 64   ? 53
+    : $nvsize == 80   ? 64
+    : $nvsize == 128  ? 113
+    : $nvsize == 256  ? 237
+                      : 237 # unknown float format
+    ;
+  my $precision = int( log(2)/log(10)*$nvmantbits );
+
+  *_NVSIZE          = sub(){ $nvsize };
+  *_NVMANTBITS      = sub(){ $nvmantbits };
+  *_FLOAT_PRECISION = sub(){ $precision };
+
+  local $@;
+  # if B is already loaded, just use its perlstring
+  if ("$]" >= 5.008_000 && "$]" != 5.010_000 && defined &B::perlstring) {
+    *_perlstring = \&B::perlstring;
+  }
+  # XString is smaller than B, so prefer to use it. Buggy until 0.003.
+  elsif (eval { require XString; XString->VERSION(0.003) }) {
+    *_perlstring = \&XString::perlstring;
+  }
+  # B::perlstring in perl 5.10 handles escaping incorrectly on utf8 strings
+  elsif ("$]" == 5.010_000) {
+    my %escape = (
+      (map +(chr($_) => sprintf '\x%02x', $_), 0 .. 0x31, 0x7f),
+      "\t" => "\\t",
+      "\n" => "\\n",
+      "\r" => "\\r",
+      "\f" => "\\f",
+      "\b" => "\\b",
+      "\a" => "\\a",
+      "\e" => "\\e",
+      (map +($_ => "\\$_"), qw(" \\ $ @)),
+    );
+    *_perlstring = sub {
+      my $value = shift;
+      $value =~ s{(["\$\@\\[:cntrl:]]|[^\x00-\x7f])}{
+        $escape{$1} || sprintf('\x{%x}', ord($1))
+      }ge;
+      qq["$value"];
+    };
+  }
+  elsif ("$]" >= 5.008_000 && eval { require B; 1 } && defined &B::perlstring ) {
+    *_perlstring = \&B::perlstring;
+  }
+  # on perl 5.6, perlstring is not available. quotemeta will mostly serve as a
+  # replacement. it quotes just by adding lots of backslashes though. if a
+  # utf8 string was written out directly as bytes, it wouldn't get interpreted
+  # correctly if not under 'use utf8'. this is mostly a theoretical concern,
+  # but enough to stick with perlstring when possible.
+  else {
+    *_perlstring = sub { qq["\Q$_[0]\E"] };
+  }
+}
 
 our @EXPORT = qw(quote_sub unquote_sub quoted_from_sub qsub);
 our @EXPORT_OK = qw(quotify capture_unroll inlinify sanitize_identifier);
 
 our %QUOTED;
 
-my %escape;
-if (_BAD_BACKSLASH_ESCAPE) {
-  %escape = (
-    (map +(chr($_) => sprintf '\x%02x', $_), 0 .. 0x31, 0x7f),
-    "\t" => "\\t",
-    "\n" => "\\n",
-    "\r" => "\\r",
-    "\f" => "\\f",
-    "\b" => "\\b",
-    "\a" => "\\a",
-    "\e" => "\\e",
-    (map +($_ => "\\$_"), qw(" \ $ @)),
-  );
-}
-
 sub quotify {
   my $value = $_[0];
   no warnings 'numeric';
+  BEGIN {
+    warnings->unimport(qw(experimental::builtin))
+      if _CAN_TRACK_BOOLEANS || _CAN_TRACK_NUMBERS;
+  }
   ! defined $value     ? 'undef()'
+  : _CAN_TRACK_BOOLEANS && builtin::is_bool($value) ? (
+    $value ? '(!!1)' : '(!!0)'
+  )
   # numeric detection
-  : (!(_HAVE_IS_UTF8 && utf8::is_utf8($value))
-    && length( (my $dummy = '') & $value )
-    && 0 + $value eq $value
+  : (
+    _CAN_TRACK_NUMBERS
+      ? builtin::created_as_number($value)
+      : (
+        !(_HAVE_IS_UTF8 && utf8::is_utf8($value))
+        && length( (my $dummy = '') & $value )
+        && 0 + $value eq $value
+      )
   ) ? (
     $value != $value ? (
-      $value eq -CORE::sin(9**9**9)
-        ? '(-CORE::sin(9**9**9))' # -nan
-        : 'CORE::sin(9**9**9)'    # nan
+      $value eq (9**9**9*0)
+        ? '(9**9**9*0)'    # nan
+        : '(-(9**9**9*0))' # -nan
     )
-    : $value == 9**9**9 ? '(9**9**9)'      # inf
+    : $value == 9**9**9  ? '(9**9**9)'     # inf
     : $value == -9**9**9 ? '(-9**9**9)'    # -inf
-    : int($value) == $value ? $value       # integer
+    : $value == 0 ? (
+      sprintf('%g', $value) eq '-0' ? '-0.0' : '0',
+    )
+    : $value !~ /[e.]/i ? (
+      $value > 0 ? (sprintf '%u', $value)
+                 : (sprintf '%d', $value)
+    )
     : do {
-      my $float = sprintf('%.20f', $value);
-      $float =~ s/(\.[0-9]+?)0+\z/$1/;
-      $float;
+      my $float = $value;
+      my $max_factor = int( log( abs($value) ) / log(2) ) - _NVMANTBITS;
+      my $ex_sign = $max_factor > 0 ? 1 : -1;
+      FACTOR: for my $ex (0 .. abs($max_factor)) {
+        my $num = $value / 2**($ex_sign * $ex);
+        for my $precision (_FLOAT_PRECISION .. _FLOAT_PRECISION+2) {
+          my $formatted = sprintf '%0.'.$precision.'g', $num;
+          $float = $formatted
+            if $ex == 0;
+          if ($formatted == $num) {
+            if ($ex) {
+              $float
+                = $formatted
+                . ($ex_sign == 1 ? '*' : '/')
+                . (
+                  $ex > _NVMANTBITS
+                    ? "2**$ex"
+                    : sprintf('%u', 2**$ex)
+                );
+            }
+            last FACTOR;
+          }
+        }
+        if (_HAVE_HEX_FLOAT) {
+          $float = sprintf '%a', $value;
+          last FACTOR;
+        }
+      }
+      "$float";
     }
   )
-  : !length($value) && eval { use warnings 'FATAL' => 'numeric'; $value == 0 } ? '(!1)' # false
-  : _BAD_BACKSLASH_ESCAPE && _HAVE_IS_UTF8 && utf8::is_utf8($value) ? do {
-    $value =~ s/(["\$\@\\[:cntrl:]]|[^\x00-\x7f])/
-      $escape{$1} || sprintf('\x{%x}', ord($1))
-    /ge;
-    qq["$value"];
-  }
-  : _HAVE_PERLSTRING ? B::perlstring($value)
-  : qq["\Q$value\E"];
+  : !_CAN_TRACK_BOOLEANS && !length($value) && length( (my $dummy2 = '') & $value ) ? '(!!0)' # false
+  : _perlstring($value);
 }
 
 sub sanitize_identifier {
@@ -216,6 +302,7 @@ sub _context {
       ."  \%^H = (\n"
       . join('', map
       "    ".quotify($_)." => ".quotify($hintshash->{$_}).",\n",
+        grep !(ref $hintshash->{$_} && $hintshash->{$_} =~ /\A(?:\w+(?:::\w+)*=)?[A-Z]+\(0x[[0-9a-fA-F]+\)\z/),
         keys %$hintshash)
       ."  );\n"
       ."}\n"
@@ -414,7 +501,7 @@ The value of L<< C<${^WARNING_BITS}> | perlvar/${^WARNING_BITS} >> to use for
 the code being evaluated.  This captures the L<warnings> set.  If not specified,
 the warnings from the calling code will be used.
 
-=item C<%^H>
+=item C<hintshash>
 
 The value of L<< C<%^H> | perlvar/%^H >> to use for the code being evaluated.
 This captures additional pragma settings.  If not specified, the value from the
@@ -482,9 +569,12 @@ arguments.
 
  my $quoted_value = quotify $value;
 
-Quotes a single (non-reference) scalar value for use in a code string.  Numbers
-aren't treated specially and will be quoted as strings, but undef will quoted as
-C<undef()>.
+Quotes a single (non-reference) scalar value for use in a code string.  The
+result should reproduce the original value, including strings, undef, integers,
+and floating point numbers.  The resulting floating point numbers (including
+infinites and not a number) should be precisely equal to the original, if
+possible.  The exact format of the resulting number should not be relied on, as
+it may include hex floats or math expressions.
 
 =head2 capture_unroll
 

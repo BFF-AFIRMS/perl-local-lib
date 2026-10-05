@@ -1,23 +1,19 @@
 package Net::DNS::RR::TXT;
 
-#
-# $Id: TXT.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: TXT.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
 
 =encoding utf8
+
 
 =head1 NAME
 
 Net::DNS::RR::TXT - DNS TXT resource record
 
 =cut
-
 
 use integer;
 
@@ -26,18 +22,17 @@ use Net::DNS::Text;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
-	my $limit = $offset + $self->{rdlength};
-	my $text;
-	my $txtdata = $self->{txtdata} = [];
-	while ( $offset < $limit ) {
-		( $text, $offset ) = decode Net::DNS::Text( $data, $offset );
-		push @$txtdata, $text;
+	my $limit = $self->{rdlength};
+	my $rdata = substr $$data, $offset, $limit;
+	my $array = $self->{txtdata} = [];
+	my $index = 0;
+	while ( $index < $limit ) {
+		( my $text, $index ) = Net::DNS::Text->decode( \$rdata, $index );
+		push @$array, $text;
 	}
-
-	croak('corrupt TXT data') unless $offset == $limit;	# more or less FUBAR
+	return;
 }
 
 
@@ -45,7 +40,7 @@ sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
 	my $txtdata = $self->{txtdata};
-	join '', map $_->encode, @$txtdata;
+	return join '', map { $_->encode } @$txtdata;
 }
 
 
@@ -53,31 +48,32 @@ sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
 	my $txtdata = $self->{txtdata};
-	my @txtdata = map $_->string, @$txtdata;
+	return ( map { $_->unicode } @$txtdata );
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->{txtdata} = [map Net::DNS::Text->new($_), @_];
+	$self->{txtdata} = [map { Net::DNS::Text->new($_) } @argument];
+	return;
 }
 
 
 sub txtdata {
-	my $self = shift;
+	my ( $self, @value ) = @_;
 
-	$self->{txtdata} = [map Net::DNS::Text->new($_), @_] if scalar @_;
+	$self->{txtdata} = [map { Net::DNS::Text->new($_) } @value] if scalar @value;
 
 	my $txtdata = $self->{txtdata} || [];
 
-	return ( map $_->value, @$txtdata ) if wantarray;
+	return ( map { $_->value } @$txtdata ) if wantarray;
 
-	join ' ', map $_->value, @$txtdata if defined wantarray;
+	return defined(wantarray) ? join( ' ', map { $_->value } @$txtdata ) : '';
 }
 
 
-sub char_str_list { return (&txtdata); }			# uncoverable pod
+sub char_str_list { return my @txt = &txtdata }			# uncoverable pod
 
 
 1;
@@ -86,21 +82,23 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR( 'name TXT  txtdata ...' );
+	use Net::DNS;
+	$rr = Net::DNS::RR->new( 'name TXT	txtdata ...' );
 
-    $rr = new Net::DNS::RR( name    => 'name',
-			    type    => 'TXT',
-			    txtdata => 'single text string'
-			    );
+	$rr = Net::DNS::RR->new(
+			name	=> 'name',
+			type	=> 'TXT',
+			txtdata => 'single text string'
+			);
 
-    $rr = new Net::DNS::RR( name    => 'name',
-			    type    => 'TXT',
-			    txtdata => [ 'multiple', 'strings', ... ]
-			    );
+	$rr = Net::DNS::RR->new(
+			name	=> 'name',
+			type	=> 'TXT',
+			txtdata => [ 'multiple', 'strings', ... ]
+			);
 
-    use utf8;
-    $rr = new Net::DNS::RR( 'jp TXT    古池や　蛙飛込む　水の音' );
+	use utf8;
+	$rr = Net::DNS::RR->new( 'jp TXT	古池や　蛙飛込む　水の音' );
 
 =head1 DESCRIPTION
 
@@ -118,10 +116,10 @@ other unpredictable behaviour.
 
 =head2 txtdata
 
-    $string = $rr->txtdata;
-    @list   = $rr->txtdata;
+	$string = $rr->txtdata;
+	@list	= $rr->txtdata;
 
-    $rr->txtdata( @list );
+	$rr->txtdata( @list );
 
 When invoked in scalar context, txtdata() returns a concatenation
 of the descriptive text elements each separated by a single space
@@ -143,7 +141,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -160,6 +158,8 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1035 Section 3.3.14, RFC3629
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1035(3.3.14)|https://iana.org/go/rfc1035#section-3.3.14>
+L<RFC3629|https://iana.org/go/rfc3629>
 
 =cut

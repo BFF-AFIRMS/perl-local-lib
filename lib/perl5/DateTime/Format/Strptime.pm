@@ -3,14 +3,14 @@ package DateTime::Format::Strptime;
 use strict;
 use warnings;
 
-our $VERSION = '1.76';
+our $VERSION = '1.80';
 
 use Carp qw( carp croak );
 use DateTime 1.00;
-use DateTime::Locale 1.23;
+use DateTime::Locale 1.30;
 use DateTime::Format::Strptime::Types;
 use DateTime::TimeZone 2.09;
-use Exporter ();
+use Exporter                   ();
 use Params::ValidationCompiler qw( validation_for );
 use Try::Tiny;
 
@@ -336,8 +336,9 @@ sub _build_parser {
     }
 
     return {
-        regex =>
-            ( $self->{strict} ? qr/(?:\A|\b)$regex(?:\b|\Z)/ : qr/$regex/ ),
+        regex => (
+            $self->{strict} ? qr/(?:\A|\b)$regex(?:\b|\Z)/ : qr/$regex/
+        ),
         fields => \@fields,
     };
 }
@@ -482,7 +483,7 @@ sub _build_parser {
         $patterns{p} = $patterns{P} = {
             regex => do {
                 my $am_pm = join '|',
-                    map {quotemeta}
+                    map  {quotemeta}
                     sort { ( length $b <=> length $a ) or ( $a cmp $b ) }
                     @{ $self->{locale}->am_pm_abbreviated };
                 qr/$am_pm/i;
@@ -618,7 +619,15 @@ sub _token_re_for {
                 $offset .= '00';
             }
 
-            $args->{time_zone} = DateTime::TimeZone->new( name => $offset );
+            my $tz = try { DateTime::TimeZone->new( name => $offset ) };
+            unless ($tz) {
+                $self->_our_croak(
+                    qq{The time zone name offset that was parsed does not appear to be valid, "$args->{time_zone_offset}"}
+                );
+                return;
+            }
+
+            $args->{time_zone} = $tz;
         }
 
         if ( defined $args->{time_zone_abbreviation} ) {
@@ -970,7 +979,7 @@ DateTime::Format::Strptime - Parse and format strp and strf time patterns
 
 =head1 VERSION
 
-version 1.76
+version 1.80
 
 =head1 SYNOPSIS
 
@@ -1034,17 +1043,17 @@ This is a boolean which disables or enables strict matching mode.
 By default, this module turns your pattern into a regex that will match
 anywhere in a string. So given the pattern C<%Y%m%d%H%M%S> it will match a
 string like C<20161214233712>. However, this also means that a this pattern
-will match B<any> string that contains 14 or more numbers! This behavior can
-be very surprising.
+will match B<any> string that contains 14 or more numbers! This behavior can be
+very surprising.
 
 If you enable strict mode, then the generated regex is wrapped in boundary
 checks of the form C</(?:\A|\b)...(?:\b|\z_/)>. These checks ensure that the
-pattern will only match when at the beginning or end of a string, or when it
-is separated by other text with a word boundary (C<\w> versus C<\W>).
+pattern will only match when at the beginning or end of a string, or when it is
+separated by other text with a word boundary (C<\w> versus C<\W>).
 
-By default, strict mode is off. This is done for backwards
-compatibility. Future releases may turn it on by default, as it produces less
-surprising behavior in many cases.
+By default, strict mode is off. This is done for backwards compatibility.
+Future releases may turn it on by default, as it produces less surprising
+behavior in many cases.
 
 Because the default may change in the future, B<< you are strongly encouraged
 to explicitly set this when constructing all C<DateTime::Format::Strptime>
@@ -1057,8 +1066,8 @@ The default time zone to use for objects returned from parsing.
 =item * zone_map
 
 Some time zone abbreviations are ambiguous (e.g. PST, EST, EDT). By default,
-the parser will die when it parses an ambiguous abbreviation. You may specify
-a C<zone_map> parameter as a hashref to map zone abbreviations however you like:
+the parser will die when it parses an ambiguous abbreviation. You may specify a
+C<zone_map> parameter as a hashref to map zone abbreviations however you like:
 
     zone_map => { PST => '-0800', EST => '-0600' }
 
@@ -1091,8 +1100,8 @@ The module will croak with an error message on errors.
 When given a code ref, the module will call that sub on errors. The sub
 receives two parameters: the object and the error message.
 
-If your sub does not die, then the formatter will continue on as if
-C<on_error> was C<'undef'>.
+If your sub does not die, then the formatter will continue on as if C<on_error>
+was C<'undef'>.
 
 =back
 
@@ -1100,11 +1109,12 @@ C<on_error> was C<'undef'>.
 
 =head2 $strptime->parse_datetime($string)
 
-Given a string in the pattern specified in the constructor, this method
-will return a new C<DateTime> object.
+Given a string in the pattern specified in the constructor, this method will
+return a new C<DateTime> object.
 
 If given a string that doesn't match the pattern, the formatter will croak or
-return undef, depending on the setting of C<on_error> in the constructor.
+return an empty list or C<undef>, depending on the setting of C<on_error> in
+the constructor.
 
 =head2 $strptime->format_datetime($datetime)
 
@@ -1139,8 +1149,8 @@ object.
 
 =head2 strftime( $strftime_pattern, $datetime )
 
-Given a pattern and a C<DateTime> object this function will return a
-formatted string.
+Given a pattern and a C<DateTime> object this function will return a formatted
+string.
 
 =head1 STRPTIME PATTERN TOKENS
 
@@ -1155,17 +1165,23 @@ The % character.
 
 =item * %a or %A
 
-The weekday name according to the given locale, in abbreviated form or
-the full name.
+The weekday name according to the given locale, in abbreviated form or the full
+name.
 
 =item * %b or %B or %h
 
-The month name according to the given locale, in abbreviated form or
-the full name.
+The month name according to the given locale, in abbreviated form or the full
+name.
 
 =item * %c
 
 The datetime format according to the given locale.
+
+Note that this format can change without warning in new versions of
+L<DateTime::Locale>. You should not use this pattern unless the string you are
+parsing was generated by using this pattern with L<DateTime> B<and> you are
+sure that this string was generated with the same version of
+L<DateTime::Locale> that the parser is using.
 
 =item * %C
 
@@ -1177,9 +1193,9 @@ The day of month (01-31). This will parse single digit numbers as well.
 
 =item * %D
 
-Equivalent to %m/%d/%y. (This is the American style date, very confusing
-to non-Americans, especially since %d/%m/%y is widely used in Europe.
-The ISO 8601 standard pattern is %F.)
+Equivalent to %m/%d/%y. (This is the American style date, very confusing to
+non-Americans, especially since %d/%m/%y is widely used in Europe. The ISO 8601
+standard pattern is %F.)
 
 =item * %F
 
@@ -1187,8 +1203,7 @@ Equivalent to %Y-%m-%d. (This is the ISO style date)
 
 =item * %g
 
-The year corresponding to the ISO week number, but without the century
-(0-99).
+The year corresponding to the ISO week number, but without the century (0-99).
 
 =item * %G
 
@@ -1241,8 +1256,7 @@ Number of seconds since the Epoch.
 
 =item * %S
 
-The second (0-60; 60 may occur for leap seconds. See
-L<DateTime::LeapSecond>).
+The second (0-60; 60 may occur for leap seconds. See L<DateTime::LeapSecond>).
 
 =item * %t
 
@@ -1254,8 +1268,8 @@ Equivalent to %H:%M:%S.
 
 =item * %U
 
-The week number with Sunday the first day of the week (0-53). The first
-Sunday of January is the first day of week 1.
+The week number with Sunday the first day of the week (0-53). The first Sunday
+of January is the first day of week 1.
 
 =item * %u
 
@@ -1267,22 +1281,34 @@ The weekday number (0-6) with Sunday = 0.
 
 =item * %W
 
-The week number with Monday the first day of the week (0-53). The first
-Monday of January is the first day of week 1.
+The week number with Monday the first day of the week (0-53). The first Monday
+of January is the first day of week 1.
 
 =item * %x
 
 The date format according to the given locale.
 
+Note that this format can change without warning in new versions of
+L<DateTime::Locale>. You should not use this pattern unless the string you are
+parsing was generated by using this pattern with L<DateTime> B<and> you are
+sure that this string was generated with the same version of
+L<DateTime::Locale> that the parser is using.
+
 =item * %X
 
 The time format according to the given locale.
 
+Note that this format can change without warning in new versions of
+L<DateTime::Locale>. You should not use this pattern unless the string you are
+parsing was generated by using this pattern with L<DateTime> B<and> you are
+sure that this string was generated with the same version of
+L<DateTime::Locale> that the parser is using.
+
 =item * %y
 
-The year within century (0-99). When a century is not otherwise specified
-(with a value for %C), values in the range 69-99 refer to years in the
-twentieth century (1969-1999); values in the range 00-68 refer to years in the
+The year within century (0-99). When a century is not otherwise specified (with
+a value for %C), values in the range 69-99 refer to years in the twentieth
+century (1969-1999); values in the range 00-68 refer to years in the
 twenty-first century (2000-2068).
 
 =item * %Y
@@ -1291,19 +1317,18 @@ A 4-digit year, including century (for example, 1991).
 
 =item * %z
 
-An RFC-822/ISO 8601 standard time zone specification. (For example
-+1100) [See note below]
+An RFC-822/ISO 8601 standard time zone specification. (For example +1100) [See
+note below]
 
 =item * %Z
 
-The timezone name. (For example EST -- which is ambiguous) [See note
-below]
+The timezone name. (For example EST -- which is ambiguous) [See note below]
 
 =item * %O
 
-This extended token allows the use of Olson Time Zone names to appear
-in parsed strings. B<NOTE>: This pattern cannot be passed to C<DateTime>'s
-C<strftime()> method, but can be passed to C<format_datetime()>.
+This extended token allows the use of Olson Time Zone names to appear in parsed
+strings. B<NOTE>: This pattern cannot be passed to C<DateTime>'s C<strftime()>
+method, but can be passed to C<format_datetime()>.
 
 =back
 
@@ -1314,8 +1339,6 @@ This module was created by Rick Measham.
 =head1 SEE ALSO
 
 C<datetime@perl.org> mailing list.
-
-http://datetime.perl.org/
 
 L<perl>, L<DateTime>, L<DateTime::TimeZone>, L<DateTime::Locale>
 
@@ -1330,8 +1353,6 @@ Bugs may be submitted at L<https://github.com/houseabsolute/DateTime-Format-Strp
 
 There is a mailing list available for users of this distribution,
 L<mailto:datetime@perl.org>.
-
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
 
 =head1 SOURCE
 
@@ -1352,7 +1373,7 @@ software much more, unless I get so many donations that I can consider working
 on free software full time (let's all have a chuckle at that together).
 
 To donate, log into PayPal and send money to autarch@urth.org, or use the
-button at L<http://www.urth.org/~autarch/fs-donation.html>.
+button at L<https://houseabsolute.com/foss-donations/>.
 
 =head1 AUTHORS
 
@@ -1370,7 +1391,7 @@ Rick Measham <rickm@cpan.org>
 
 =head1 CONTRIBUTORS
 
-=for stopwords Christian Hansen D. Ilmari Mannsåker key-amb Mohammad S Anwar
+=for stopwords Christian Hansen D. Ilmari Mannsåker gregor herrmann key-amb Mohammad S Anwar
 
 =over 4
 
@@ -1384,6 +1405,10 @@ D. Ilmari Mannsåker <ilmari.mannsaker@net-a-porter.com>
 
 =item *
 
+gregor herrmann <gregoa@debian.org>
+
+=item *
+
 key-amb <yasutake.kiyoshi@gmail.com>
 
 =item *
@@ -1394,7 +1419,7 @@ Mohammad S Anwar <mohammad.anwar@yahoo.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2015 - 2019 by Dave Rolsky.
+This software is Copyright (c) 2015 - 2025 by Dave Rolsky.
 
 This is free software, licensed under:
 

@@ -1,18 +1,24 @@
 # $Id$
 # vim: ts=8:sw=4:et
 #
-# Copyright (c) 1994-2012  Tim Bunce  Ireland
+# Copyright (c) 2024-2026  DBI Team
+# Copyright (c) 1994-2024  Tim Bunce  Ireland
 #
 # See COPYRIGHT section in pod text below for usage and distribution rights.
 #
 
 package DBI;
 
-require 5.008_001;
+require 5.012000;
 
+use strict;
+use warnings;
+
+our ($XS_VERSION, $VERSION);
 BEGIN {
-our $XS_VERSION = our $VERSION = "1.642"; # ==> ALSO update the version in the pod text below!
-$VERSION = eval $VERSION;
+$VERSION = "1.652"; # ==> ALSO update the version in the pod text below!
+$XS_VERSION = $VERSION;
+$VERSION =~ tr/_//d;
 }
 
 =head1 NAME
@@ -87,9 +93,9 @@ I<The synopsis above only lists the major methods and parameters.>
 
 =head3 General
 
-Before asking any questions, reread this document, consult the
-archives and read the DBI FAQ. The archives are listed
-at the end of this document and on the DBI home page L<http://dbi.perl.org/support/>
+Before asking any questions, reread this document, consult the archives and
+read the DBI FAQ. The archives are listed at the end of this document and on
+the DBI home page L<http://dbi.perl.org/support/>
 
 You might also like to read the Advanced DBI Tutorial at
 L<http://www.slideshare.net/Tim.Bunce/dbi-advanced-tutorial-2007>
@@ -121,29 +127,28 @@ DBI IRC Channel: #dbi on irc.perl.org (L<irc://irc.perl.org/#dbi>)
 
 =head3 Online
 
-StackOverflow has a DBI tag L<http://stackoverflow.com/questions/tagged/dbi>
+StackOverflow has a DBI tag L<https://stackoverflow.com/questions/tagged/dbi>
 with over 800 questions.
 
-The DBI home page at L<http://dbi.perl.org/> and the DBI FAQ
-at L<http://faq.dbi-support.com/> may be worth a visit.
-They include links to other resources, but I<are rather out-dated>.
+The DBI home page at L<https://dbi.perl.org/> might be worth a visit.
+It includes links to other resources, but I<is rather out-dated>.
 
 =head3 Reporting a Bug
 
 If you think you've found a bug then please read
 "How to Report Bugs Effectively" by Simon Tatham:
-L<http://www.chiark.greenend.org.uk/~sgtatham/bugs.html>.
+L<https://www.chiark.greenend.org.uk/~sgtatham/bugs.html>.
 
 If you think you've found a memory leak then read L</Memory Leaks>.
 
 Your problem is most likely related to the specific DBD driver module you're
-using. If that's the case then click on the 'Bugs' link on the L<http://metacpan.org>
+using. If that's the case then click on the 'Bugs' link on the L<https://metacpan.org>
 page for your driver. Only submit a bug report against the DBI itself if you're
 sure that your issue isn't related to the driver you're using.
 
 =head2 NOTES
 
-This is the DBI specification that corresponds to DBI version 1.642
+This is the DBI specification that corresponds to DBI version 1.652
 (see L<DBI::Changes> for details).
 
 The DBI is evolving at a steady pace, so it's good to check that
@@ -173,11 +178,12 @@ related to the DBI can be found at L<https://metacpan.org/search?q=DBI>.
 
 use Scalar::Util ();
 use Carp();
-use DynaLoader ();
+use XSLoader ();
 use Exporter ();
 
+our (@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 BEGIN {
-@ISA = qw(Exporter DynaLoader);
+@ISA = qw(Exporter);
 
 # Make some utility functions available if asked for
 @EXPORT    = ();		    # we export nothing by default
@@ -269,15 +275,15 @@ $DBI::stderr = 2_000_000_000; # a very round number below 2**31
 # then you haven't installed the DBI correctly. Read the README
 # then install it again.
 if ( $ENV{DBI_PUREPERL} ) {
-    eval { bootstrap DBI $XS_VERSION } if       $ENV{DBI_PUREPERL} == 1;
+    eval { XSLoader::load('DBI', $XS_VERSION) } if       $ENV{DBI_PUREPERL} == 1;
     require DBI::PurePerl  if $@ or $ENV{DBI_PUREPERL} >= 2;
     $DBI::PurePerl ||= 0; # just to silence "only used once" warnings
 }
 else {
-    bootstrap DBI $XS_VERSION;
+    XSLoader::load( 'DBI', $XS_VERSION);
 }
 
-$EXPORT_TAGS{preparse_flags} = [ grep { /^DBIpp_\w\w_/ } keys %{__PACKAGE__."::"} ];
+$EXPORT_TAGS{preparse_flags} = [ grep { /^DBIpp_\w\w_/ } keys %DBI:: ];
 
 Exporter::export_ok_tags(keys %EXPORT_TAGS);
 
@@ -288,8 +294,6 @@ for (qw(trace_msg set_err parse_trace_flag parse_trace_flags)) {
   no strict;
   *$_ = \&{"DBD::_::common::$_"};
 }
-
-use strict;
 
 DBI->trace(split /=/, $ENV{DBI_TRACE}, 2) if $ENV{DBI_TRACE};
 
@@ -401,8 +405,8 @@ my $keeperr = { O=>0x0004 };
 
     common => {		# Interface methods common to all DBI handle classes
 	'DESTROY'	=> { O=>0x004|0x10000 },
-	'CLEAR'  	=> $keeperr,
-	'EXISTS' 	=> $keeperr,
+	'CLEAR'		=> $keeperr,
+	'EXISTS'	=> $keeperr,
 	'FETCH'		=> { O=>0x0404 },
 	'FETCH_many'	=> { O=>0x0404 },
 	'FIRSTKEY'	=> $keeperr,
@@ -410,12 +414,12 @@ my $keeperr = { O=>0x0004 };
 	'STORE'		=> { O=>0x0418 | 0x4 },
 	'DELETE'	=> { O=>0x0404 },
 	can		=> { O=>0x0100 }, # special case, see dispatch
-	debug 	 	=> { U =>[1,2,'[$debug_level]'],	O=>0x0004 }, # old name for trace
-	dump_handle 	=> { U =>[1,3,'[$message [, $level]]'],	O=>0x0004 },
+	debug		=> { U =>[1,2,'[$debug_level]'],	O=>0x0004 }, # old name for trace
+	dump_handle	=> { U =>[1,3,'[$message [, $level]]'],	O=>0x0004 },
 	err		=> $keeperr,
 	errstr		=> $keeperr,
 	state		=> $keeperr,
-	func	   	=> { O=>0x0006	},
+	func		=> { O=>0x0006	},
 	parse_trace_flag   => { U =>[2,2,'$name'],	O=>0x0404, T=>8 },
 	parse_trace_flags  => { U =>[2,2,'$flags'],	O=>0x0404, T=>8 },
 	private_data	=> { U =>[1,1],			O=>0x0004 },
@@ -437,15 +441,15 @@ my $keeperr = { O=>0x0004 };
     db => {		# Database Session Class Interface
 	data_sources	=> { U =>[1,2,'[\%attr]' ], O=>0x0200 },
 	take_imp_data	=> { U =>[1,1], O=>0x10000 },
-	clone   	=> { U =>[1,2,'[\%attr]'], T=>0x200 },
-	connected   	=> { U =>[1,0], O => 0x0004, T=>0x200, H=>3 },
-	begin_work   	=> { U =>[1,2,'[ \%attr ]'], O=>0x0400, T=>0x1000 },
-	commit     	=> { U =>[1,1], O=>0x0480|0x0800, T=>0x1000 },
-	rollback   	=> { U =>[1,1], O=>0x0480|0x0800, T=>0x1000 },
-	'do'       	=> { U =>[2,0,'$statement [, \%attr [, @bind_params ] ]'], O=>0x3200 },
+	clone		=> { U =>[1,2,'[\%attr]'], T=>0x200 },
+	connected	=> { U =>[1,0], O => 0x0004, T=>0x200, H=>3 },
+	begin_work	=> { U =>[1,2,'[ \%attr ]'], O=>0x0400, T=>0x1000 },
+	commit		=> { U =>[1,1], O=>0x0480|0x0800, T=>0x1000 },
+	rollback	=> { U =>[1,1], O=>0x0480|0x0800, T=>0x1000 },
+	'do'		=> { U =>[2,0,'$statement [, \%attr [, @bind_params ] ]'], O=>0x3200 },
 	last_insert_id	=> { U =>[1,6,'[$catalog [,$schema [,$table_name [,$field_name [, \%attr ]]]]]'], O=>0x2800 },
-	preparse    	=> {  }, # XXX
-	prepare    	=> { U =>[2,3,'$statement [, \%attr]'],                    O=>0xA200 },
+	preparse	=> {  }, # XXX
+	prepare		=> { U =>[2,3,'$statement [, \%attr]'],                    O=>0xA200 },
 	prepare_cached	=> { U =>[2,4,'$statement [, \%attr [, $if_active ] ]'],   O=>0xA200 },
 	selectrow_array	=> { U =>[2,0,'$statement [, \%attr [, @bind_params ] ]'], O=>0x2000 },
 	selectrow_arrayref=>{U =>[2,0,'$statement [, \%attr [, @bind_params ] ]'], O=>0x2000 },
@@ -454,11 +458,11 @@ my $keeperr = { O=>0x0004 };
 	selectall_array   =>{U =>[2,0,'$statement [, \%attr [, @bind_params ] ]'], O=>0x2000 },
 	selectall_hashref=>{ U =>[3,0,'$statement, $keyfield [, \%attr [, @bind_params ] ]'], O=>0x2000 },
 	selectcol_arrayref=>{U =>[2,0,'$statement [, \%attr [, @bind_params ] ]'], O=>0x2000 },
-	ping       	=> { U =>[1,1], O=>0x0404 },
-	disconnect 	=> { U =>[1,1], O=>0x0400|0x0800|0x10000, T=>0x200 },
-	quote      	=> { U =>[2,3, '$string [, $data_type ]' ],   O=>0x0430, T=>2 },
+	ping		=> { U =>[1,1], O=>0x0404 },
+	disconnect	=> { U =>[1,1], O=>0x0400|0x0800|0x10000, T=>0x200 },
+	quote		=> { U =>[2,3, '$string [, $data_type ]' ],   O=>0x0430, T=>2 },
 	quote_identifier=> { U =>[2,6, '$name [, ...] [, \%attr ]' ], O=>0x0430, T=>2 },
-	rows       	=> $keeperr,
+	rows		=> $keeperr,
 
 	tables          => { U =>[1,6,'$catalog, $schema, $table, $type [, \%attr ]' ], O=>0x2200 },
 	table_info      => { U =>[1,6,'$catalog, $schema, $table, $type [, \%attr ]' ],	O=>0x2200|0x8800 },
@@ -484,11 +488,11 @@ my $keeperr = { O=>0x0004 };
 	execute_array     => { U =>[2,0,'\\%attribs [, @args]'],         O=>0x1040|0x4000 },
 	execute_for_fetch => { U =>[2,3,'$fetch_sub [, $tuple_status]'], O=>0x1040|0x4000 },
 
-	fetch    	  => undef, # alias for fetchrow_arrayref
+	fetch		  => undef, # alias for fetchrow_arrayref
 	fetchrow_arrayref => undef,
 	fetchrow_hashref  => undef,
 	fetchrow_array    => undef,
-	fetchrow   	  => undef, # old alias for fetchrow_array
+	fetchrow	  => undef, # old alias for fetchrow_array
 
 	fetchall_arrayref => { U =>[1,3, '[ $slice [, $max_rows]]'] },
 	fetchall_hashref  => { U =>[2,2,'$key_field'] },
@@ -497,8 +501,8 @@ my $keeperr = { O=>0x0004 };
 	blob_copy_to_file => { U =>[3,3,'$field, $filename_or_handleref'] },
 	dump_results => { U =>[1,5,'$maxfieldlen, $linesep, $fieldsep, $filehandle'] },
 	more_results => { U =>[1,1] },
-	finish     => 	{ U =>[1,1] },
-	cancel     => 	{ U =>[1,1], O=>0x0800 },
+	finish     =>	{ U =>[1,1] },
+	cancel     =>	{ U =>[1,1], O=>0x0800 },
 	rows       =>	$keeperr,
 
 	_get_fbav	=> undef,
@@ -603,7 +607,7 @@ sub connect {
     $dsn ||= $ENV{DBI_DSN} || $ENV{DBI_DBNAME} || '' unless $old_driver;
 
     if ($DBI::dbi_debug) {
-	local $^W = 0;
+	no warnings;
 	pop @_ if $connect_meth ne 'connect';
 	my @args = @_; $args[2] = '****'; # hide password
 	DBI->trace_msg("    -> $class->$connect_meth(".join(", ",@args).")\n");
@@ -677,15 +681,15 @@ sub connect {
 
 	my $dbh;
 	unless ($dbh = $drh->$connect_meth($dsn, $user, $pass, $attr)) {
-	    $user = '' if !defined $user;
-	    $dsn = '' if !defined $dsn;
+	    $user //= '';
+	    $dsn  //= '';
 	    # $drh->errstr isn't safe here because $dbh->DESTROY may not have
 	    # been called yet and so the dbh errstr would not have been copied
 	    # up to the drh errstr. Certainly true for connect_cached!
 	    my $errstr = $DBI::errstr;
             # Getting '(no error string)' here is a symptom of a ref loop
-	    $errstr = '(no error string)' if !defined $errstr;
-	    my $msg = "$class connect('$dsn','$user',...) failed: $errstr";
+	    $errstr //= '(no error string)';
+	    my $msg   = "$class connect('$dsn','$user',...) failed: $errstr";
 	    DBI->trace_msg("       $msg\n");
 	    # XXX HandleWarn
 	    unless ($attr->{HandleError} && $attr->{HandleError}->($msg, $drh, $dbh)) {
@@ -1078,8 +1082,8 @@ sub data_sources {
 
 sub neat_list {
     my ($listref, $maxlen, $sep) = @_;
-    $maxlen = 0 unless defined $maxlen;	# 0 == use internal default
-    $sep = ", " unless defined $sep;
+    $maxlen //= 0;	# 0 == use internal default
+    $sep    //= ", ";
     join($sep, map { neat($_,$maxlen) } @$listref);
 }
 
@@ -1113,7 +1117,7 @@ sub data_diff {
     return "" if !$diff and $a_desc eq $b_desc;
 
     $diff ||= "Strings contain the same sequence of characters"
-    	if length($a);
+	if length($a);
     $diff .= "\n" if $diff;
     return "a: $a_desc\nb: $b_desc\n$diff";
 }
@@ -1132,10 +1136,6 @@ sub data_string_diff {
 	return "String b is undef, string a has ".length($a)." characters"
 		if !defined $b;
     }
-
-    require utf8;
-    # hack to cater for perl 5.6
-    *utf8::is_utf8 = sub { (DBI::neat(shift)=~/^"/) } unless defined &utf8::is_utf8;
 
     my @a_chars = (utf8::is_utf8($a)) ? unpack("U*", $a) : unpack("C*", $a);
     my @b_chars = (utf8::is_utf8($b)) ? unpack("U*", $b) : unpack("C*", $b);
@@ -1166,11 +1166,6 @@ sub data_string_diff {
 sub data_string_desc {	# describe a data string
     my ($a) = @_;
     require bytes;
-    require utf8;
-
-    # hacks to cater for perl 5.6
-    *utf8::is_utf8 = sub { (DBI::neat(shift)=~/^"/) } unless defined &utf8::is_utf8;
-    *utf8::valid   = sub {                        1 } unless defined &utf8::valid;
 
     # Give sufficient info to help diagnose at least these kinds of situations:
     # - valid UTF8 byte sequence but UTF8 flag not set
@@ -1254,7 +1249,7 @@ sub _new_drh {	# called by DBD::<drivername>::driver()
 	'State'		=> \$h_state_store,  # Holder for DBI::state
 	'Err'		=> \$h_err_store,    # Holder for DBI::err
 	'Errstr'	=> \$h_errstr_store, # Holder for DBI::errstr
-	'TraceLevel' 	=> 0,
+	'TraceLevel'	=> 0,
 	FetchHashKeyName=> 'NAME',
 	%$initial_attr,
     };
@@ -1446,7 +1441,7 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
 
     sub visit_child_handles {
 	my ($h, $code, $info) = @_;
-	$info = {} if not defined $info;
+	$info //= {};
 	for my $ch (@{ $h->{ChildHandles} || []}) {
 	    next unless $ch;
 	    my $child_info = $code->($ch, $info)
@@ -1460,13 +1455,13 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
 
 {   package		# hide from PAUSE
 	DBD::_::dr;	# ====== DRIVER ======
-    @DBD::_::dr::ISA = qw(DBD::_::common);
+    our @ISA = qw(DBD::_::common);
     use strict;
 
     sub default_user {
 	my ($drh, $user, $pass, $attr) = @_;
-	$user = $ENV{DBI_USER} unless defined $user;
-	$pass = $ENV{DBI_PASS} unless defined $pass;
+	$user //= $ENV{DBI_USER};
+	$pass //= $ENV{DBI_PASS};
 	return ($user, $pass);
     }
 
@@ -1488,11 +1483,11 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
 	my ($dsn, $user, $auth, $attr) = @_;
 
 	my $cache = $drh->{CachedKids} ||= {};
-	my $key = do { local $^W;
+	my $key = do { no warnings;
 	    join "!\001", $dsn, $user, $auth, DBI::_concat_hash_sorted($attr, "=\001", ",\001", 0, 0)
 	};
 	my $dbh = $cache->{$key};
-        $drh->trace_msg(sprintf("    connect_cached: key '$key', cached dbh $dbh\n", DBI::neat($key), DBI::neat($dbh)))
+        $drh->trace_msg(sprintf("    connect_cached: key '%s', cached dbh %s\n", DBI::neat($key), DBI::neat($dbh)))
             if (($DBI::dbi_debug & 0xF) >= 4);
 
         my $cb = $attr->{Callbacks}; # take care not to autovivify
@@ -1525,7 +1520,7 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
 
 {   package		# hide from PAUSE
 	DBD::_::db;	# ====== DATABASE ======
-    @DBD::_::db::ISA = qw(DBD::_::common);
+    our @ISA = qw(DBD::_::common);
     use strict;
 
     sub clone {
@@ -1546,7 +1541,7 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
 	    # attribute cache, i.e., boolean's and some others
 	    $attr->{$_} = $old_dbh->FETCH($_) for (qw(
 		AutoCommit ChopBlanks InactiveDestroy AutoInactiveDestroy
-		LongTruncOk PrintError PrintWarn Profile RaiseError
+		LongTruncOk PrintError PrintWarn Profile RaiseError RaiseWarn
 		ShowErrorStatement TaintIn TaintOut
 	    ));
 	}
@@ -1717,7 +1712,7 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
 	# active children. The XS template code does this. Drivers not using
 	# the template must handle clearing the cache themselves.
 	my $cache = $dbh->{CachedKids} ||= {};
-	my $key = do { local $^W;
+	my $key = do { no warnings;
 	    join "!\001", $statement, DBI::_concat_hash_sorted($attr, "=\001", ",\001", 0, 0)
 	};
 	my $sth = $cache->{$key};
@@ -1847,7 +1842,7 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
 
 {   package		# hide from PAUSE
 	DBD::_::st;	# ====== STATEMENT ======
-    @DBD::_::st::ISA = qw(DBD::_::common);
+    our @ISA = qw(DBD::_::common);
     use strict;
 
     sub bind_param { Carp::croak("Can't bind_param, not implement by driver") }
@@ -1986,7 +1981,7 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
 		$maxlen = @$ary if !$maxlen || @$ary > $maxlen;
 	    }
 	    # if there are no arrays then execute scalars once
-	    $maxlen = 1 unless defined $maxlen;
+	    $maxlen //= 1;
 	    my @bind_ids = 1..keys(%hash_of_arrays);
 
 	    my $tuple_idx = 0;
@@ -2051,7 +2046,7 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
 	    # we copy the array here because fetch (currently) always
 	    # returns the same array ref. XXX
 	    if ($slice && @$slice) {
-                $max_rows = -1 unless defined $max_rows;
+                $max_rows //= -1;
 		push @rows, [ @{$row}[ @$slice] ]
 		    while($max_rows-- and $row = $sth->fetch);
 	    }
@@ -2083,7 +2078,7 @@ sub _new_sth {	# called by DBD::<drivername>::db::prepare)
                 }
 	    }
 	    else {
-		my @column_names = @{ $sth->FETCH($sth->FETCH('FetchHashKeyName')) };
+		my @column_names = @{ $sth->FETCH($sth->FETCH('FetchHashKeyName')) || [] };
 		return [] if !@column_names;
 
 		$sth->bind_columns( \( @row{@column_names} ) );
@@ -2280,6 +2275,15 @@ for example:
     print "@row\n";
   }
 
+For queries that are not executed many times at once, it is often cleaner
+to use the higher level select wrappers:
+
+  $row_hashref = $dbh->selectrow_hashref("SELECT foo, bar FROM table WHERE baz=?", undef, $baz);
+
+  $arrayref_of_row_hashrefs = $dbh->selectall_arrayref(
+    "SELECT foo, bar FROM table WHERE baz BETWEEN ? AND ?",
+    { Slice => {} }, $baz_min, $baz_max);
+
 The typical method call sequence for a I<non>-C<SELECT> statement is:
 
   prepare,
@@ -2297,10 +2301,13 @@ for example:
 	$sth->execute( $foo, $bar, $baz );
   }
 
-The C<do()> method can be used for non repeated I<non>-C<SELECT> statement
-(or with drivers that don't support placeholders):
+The C<do()> method is a wrapper of prepare and execute that can be simpler
+for non repeated I<non>-C<SELECT> statements (or with drivers that don't
+support placeholders):
 
   $rows_affected = $dbh->do("UPDATE your_table SET foo = foo + 1");
+
+  $rows_affected = $dbh->do("DELETE FROM table WHERE foo = ?", undef, $foo);
 
 To commit your changes to the database (when L</AutoCommit> is off):
 
@@ -2768,6 +2775,7 @@ The C<AutoCommit> and C<PrintError> attributes for each connection
 default to "on". (See L</AutoCommit> and L</PrintError> for more information.)
 However, it is strongly recommended that you explicitly define C<AutoCommit>
 rather than rely on the default. The C<PrintWarn> attribute defaults to true.
+The C<RaiseWarn> attribute defaults to false.
 
 The C<\%attr> parameter can be used to alter the default settings of
 C<PrintError>, C<RaiseError>, C<AutoCommit>, and other attributes. For example:
@@ -3346,7 +3354,7 @@ also sets C<errstr> to undef, and C<state> to C<"">, irrespective
 of the values of the $errstr and $state parameters.
 
 The $method parameter provides an alternate method name for the
-C<RaiseError>/C<PrintError>/C<PrintWarn> error string instead of
+C<RaiseError>/C<PrintError>/C<RaiseWarn>/C<PrintWarn> error string instead of
 the fairly unhelpful 'C<set_err>'.
 
 The C<set_err> method normally returns undef.  The $rv parameter
@@ -3789,6 +3797,24 @@ By default, C<DBI-E<gt>connect> sets C<PrintError> "on".
 If desired, the warnings can be caught and processed using a C<$SIG{__WARN__}>
 handler or modules like CGI::Carp and CGI::ErrorWrap.
 
+=head3 C<RaiseWarn>
+
+Type: boolean, inherited
+
+The C<RaiseWarn> attribute can be used to force warnings to raise exceptions rather
+then simply printing them. It is "off" by default.
+When set "on", any method which sets warning condition will cause
+the DBI to effectively do a C<die("$class $method warning: $DBI::errstr")>,
+where C<$class> is the driver class and C<$method> is the name of the method
+that sets warning condition. E.g.,
+
+  DBD::Oracle::db execute warning: ... warning text here ...
+
+If you turn C<RaiseWarn> on then you'd normally turn C<PrintWarn> off.
+If C<PrintWarn> is also on, then the C<PrintWarn> is done first (naturally).
+
+This attribute was added in DBI 1.643.
+
 =head3 C<RaiseError>
 
 Type: boolean, inherited
@@ -3844,17 +3870,18 @@ The same logic applies to other attributes, including C<PrintError>.
 
 Type: code ref, inherited
 
-The C<HandleError> attribute can be used to provide your own alternative behaviour
-in case of errors. If set to a reference to a subroutine then that
+The C<HandleError> attribute can be used to provide your own alternative
+behaviour in case of errors. If set to a reference to a subroutine then that
 subroutine is called when an error is detected (at the same point that
-C<RaiseError> and C<PrintError> are handled).
+C<RaiseError> and C<PrintError> are handled). It is called also when
+C<RaiseWarn> is enabled and a warning is detected.
 
-The subroutine is called with three parameters: the error message
-string that C<RaiseError> and C<PrintError> would use,
-the DBI handle being used, and the first value being returned by
+The subroutine is called with three parameters: the error message string that
+C<RaiseError>, C<RaiseWarn> or C<PrintError> would use, the DBI handle being
+used (dbh, sth or drh as appropriate) and the first value being returned by
 the method that failed (typically undef).
 
-If the subroutine returns a false value then the C<RaiseError>
+If the subroutine returns a false value then the C<RaiseError>, C<RaiseWarn>
 and/or C<PrintError> attributes are checked and acted upon as normal.
 
 For example, to C<die> with a full stack trace for any error:
@@ -3883,7 +3910,7 @@ value is important.  See L<perlsub> and L<perlref> for more information
 about I<closures>.
 
 It is possible for C<HandleError> to alter the error message that
-will be used by C<RaiseError> and C<PrintError> if it returns false.
+will be used by C<RaiseError>, C<RaiseWarn> and C<PrintError> if it returns false.
 It can do that by altering the value of $_[0]. This example appends
 a stack trace to all errors and, unlike the previous example using
 Carp::confess, this will work C<PrintError> as well as C<RaiseError>:
@@ -3964,7 +3991,7 @@ Type: boolean, inherited
 
 The C<ShowErrorStatement> attribute can be used to cause the relevant
 Statement text to be appended to the error messages generated by
-the C<RaiseError>, C<PrintError>, and C<PrintWarn> attributes.
+the C<RaiseError>, C<PrintError>, C<RaiseWarn> and C<PrintWarn> attributes.
 Only applies to errors on statement handles
 plus the prepare(), do(), and the various C<select*()> database handle methods.
 (The exact format of the appended text is subject to change.)
@@ -4331,7 +4358,7 @@ rather defeat the purpose.
 A more common application for callbacks is setting connection state only when
 a new connection is made (by connect() or connect_cached()). Adding a callback
 to the connected method (when using C<connect>) or via
-C<connect_cached.connected> (when useing connect_cached()>) makes this easy.
+C<connect_cached.connected> (when using connect_cached()>) makes this easy.
 The connected() method is a no-op by default (unless you subclass the DBI and
 change it). The DBI calls it to indicate that a new connection has been made
 and the connection attributes have all been set. You can give it a bit of
@@ -4526,7 +4553,7 @@ and your driver does not need them, then use C<undef> for each.
 There are several caveats to be aware of with this method if you want
 to use it for portable applications:
 
-B<*> For some drivers the value may only available immediately after
+B<*> For some drivers the value may only be available immediately after
 the insert statement has executed (e.g., mysql, Informix).
 
 B<*> For some drivers the $catalog, $schema, $table, and $field parameters
@@ -4675,11 +4702,13 @@ See L</fetchall_arrayref> method for more details.
   @ary = $dbh->selectall_array($statement, \%attr);
   @ary = $dbh->selectall_array($statement, \%attr, @bind_values);
 
-This is a convenience wrapper around L<selectall_arrayref> that returns
+This is a convenience wrapper around L</selectall_arrayref> that returns
 the rows directly as a list, rather than a reference to an array of rows.
 
 Note that if L</RaiseError> is not set then you can't tell the difference
 between returning no rows and an error. Using RaiseError is best practice.
+
+The C<selectall_array> method was added in DBI 1.635.
 
 =head3 C<selectall_hashref>
 
@@ -5410,8 +5439,6 @@ See also L</"Catalog Methods"> and L</"Standards Reference Information">.
 
 =head3 C<statistics_info>
 
-B<Warning:> This method is experimental and may change.
-
   $sth = $dbh->statistics_info( $catalog, $schema, $table, $unique_only, $quick );
 
   # then $sth->fetchall_arrayref or $sth->fetchall_hashref etc
@@ -5835,7 +5862,7 @@ will generate a warning and return undef.
 
 Why would you want to do this? You don't, forget I even mentioned it.
 Unless, that is, you're implementing something advanced like a
-multi-threaded connection pool. See L<DBI::Pool>.
+multi-threaded connection pool like C<DBI::Pool>.
 
 The returned $imp_data can be passed as a C<dbi_imp_data> attribute
 to a later connect() call, even in a separate thread in the same
@@ -6312,7 +6339,7 @@ For example:
   else {
       for my $tuple (0..@last_names-1) {
           my $status = $tuple_status[$tuple];
-          $status = [0, "Skipped"] unless defined $status;
+          $status //= [0, "Skipped"];
           next unless ref $status;
           printf "Failed to insert (%s, %s): %s\n",
               $first_names[$tuple], $last_names[$tuple], $status->[1];
@@ -6657,6 +6684,10 @@ fields values for each row are unique.  If multiple rows are returned
 with the same values for the key fields then later rows overwrite
 earlier ones.
 
+=head3 C<more_results>
+
+... not yet documented ...
+
 =head3 C<finish>
 
   $rc  = $sth->finish;
@@ -6863,11 +6894,28 @@ a hash (thanks to H.Merijn Brand):
 
   $sth->execute;
   my %row;
-  $sth->bind_columns( \( @row{ @{$sth->{NAME_lc} } } ));
+  $sth->bind_columns (\( @row{ @{$sth->{NAME_lc} }} ));
   while ($sth->fetch) {
       print "$row{region}: $row{sales}\n";
   }
 
+but has a small drawback: If the data has already been fetched, the call to
+L</bind_columns> will flush current values.  If you want to bind_columns after
+you have fetched, you can use:
+
+  use feature "refaliasing";
+  no warnings "experimental::refaliasing";
+  while (my $row = $sth->fetchrow_arrayref) {
+      \(@$data{ $sth->{NAME_lc}->@* }) =  \(@$row);
+  }
+
+or, with older perl versions:
+
+  use Data::Alias;
+  alias @$data{ $sth->{NAME_lc}->@* } =  @$row;
+
+This is useful in situations when you have many left joins, but want to join
+your %$data hash to only subset of fetched values.
 
 =head3 C<dump_results>
 
@@ -7089,7 +7137,8 @@ a ref to an empty hash because they can't pre-determine the names.
 It is possible that the keys in the hash returned by C<ParamValues>
 are not exactly the same as those implied by the prepared statement.
 For example, DBD::Oracle translates 'C<?>' placeholders into 'C<:pN>'
-where N is a sequence number starting at 1.
+where N is a sequence number starting at C<1> with a hard limit of
+C<99999>.
 
 * Values:
 
@@ -7191,7 +7240,8 @@ integer.
 It is also possible that the keys in the hash returned by
 C<ParamArrays> are not exactly the same as those implied by the
 prepared statement.  For example, DBD::Oracle translates 'C<?>'
-placeholders into 'C<:pN>' where N is a sequence number starting at 1.
+placeholders into 'C<:pN>' where N is a sequence number starting at
+C<1> with a hard limit of C<99999>.
 
 =head3 C<RowsInCache>
 
@@ -7395,7 +7445,7 @@ Here's how to convert fetched NULLs (undefined values) into empty strings:
 
   while($row = $sth->fetchrow_arrayref) {
     # this is a fast and simple way to deal with nulls:
-    foreach (@$row) { $_ = '' unless defined }
+    $_ //= '' for @$row;
     print "@$row\n";
   }
 
@@ -7437,24 +7487,12 @@ can cause problems. You have been warned.
 
 Using DBI with perl threads is not yet recommended for production
 environments. For more information see
-L<http://www.perlmonks.org/index.pl?node_id=288022>
-
-Note: There is a bug in perl 5.8.2 when configured with threads
-and debugging enabled (bug #24463) which causes a DBI test to fail.
+L<https://www.perlmonks.org/index.pl?node_id=288022>
 
 =head2 Signal Handling and Canceling Operations
 
 [The following only applies to systems with unix-like signal handling.
 I'd welcome additions for other systems, especially Windows.]
-
-The first thing to say is that signal handling in Perl versions less
-than 5.8 is I<not> safe. There is always a small risk of Perl
-crashing and/or core dumping when, or after, handling a signal
-because the signal could arrive and be handled while internal data
-structures are being changed. If the signal handling code
-used those same internal data structures it could cause all manner
-of subtle and not-so-subtle problems.  The risk was reduced with
-5.4.4 but was still present in all perls up through 5.8.0.
 
 Beginning in perl 5.8.0 perl implements 'safe' signal handling if
 your system has the POSIX sigaction() routine. Now when a signal
@@ -7577,11 +7615,10 @@ See previous example for the reasoning around the double eval.
 
 Similar techniques can be used for canceling statement execution.
 
-Unfortunately, this solution is somewhat messy, and it does I<not> work with
-perl versions less than perl 5.8 where C<POSIX::sigaction()> appears to be broken.
+Unfortunately, this solution is somewhat messy.
 
-For a cleaner implementation that works across perl versions, see Lincoln Baxter's
-Sys::SigAction module at L<Sys::SigAction>.
+For a cleaner implementation that works across perl versions, see
+Lincoln Baxter's Sys::SigAction module at L<Sys::SigAction>.
 The documentation for Sys::SigAction includes an longer discussion
 of this problem, and a DBD::Oracle test script.
 
@@ -7665,12 +7702,10 @@ can be found in F<t/subclass.t> in the DBI distribution.
   use strict;
 
   use DBI;
-  use vars qw(@ISA);
-  @ISA = qw(DBI);
+  our @ISA = qw(DBI);
 
   package MySubDBI::db;
-  use vars qw(@ISA);
-  @ISA = qw(DBI::db);
+  our @ISA = qw(DBI::db);
 
   sub prepare {
     my ($dbh, @args) = @_;
@@ -7681,8 +7716,7 @@ can be found in F<t/subclass.t> in the DBI distribution.
   }
 
   package MySubDBI::st;
-  use vars qw(@ISA);
-  @ISA = qw(DBI::st);
+  our @ISA = qw(DBI::st);
 
   sub fetch {
     my ($sth, @args) = @_;
@@ -7728,10 +7762,10 @@ COMMON TO ALL HANDLES> for info and important caveats.
 When tracking down memory leaks using tools like L<Devel::Leak>
 you'll find that some DBI internals are reported as 'leaking' memory.
 This is very unlikely to be a real leak.  The DBI has various caches to improve
-performance and the apparrent leaks are simply the normal operation of these
+performance and the apparent leaks are simply the normal operation of these
 caches.
 
-The most frequent sources of the apparrent leaks are L</ChildHandles>,
+The most frequent sources of the apparent leaks are L</ChildHandles>,
 L</prepare_cached> and L</connect_cached>.
 
 For example http://stackoverflow.com/questions/13338308/perl-dbi-memory-leak
@@ -7864,13 +7898,10 @@ Tied filehandles are not currently supported, as
 tie operations are not available to the PerlIO
 methods used by the DBI.
 
-=item *
-PerlIO layer support requires Perl version 5.8 or higher.
-
 =back
 
-As of version 5.8, Perl provides the ability to layer various
-"disciplines" on an open filehandle via the L<PerlIO> module.
+Perl provides the ability to layer various "disciplines" on an open
+filehandle via the L<PerlIO> module.
 
 A simple example of using PerlIO layers is to use a scalar as the output:
 
@@ -7905,7 +7936,7 @@ following logger module:
         $self->{_buf} .= shift;
     #
     # DBI feeds us pieces at a time, so accumulate a complete line
-    # before outputing
+    # before outputting
     #
         print $fh "At ", scalar localtime(), ':', $self->{_buf}, "\n" and
         $self->{_buf} = ''
@@ -8254,22 +8285,22 @@ Security, especially the "SQL Injection" attack:
 
 =head2 FAQ
 
-See L<http://faq.dbi-support.com/>
+See L<http://dbi.perl.org/support/>
 
 =head1 AUTHORS
 
-DBI by Tim Bunce, L<http://www.tim.bunce.name>
+DBI by Tim Bunce (1994-2024), The DBI developer group (2024..)
 
 This pod text by Tim Bunce, J. Douglas Dunlop, Jonathan Leffler and others.
 Perl by Larry Wall and the C<perl5-porters>.
 
 =head1 COPYRIGHT
 
-The DBI module is Copyright (c) 1994-2012 Tim Bunce. Ireland.
-All rights reserved.
+The DBI module is Copyright (c) 1994-2024 Tim Bunce. Ireland.
+The DBI developer group (2024-2024) All rights reserved.
 
 You may distribute under the terms of either the GNU General Public
-License or the Artistic License, as specified in the Perl 5.10.0 README file.
+License or the Artistic License, as specified in the Perl 5.12.0 README file.
 
 =head1 SUPPORT / WARRANTY
 
@@ -8294,8 +8325,10 @@ development, and rapidly get something specific and valuable in return.
 
 =head1 ACKNOWLEDGEMENTS
 
+The creator: Tim Bunce!
+
 I would like to acknowledge the valuable contributions of the many
-people I have worked with on the DBI project, especially in the early
+people Tim has worked with on the DBI project, especially in the early
 years (1992-1994). In no particular order: Kevin Stock, Buzz Moschetti,
 Kurt Andersen, Ted Lemon, William Hails, Garth Kennedy, Michael Peppler,
 Neil S. Briscoe, Jeff Urlwin, David J. Hughes, Jeff Stander,
@@ -8319,17 +8352,20 @@ to thank Paul for his generosity and vision in supporting this work for many yea
 
 A couple of specific DBI features have been sponsored by enlightened companies:
 
-The development of the swap_inner_handle() method was sponsored by BizRate.com (L<http://BizRate.com>)
+The development of the swap_inner_handle() method was sponsored by BizRate.com
 
-The development of DBD::Gofer and related modules was sponsored by
-Shopzilla.com (L<http://Shopzilla.com>), where I currently work.
+The development of DBD::Gofer and related modules was sponsored by Shopzilla.com (L<https::connexity.com>).
+
+After the release of version 1.643, the development was lead by H.Merijn Brand
+with the help of the DBI team. Thanks to all that added issues, did Pull
+Requests or helped in any way to keep the DBI healthy.
 
 =head1 CONTRIBUTING
 
 As you can see above, many people have contributed to the DBI and
 drivers in many ways over many years.
 
-If you'd like to help then see L<http://dbi.perl.org/contributing>.
+If you'd like to help then see F<CONTRIBUTING.md>.
 
 If you'd like the DBI to do something new or different then a good way
 to make that happen is to do it yourself and send me a patch to the
@@ -8438,6 +8474,209 @@ connect and disconnect for every database access becomes superfluous.
 =item SQL Parser
 
 See also the L<SQL::Statement> module, SQL parser and engine.
+
+=back
+
+=head1 TODO
+
+=head2 Documentation
+
+These entries are still to be written:
+
+=over 2
+
+
+=item DBIf_TRACE_CON
+
+=item DBIf_TRACE_DBD
+
+=item DBIf_TRACE_ENC
+
+=item DBIf_TRACE_SQL
+
+=item DBIf_TRACE_TXN
+
+=item DBIpp_cm_XX
+
+=item DBIpp_cm_br
+
+=item DBIpp_cm_cs
+
+=item DBIpp_cm_dd
+
+=item DBIpp_cm_dw
+
+=item DBIpp_cm_hs
+
+=item DBIpp_ph_XX
+
+=item DBIpp_ph_cn
+
+=item DBIpp_ph_cs
+
+=item DBIpp_ph_qm
+
+=item DBIpp_ph_sp
+
+=item DBIpp_st_XX
+
+=item DBIpp_st_bs
+
+=item DBIpp_st_qq
+
+=item SQL_ALL_TYPES
+
+=item SQL_ARRAY
+
+=item SQL_ARRAY_LOCATOR
+
+=item SQL_BIGINT
+
+=item SQL_BINARY
+
+=item SQL_BIT
+
+=item SQL_BLOB
+
+=item SQL_BLOB_LOCATOR
+
+=item SQL_BOOLEAN
+
+=item SQL_CHAR
+
+=item SQL_CLOB
+
+=item SQL_CLOB_LOCATOR
+
+=item SQL_CURSOR_DYNAMIC
+
+=item SQL_CURSOR_FORWARD_ONLY
+
+=item SQL_CURSOR_KEYSET_DRIVEN
+
+=item SQL_CURSOR_STATIC
+
+=item SQL_CURSOR_TYPE_DEFAULT
+
+=item SQL_DATE
+
+=item SQL_DATETIME
+
+=item SQL_DECIMAL
+
+=item SQL_DOUBLE
+
+=item SQL_FLOAT
+
+=item SQL_GUID
+
+=item SQL_INTEGER
+
+=item SQL_INTERVAL
+
+=item SQL_INTERVAL_DAY
+
+=item SQL_INTERVAL_DAY_TO_HOUR
+
+=item SQL_INTERVAL_DAY_TO_MINUTE
+
+=item SQL_INTERVAL_DAY_TO_SECOND
+
+=item SQL_INTERVAL_HOUR
+
+=item SQL_INTERVAL_HOUR_TO_MINUTE
+
+=item SQL_INTERVAL_HOUR_TO_SECOND
+
+=item SQL_INTERVAL_MINUTE
+
+=item SQL_INTERVAL_MINUTE_TO_SECOND
+
+=item SQL_INTERVAL_MONTH
+
+=item SQL_INTERVAL_SECOND
+
+=item SQL_INTERVAL_YEAR
+
+=item SQL_INTERVAL_YEAR_TO_MONTH
+
+=item SQL_LONGVARBINARY
+
+=item SQL_LONGVARCHAR
+
+=item SQL_MULTISET
+
+=item SQL_MULTISET_LOCATOR
+
+=item SQL_NUMERIC
+
+=item SQL_REAL
+
+=item SQL_REF
+
+=item SQL_ROW
+
+=item SQL_SMALLINT
+
+=item SQL_TIME
+
+=item SQL_TIMESTAMP
+
+=item SQL_TINYINT
+
+=item SQL_TYPE_DATE
+
+=item SQL_TYPE_TIME
+
+=item SQL_TYPE_TIMESTAMP
+
+=item SQL_TYPE_TIMESTAMP_WITH_TIMEZONE
+
+=item SQL_TYPE_TIME_WITH_TIMEZONE
+
+=item SQL_UDT
+
+=item SQL_UDT_LOCATOR
+
+=item SQL_UNKNOWN_TYPE
+
+=item SQL_VARBINARY
+
+=item SQL_VARCHAR
+
+=item SQL_WCHAR
+
+=item SQL_WLONGVARCHAR
+
+=item SQL_WVARCHAR
+
+=item connect_test_perf
+
+=item constant
+
+=item dbi_profile
+
+=item dbi_profile_merge
+
+=item dbi_profile_merge_nodes
+
+=item dbi_time
+
+=item disconnect_all
+
+=item driver_prefix
+
+=item dump_dbd_registry
+
+=item dump_handle
+
+=item init_rootclass
+
+=item install_driver
+
+=item installed_methods
+
+=item setup_driver
 
 =back
 

@@ -53,6 +53,9 @@ use Class::Load 'load_class';
 use Encode 2.21 'decode_utf8', 'encode_utf8';
 use Scalar::Util;
 
+our $VERSION = '5.90132';
+$VERSION =~ tr/_//d;
+
 BEGIN { require 5.008003; }
 
 has stack => (is => 'ro', default => sub { [] });
@@ -68,6 +71,7 @@ has request => (
         my $composed_request_class = $class->composed_request_class;
         return $composed_request_class->new( $self->_build_request_constructor_args);
     },
+    predicate => 'has_request',
     lazy => 1,
 );
 sub _build_request_constructor_args {
@@ -113,6 +117,7 @@ has response => (
         my $composed_response_class = $class->composed_response_class;
         return $composed_response_class->new( $self->_build_response_constructor_args);
     },
+    predicate=>'has_response',
     lazy => 1,
 );
 sub _build_response_constructor_args {
@@ -203,10 +208,6 @@ sub composed_stats_class {
 }
 
 __PACKAGE__->_encode_check(Encode::FB_CROAK | Encode::LEAVE_SRC);
-
-# Remember to update this in Catalyst::Runtime as well!
-our $VERSION = '5.90124';
-$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
 sub import {
     my ( $class, @arguments ) = @_;
@@ -344,7 +345,7 @@ settings override the application, with <MYAPP>_DEBUG having the highest
 priority.
 
 This sets the log level to 'debug' and enables full debug output on the
-error screen. If you only want the latter, see L<< $c->debug >>.
+error screen. If you only want the latter, see L<< /$c->debug >>.
 
 =head2 -Home
 
@@ -409,11 +410,18 @@ Returns the current L<Catalyst::Request> object, giving access to
 information about the current client request (including parameters,
 cookies, HTTP headers, etc.). See L<Catalyst::Request>.
 
+There is a predicate method C<has_request> that returns true if the
+request object has been created.  This is something you might need to
+check if you are writing plugins that run before a request is finalized.
+
 =head2 REQUEST FLOW HANDLING
 
 =head2 $c->forward( $action [, \@arguments ] )
 
 =head2 $c->forward( $class, $method, [, \@arguments ] )
+
+=head2 $c->forward( $component_instance, $method, [, \@arguments ] )
+
 
 This is one way of calling another action (method) in the same or
 a different controller. You can also use C<< $self->my_method($c, @args) >>
@@ -471,6 +479,10 @@ or stash it like so:
 and access it from the stash.
 
 Keep in mind that the C<end> method used is that of the caller action. So a C<< $c->detach >> inside a forwarded action would run the C<end> method from the original action requested.
+
+If you call C<forward> with the name of a component class or instance, rather than an action name
+or instance, we invoke the C<process> action on that class or instance, or whatever action you
+specify via the second argument C<$method>.
 
 =cut
 
@@ -556,6 +568,10 @@ sub go { my $c = shift; $c->dispatcher->go( $c, @_ ) }
 =head2 $c->res
 
 Returns the current L<Catalyst::Response> object, see there for details.
+
+There is a predicate method C<has_response> that returns true if the
+request object has been created.  This is something you might need to
+check if you are writing plugins that run before a request is finalized.
 
 =head2 $c->stash
 
@@ -1634,7 +1650,7 @@ sub uri_for {
         my $num_captures = $expanded_action->number_of_captures;
 
         # ->uri_for( $action, \@captures_and_args, \%query_values? )
-        if( !@args && $action->number_of_args ) {
+        if( !@args && $action->number_of_args && @$captures > $num_captures ) {
           unshift @args, splice @$captures, $num_captures;
         }
 
@@ -3018,7 +3034,6 @@ sub setup_components {
     my $config  = $class->config->{ setup_components };
 
     my @comps = $class->locate_components($config);
-    my %comps = map { $_ => 1 } @comps;
 
     my $deprecatedcatalyst_component_names = grep { /::[CMV]::/ } @comps;
     $class->log->warn(qq{Your application is using the deprecated ::[MVC]:: type naming scheme.\n}.
@@ -4555,7 +4570,7 @@ headers.
 
 If you do not wish to use the proxy support at all, you may set:
 
-    MyApp->config(ignore_frontend_proxy => 0);
+    MyApp->config(ignore_frontend_proxy => 1);
 
 =head2 Note about psgi files
 

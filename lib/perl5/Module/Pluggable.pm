@@ -1,7 +1,6 @@
 package Module::Pluggable;
 
 use strict;
-use vars qw($VERSION $FORCE_SEARCH_ALL_PATHS);
 use Module::Pluggable::Object;
 
 use if $] > 5.017, 'deprecate';
@@ -11,8 +10,8 @@ use if $] > 5.017, 'deprecate';
 # Peter Gibbons: I wouldn't say I've been missing it, Bob!
 
 
-$VERSION = '5.2';
-$FORCE_SEARCH_ALL_PATHS = 0;
+our $VERSION = '6.4';
+our $FORCE_SEARCH_ALL_PATHS = 0;
 
 sub import {
     my $class        = shift;
@@ -31,7 +30,7 @@ sub import {
     my $finder       = Module::Pluggable::Object->new(%opts);
     my $subroutine   = sub { my $self = shift; return $finder->plugins(@_) };
 
-    my $searchsub = sub {
+    my $search_path_sub = sub {
               my $self = shift;
               my ($action,@paths) = @_;
 
@@ -41,6 +40,15 @@ sub import {
               return $finder->{'search_path'};
     };
 
+    my $search_dirs_sub = sub {
+              my $self = shift;
+              my ($action,@paths) = @_;
+
+              $finder->{'search_dirs'} = ["${package}::Plugin"] if ($action eq 'add'  and not   $finder->{'search_dirs'} );
+              push @{$finder->{'search_dirs'}}, @paths      if ($action eq 'add');
+              $finder->{'search_dirs'}       = \@paths      if ($action eq 'new');
+              return $finder->{'search_dirs'};
+    };
 
     my $onlysub = sub {
         my ($self, $only) = @_;
@@ -67,7 +75,8 @@ sub import {
     no warnings qw(redefine prototype);
 
     *{"$package\::$sub"}        = $subroutine;
-    *{"$package\::search_path"} = $searchsub;
+    *{"$package\::search_path"} = $search_path_sub;
+    *{"$package\::search_dirs"} = $search_dirs_sub;
     *{"$package\::only"}        = $onlysub;
     *{"$package\::except"}      = $exceptsub;
 
@@ -176,6 +185,8 @@ or directory
 
     use Module::Pluggable search_dirs => ['mylibs/Foo'];
 
+If you I<only> want to search those C<search_dirs>, provide a true value for
+C<search_dirs_strict>.
 
 Or if you want to instantiate each plugin rather than just return the name
 
@@ -223,8 +234,8 @@ and similarly for only which will only load plugins which match.
 Remember you can use the module more than once
 
     package MyClass;
-    use Module::Pluggable search_path => 'MyClass::Filters' sub_name => 'filters';
-    use Module::Pluggable search_path => 'MyClass::Plugins' sub_name => 'plugins';
+    use Module::Pluggable search_path => 'MyClass::Filters', sub_name => 'filters';
+    use Module::Pluggable search_path => 'MyClass::Plugins', sub_name => 'plugins';
 
 and then later ...
 
@@ -269,6 +280,31 @@ By default this is 'plugins'
 =head2 search_path
 
 An array ref of namespaces to look in.
+
+    search_path => ['MyApp::Plugin', 'MyApp::Extension']
+
+Alternatively, you can pass a hash ref where each key is a namespace prefix and
+each value is a hash ref of option overrides for that path. The per-path
+options are merged on top of the global options, so you only need to
+specify what differs.
+
+    search_path => {
+        'MyApp::Plugin'    => { max_depth => 2 },
+        'MyApp::Extension' => { max_depth => 3, instantiate => 'new' },
+    }
+
+If you want plugins to be in a particular order, use an array ref of mixed
+plain strings and single-key hash refs instead. Order is preserved; only the
+hash ref entries carry per-path option overrides.
+
+    search_path => [
+        'MyApp::Plugin',
+        { 'MyApp::Extension' => { max_depth => 3, instantiate => 'new' } },
+    ]
+
+Results from all paths are combined and returned in a single list. Class
+names are deduplicated across paths; if any path uses C<instantiate> its
+objects are included as-is alongside any class names from other paths.
 
 =head2 search_dirs
 
@@ -347,6 +383,24 @@ and to only get the latter (i.e C<MyClass::Plugin::Foo::Bar>)
         package MyClass;
         use Module::Pluggable min_depth => 4;
 
+=head2 sort_results
+
+Controls the order plugin names (or objects) are returned in. One of:
+
+=over 4
+
+=item * C<'alpha'> (the default) - sorted alphabetically by package name.
+
+=item * C<'path'> - returned in search-path discovery order: all plugins
+under the first C<search_path> entry, then the second, and so on.
+
+=item * C<0> - no sort is applied at all. Fastest option, for callers that
+will sort or otherwise order the results themselves.
+
+=back
+
+        package MyClass;
+        use Module::Pluggable sort_results => 'path';
 
 =head1 TRIGGERS
 
@@ -368,6 +422,19 @@ Gets passed the plugin name and the error.
 
 The default on_require_error handler is to C<carp> the error and return 0.
 
+=head2 after_require <plugin>
+
+Gets passed the plugin name.
+
+If 0 is returned then this plugin will be required but not instantiated or
+returned as a plugin.
+
+=head2 before_instantiate <plugin>
+
+Gets passed the plugin name.
+
+If 0 is returned, then instantiation will not occur.
+
 =head2 on_instantiate_error <plugin> <err>
 
 Gets called when there's an error on instantiating the plugin.
@@ -376,11 +443,13 @@ Gets passed the plugin name and the error.
 
 The default on_instantiate_error handler is to C<carp> the error and return 0.
 
-=head2 after_require <plugin>
+=head2 after_instantiate <plugin> <obj>
 
-Gets passed the plugin name.
+Gets passed the plugin name and the object that was instentiated.
+i.e. the return value of C<Plugin->new()>
 
-If 0 is returned then this plugin will be required but not returned as a plugin.
+The return value must be <obj> and will be returned AS the plugin.
+If the return value is not true, then nothing will be returned as a plugin.
 
 =head1 METHODs
 

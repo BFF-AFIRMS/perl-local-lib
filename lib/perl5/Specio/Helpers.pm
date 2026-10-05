@@ -7,11 +7,11 @@ use Carp qw( croak );
 use Exporter 'import';
 use overload ();
 
-our $VERSION = '0.43';
+our $VERSION = '0.53';
 
 use Scalar::Util qw( blessed );
 
-our @EXPORT_OK = qw( install_t_sub is_class_loaded _STRINGLIKE );
+our @EXPORT_OK = qw( install_t_sub is_class_loaded perlstring _STRINGLIKE  );
 
 sub install_t_sub {
 
@@ -24,7 +24,14 @@ sub install_t_sub {
     my $types  = shift;
 
     # XXX - check to see if their t() is something else entirely?
-    return if $caller->can('t');
+    {
+        ## no critic (TestingAndDebugging::ProhibitNoStrict)
+        no strict 'refs';
+
+        # We used to check ->can('t') but that was wrong, since it would
+        # return if a parent class had a t() sub.
+        return if *{ $caller . '::t' }{CODE};
+    }
 
     my $t = sub {
         my $name = shift;
@@ -77,6 +84,16 @@ sub _STRING ($) {
     return defined $_[0] && !ref $_[0] && length( $_[0] ) ? $_[0] : undef;
 }
 
+BEGIN {
+    if ( $] >= 5.010 && eval { require XString; 1 } ) {
+        *perlstring = \&XString::perlstring;
+    }
+    else {
+        require B;
+        *perlstring = \&B::perlstring;
+    }
+}
+
 # Borrowed from Types::Standard
 sub is_class_loaded {
     my $stash = do {
@@ -114,7 +131,7 @@ Specio::Helpers - Helper subs for the Specio distro
 
 =head1 VERSION
 
-version 0.43
+version 0.53
 
 =head1 DESCRIPTION
 
@@ -126,8 +143,6 @@ There's nothing public here.
 
 Bugs may be submitted at L<https://github.com/houseabsolute/Specio/issues>.
 
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
-
 =head1 SOURCE
 
 The source code repository for Specio can be found at L<https://github.com/houseabsolute/Specio>.
@@ -138,7 +153,7 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2012 - 2018 by Dave Rolsky.
+This software is Copyright (c) 2012 - 2025 by Dave Rolsky.
 
 This is free software, licensed under:
 

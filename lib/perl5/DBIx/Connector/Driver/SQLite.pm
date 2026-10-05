@@ -1,21 +1,17 @@
+use strict; use warnings;
+
 package DBIx::Connector::Driver::SQLite;
 
-use strict;
-use warnings;
-use base 'DBIx::Connector::Driver';
-our $VERSION = '0.56';
+use DBIx::Connector::Driver;
+
+our $VERSION = '0.60';
+our @ISA = qw( DBIx::Connector::Driver );
 
 sub _connect {
     my ($self, $dbh, $dsn, $username, $password, $attrs) = @_;
 
-    my ($x, $y, $z) = split /[.]/ => $dbh->{sqlite_version};
-    $self->{_sqlite_is_new_enough} = (
-        $x > 3 || (
-            $x == 3 && ($y > 6 || (
-                $y == 6 && $z >= 8
-            ))
-        )
-    ) ? 1 : 0;
+    my ( $maj, $min, $rel ) = split /[.]/, $dbh->{sqlite_version};
+    $self->{_sqlite_is_new_enough} = ( $maj <=> 3 || $min <=> 6 || $rel <=> 8 ) != -1;
     return $dbh;
 }
 
@@ -38,13 +34,14 @@ sub rollback_to {
 }
 
 1;
+
 __END__
 
-=head1 Name
+=head1 NAME
 
 DBIx::Connector::Driver::SQLite - SQLite-specific connection interface
 
-=head1 Description
+=head1 DESCRIPTION
 
 This subclass of L<DBIx::Connector::Driver|DBIx::Connector::Driver> provides
 SQLite-specific implementations of the following methods:
@@ -63,9 +60,9 @@ Note that they only work with SQLite 3.6.8 or higher; older versions of SQLite
 will fallback on the exception-throwing implementation of these methods in
 L<DBIx::Connector::Driver|DBIx::Connector::Driver>.
 
-=head1 Authors
+=head1 AUTHORS
 
-This module was written and is maintained by:
+This module was written by:
 
 =over
 
@@ -73,7 +70,7 @@ This module was written and is maintained by:
 
 =back
 
-=head1 Copyright and License
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (c) 2009-2013 David E. Wheeler. Some Rights Reserved.
 

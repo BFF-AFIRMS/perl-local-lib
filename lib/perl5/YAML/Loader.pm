@@ -244,7 +244,7 @@ sub _parse_qualifiers {
         elsif ($preface =~ s/^\*([^ ,:]*)\s*//) {
             $token = $1;
             $self->die('YAML_PARSE_ERR_BAD_ALIAS')
-              unless $token =~ /^[a-zA-Z0-9]+$/;
+              unless $token =~ /^[a-zA-Z0-9_.\/-]+$/;
             $self->die('YAML_PARSE_ERR_MANY_ALIAS') if $alias;
             $self->die('YAML_PARSE_ERR_ANCHOR_ALIAS') if $anchor;
             $alias = $token;
@@ -615,7 +615,7 @@ sub _parse_implicit {
     # remove trailing comments and whitespace
     $value =~ s/^#.*$//;
     $value =~ s/\s+#.*$//;
-    $value =~ s/\s*$//;
+    $value =~ s/\s+$//;
     return $value if $value eq '';
     return undef if $value =~ /^~$/;
     return $value

@@ -26,14 +26,14 @@ __END__
 
 =head1 NAME
 
-Sort::Key::Maker - multi-key sorter creator
+Sort::Key::Maker - multikey sorter creator
 
-=head1 SYNOPSIS
+=head1 SYNOPSYS
 
   # create a function that sorts strings by length:
   use Sort::Key::Maker sort_by_length => sub { length $_},  qw(integer);
 
-  # create a multi-key sort function;
+  # create a multikey sort function;
   # first key is integer sorted in descending order,
   # second key is a string in default (ascending) order:
   use Sort::Key::Maker ri_s_keysort => qw(-integer string);
@@ -53,9 +53,9 @@ Sort::Key::Maker - multi-key sorter creator
 =head1 DESCRIPTION
 
 Sort::Key::Maker is a pragmatic module that provides an easy to use
-interface to Sort::Key multi-key sorting functionality.
+interface to Sort::Key multikey sorting functionality.
 
-It creates multi-key sorting functions on the fly for any key type
+It creates multikey sorting functions on the fly for any key type
 combination and exports them to the caller package.
 
 The key types natively accepted are:
@@ -90,7 +90,7 @@ For instance:
 =item use Sort::Key::Maker foo_sort =E<gt> \&genmultikey, @keys;
 
 when the first argument after the sorter name is a reference to a
-subroutine it is used as the multi-key extraction function. The
+subroutine it is used as the multikey extraction function. The
 generated sorter functions doesn't require neither accept one, i.e.:
 
   use Sort::Key::Maker sort_by_length => sub { length $_ }, 'int';
@@ -111,7 +111,7 @@ Salvador FandiE<ntilde>o, E<lt>sfandino@yahoo.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2005, 2014 by Salvador FandiE<ntilde>o
+Copyright (C) 2005 by Salvador FandiE<ntilde>o
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.4 or,

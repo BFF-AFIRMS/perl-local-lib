@@ -22,7 +22,7 @@ use base 'Template::Plugin';
 use Template::Exception;
 use File::Spec;
 
-our $VERSION = 1.21;
+our $VERSION = '3.106';
 our $AUTOLOAD;
 
 BEGIN {
@@ -33,15 +33,16 @@ BEGIN {
         *img_info = sub {
             my $file = shift;
             my @stuff = Image::Size::imgsize($file);
-            return { "width"  => $stuff[0],
-                     "height" => $stuff[1],
-                     "error"  =>
-                        # imgsize returns either a three letter file type
-                        # or an error message as third value
-                        (defined($stuff[2]) && length($stuff[2]) > 3
-                            ? $stuff[2]
-                            : undef),
-                   };
+            return {
+                "width"  => $stuff[0],
+                "height" => $stuff[1],
+                "error"  =>
+                    # imgsize returns either a three letter file type
+                    # or an error message as third value
+                    (defined($stuff[2]) && length($stuff[2]) > 3
+                        ? $stuff[2]
+                        : undef),
+            };
         }
     }
     else {
@@ -55,7 +56,7 @@ BEGIN {
 # new($context, $name, \%config)
 #
 # Create a new Image object.  Takes the pathname of the file as
-# the argument following the context and an optional 
+# the argument following the context and an optional
 # hash reference of configuration parameters.
 #------------------------------------------------------------------------
 
@@ -65,19 +66,19 @@ sub new {
     my ($root, $file, $type);
 
     # name can be a positional or named argument
-    $name = $config->{ name } unless defined $name;
+    $name //= $config->{ name };
 
     return $class->throw('no image file specified')
         unless defined $name and length $name;
 
     # name can be specified as an absolute path or relative
-    # to a root directory 
+    # to a root directory
 
     if ($root = $config->{ root }) {
         $file = File::Spec->catfile($root, $name);
     }
     else {
-        $file = defined $config->{file} ? $config->{file} : $name;
+        $file = $config->{file} // $name;
     }
 
     # Make a note of whether we are using Image::Size or
@@ -85,10 +86,10 @@ sub new {
     $type = $INC{"Image/Size.pm"} ? "Image::Size" : "Image::Info";
 
     # set a default (empty) alt attribute for tag()
-    $config->{ alt } = '' unless defined $config->{ alt };
+    $config->{ alt } //= '';
 
     # do we want to check to see if file exists?
-    bless { 
+    bless {
         %$config,
         name => $name,
         file => $file,
@@ -113,7 +114,7 @@ sub init {
     @$self{ keys %$image } = values %$image;
     $self->{ size } = [ $image->{ width }, $image->{ height } ];
 
-    $self->{ modtime } = (stat $self->{ file })[10];
+    $self->{ modtime } = (stat $self->{ file })[9];
 
     return $self;
 }
@@ -161,8 +162,7 @@ sub tag {
     # XHTML spec says that the alt attribute is mandatory, so who
     # are we to argue?
 
-    $options->{ alt } = $self->{ alt }
-        unless defined $options->{ alt };
+    $options->{ alt } //= $self->{ alt };
 
     if (%$options) {
         for my $key (sort keys %$options) {
@@ -293,7 +293,7 @@ Typical output:
 
     <img src="foo.gif" width="60" height="20" alt="" />
 
-You can provide any additional attributes that should be added to the 
+You can provide any additional attributes that should be added to the
 XHTML tag.
 
     [% USE image 'foo.gif' %]
@@ -305,7 +305,7 @@ Typical output:
 
 Note that the C<alt> attribute is mandatory in a strict XHTML C<img>
 element (even if it's empty) so it is always added even if you don't
-explicitly provide a value for it.  You can do so as an argument to 
+explicitly provide a value for it.  You can do so as an argument to
 the C<tag> method, as shown in the previous example, or as an argument
 
     [% USE image('foo.gif', alt='Logo') %]
@@ -416,7 +416,7 @@ Andy Wardley E<lt>abw@wardley.orgE<gt> L<http://wardley.org/>
 
 =head1 COPYRIGHT
 
-Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

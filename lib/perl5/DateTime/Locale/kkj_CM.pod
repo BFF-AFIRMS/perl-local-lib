@@ -103,7 +103,7 @@ Kako Cameroon locale.
   fɛ
   njapi
   nyukul
-  11
+  M11
   ɓulɓusɛ
 
 =head3 Abbreviated (format)
@@ -118,7 +118,7 @@ Kako Cameroon locale.
   fɛ
   njapi
   nyukul
-  11
+  M11
   ɓulɓusɛ
 
 =head3 Narrow (format)
@@ -149,7 +149,7 @@ Kako Cameroon locale.
   fɛ
   njapi
   nyukul
-  11
+  M11
   ɓulɓusɛ
 
 =head3 Abbreviated (stand-alone)
@@ -164,7 +164,7 @@ Kako Cameroon locale.
   fɛ
   njapi
   nyukul
-  11
+  M11
   ɓulɓusɛ
 
 =head3 Narrow (stand-alone)
@@ -351,6 +351,12 @@ Kako Cameroon locale.
    1995-12-22T09:05:02 = vaŋdɛrɛdi
   -0010-09-15T04:44:23 = mɔnɔ sɔndi
 
+=head3 EBh (E h B)
+
+   2008-02-05T18:30:30 = mardi 6 B
+   1995-12-22T09:05:02 = vaŋdɛrɛdi 9 B
+  -0010-09-15T04:44:23 = mɔnɔ sɔndi 4 B
+
 =head3 EBhm (E h:mm B)
 
    2008-02-05T18:30:30 = mardi 6:30 B
@@ -381,6 +387,12 @@ Kako Cameroon locale.
    1995-12-22T09:05:02 = vaŋdɛrɛdi 22
   -0010-09-15T04:44:23 = mɔnɔ sɔndi 15
 
+=head3 Eh (E h a)
+
+   2008-02-05T18:30:30 = mardi 6 PM
+   1995-12-22T09:05:02 = vaŋdɛrɛdi 9 AM
+  -0010-09-15T04:44:23 = mɔnɔ sɔndi 4 AM
+
 =head3 Ehm (E h:mm a)
 
    2008-02-05T18:30:30 = mardi 6:30 PM
@@ -399,6 +411,18 @@ Kako Cameroon locale.
    1995-12-22T09:05:02 = 1995 CE
   -0010-09-15T04:44:23 = -10 BCE
 
+=head3 GyM (G y-MM)
+
+   2008-02-05T18:30:30 = CE 2008-02
+   1995-12-22T09:05:02 = CE 1995-12
+  -0010-09-15T04:44:23 = BCE -10-09
+
+=head3 GyMEd (G y-MM-dd, E)
+
+   2008-02-05T18:30:30 = CE 2008-02-05, mardi
+   1995-12-22T09:05:02 = CE 1995-12-22, vaŋdɛrɛdi
+  -0010-09-15T04:44:23 = BCE -10-09-15, mɔnɔ sɔndi
+
 =head3 GyMMM (MMM y G)
 
    2008-02-05T18:30:30 = wanja 2008 CE
@@ -416,6 +440,12 @@ Kako Cameroon locale.
    2008-02-05T18:30:30 = 5 wanja 2008 CE
    1995-12-22T09:05:02 = 22 ɓulɓusɛ 1995 CE
   -0010-09-15T04:44:23 = 15 njapi -10 BCE
+
+=head3 GyMd (G y-MM-dd)
+
+   2008-02-05T18:30:30 = CE 2008-02-05
+   1995-12-22T09:05:02 = CE 1995-12-22
+  -0010-09-15T04:44:23 = BCE -10-09-15
 
 =head3 H (HH)
 
@@ -446,6 +476,12 @@ Kako Cameroon locale.
    2008-02-05T18:30:30 = 18:30 UTC
    1995-12-22T09:05:02 = 09:05 UTC
   -0010-09-15T04:44:23 = 04:44 UTC
+
+=head3 Hv (HH v)
+
+   2008-02-05T18:30:30 = 18 UTC
+   1995-12-22T09:05:02 = 09 UTC
+  -0010-09-15T04:44:23 = 04 UTC
 
 =head3 M (L)
 
@@ -501,11 +537,11 @@ Kako Cameroon locale.
    1995-12-22T09:05:02 = 22
   -0010-09-15T04:44:23 = 15
 
-=head3 h (h a)
+=head3 h (h a)
 
-   2008-02-05T18:30:30 = 6 PM
-   1995-12-22T09:05:02 = 9 AM
-  -0010-09-15T04:44:23 = 4 AM
+   2008-02-05T18:30:30 = 6 PM
+   1995-12-22T09:05:02 = 9 AM
+  -0010-09-15T04:44:23 = 4 AM
 
 =head3 hm (h:mm a)
 
@@ -530,6 +566,12 @@ Kako Cameroon locale.
    2008-02-05T18:30:30 = 6:30 PM UTC
    1995-12-22T09:05:02 = 9:05 AM UTC
   -0010-09-15T04:44:23 = 4:44 AM UTC
+
+=head3 hv (h a v)
+
+   2008-02-05T18:30:30 = 6 PM UTC
+   1995-12-22T09:05:02 = 9 AM UTC
+  -0010-09-15T04:44:23 = 4 AM UTC
 
 =head3 ms (mm:ss)
 
@@ -613,6 +655,26 @@ Yes
 =head3 Local first day of the week
 
 1 (lundi)
+
+=head2 Strftime Patterns
+
+=head3 %c (%a %b %e %H:%M:%S %Y) - date time format
+
+   2008-02-05T18:30:30 = mardi wanja  5 18:30:30 2008
+   1995-12-22T09:05:02 = vaŋdɛrɛdi ɓulɓusɛ 22 09:05:02 1995
+  -0010-09-15T04:44:23 = mɔnɔ sɔndi njapi 15 04:44:23 -10
+
+=head3 %x (%m/%d/%y) - date format
+
+   2008-02-05T18:30:30 = 02/05/08
+   1995-12-22T09:05:02 = 12/22/95
+  -0010-09-15T04:44:23 = 09/15/10
+
+=head3 %X (%H:%M:%S) - time format
+
+   2008-02-05T18:30:30 = 18:30:30
+   1995-12-22T09:05:02 = 09:05:02
+  -0010-09-15T04:44:23 = 04:44:23
 
 =head1 SUPPORT
 

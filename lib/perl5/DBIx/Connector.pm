@@ -1,12 +1,11 @@
+use 5.008001; use strict; use warnings;
+
 package DBIx::Connector;
 
-use 5.006002;
-use strict;
-use warnings;
 use DBI '1.605';
 use DBIx::Connector::Driver;
 
-our $VERSION = '0.56';
+our $VERSION = '0.60';
 
 sub new {
     my $class = shift;
@@ -47,22 +46,22 @@ sub _connect {
     $self->{_tid} = threads->tid if $INC{'threads.pm'};
     $self->{_dbh} = $dbh;
 
+    $self->{driver_name} ||= $dbh->{Driver}{Name};
+
     # Set up the driver and go!
     return $self->driver->_connect($dbh, @args);
 }
 
+sub dsn { ( $_[0]{_args}->() )[0] }
+
+sub driver_name {
+    my $self = shift;
+    $self->{driver_name} ||= ( DBI->parse_dsn( $self->dsn ) )[1];
+}
+
 sub driver {
     my $self = shift;
-    return $self->{driver} if $self->{driver};
-
-    my $driver = do {
-        if (my $dbh = $self->{_dbh}) {
-            $dbh->{Driver}{Name};
-        } else {
-            (DBI->parse_dsn( ($self->{_args}->())[0]) )[1];
-        }
-    };
-    $self->{driver} = DBIx::Connector::Driver->new( $driver );
+    $self->{driver} ||= DBIx::Connector::Driver->new( $self->{driver_name} || $self->driver_name );
 }
 
 sub connect {
@@ -322,13 +321,14 @@ sub _exec {
 }
 
 1;
+
 __END__
 
-=head1 Name
+=head1 NAME
 
 DBIx::Connector - Fast, safe DBI connection and transaction management
 
-=head1 Synopsis
+=head1 SYNOPSIS
 
   use DBIx::Connector;
 
@@ -347,7 +347,7 @@ DBIx::Connector - Fast, safe DBI connection and transaction management
       $_->do('INSERT INTO foo (name) VALUES (?)', undef, 'Fred' );
   });
 
-=head1 Description
+=head1 DESCRIPTION
 
 DBIx::Connector provides a simple interface for fast and safe DBI connection
 and transaction management. Connecting to a database can be expensive; you
@@ -407,7 +407,7 @@ savepoints to behave like subtransactions, so that you can save some of your
 work in a transaction even if part of it fails. See L<C<txn()>|/"txn"> and
 L<C<svp()>|/"svp"> for the goods.
 
-=head1 Usage
+=head1 USAGE
 
 Unlike L<Apache::DBI> and L<C<connect_cached()>|DBI/connect_cached>,
 DBIx::Connector doesn't cache database handles. Rather, for a given
@@ -491,7 +491,7 @@ This is similar to what L<Apache::DBI> and the L<DBI>'s
 L<C<connect_cached()>|DBI/connect_cached> method do to check the database
 connection, and is the safest way to do so. If the ping fails, DBIx::Connector
 will attempt to reconnect to the database before executing the block. However,
-C<ping> mode does impose the overhead of the C<ping> ever time you use it.
+C<ping> mode does impose the overhead of the C<ping> every time you use it.
 
 In C<fixup> mode, DBIx::Connector executes the block without pinging the
 database. But in the event the block throws an exception, if DBIx::Connector
@@ -593,7 +593,7 @@ exception, which will look something like this:
 This allows you to see you original SQL error, as well as the errors for the
 savepoint rollback and transaction rollback failures.
 
-=head1 Interface
+=head1 INTERFACE
 
 And now for the nitty-gritty.
 
@@ -953,7 +953,20 @@ and L<C<svp()>|/"svp">, but sometimes you just need the finer control. In
 those cases, take advantage of the driver object to keep your use of the API
 universal across database back-ends.
 
-=head1 See Also
+=head3 C<driver_name>
+
+  my $driver_name = $conn->driver_name;
+
+Returns the name of the L<DBI> driver (to be) used to connect to the database.
+
+=head3 C<dsn>
+
+  my $dsn = $conn->dsn;
+
+Returns the DBI Data Source Name originally passed to L<C<new()>|/"new"> as the
+first argument.
+
+=head1 SEE ALSO
 
 =over
 
@@ -967,19 +980,9 @@ universal across database back-ends.
 
 =back
 
-=head1 Support
+=head1 AUTHORS
 
-This module is managed in an open
-L<GitHub repository|http://github.com/theory/dbix-connector/>. Feel free to
-fork and contribute, or to clone L<git://github.com/theory/dbix-connector.git>
-and send patches!
-
-Found a bug? Please L<post|http://github.com/theory/dbix-connector/issues> or
-L<email|mailto:bug-dbix-connector@rt.cpan.org> a report!
-
-=head1 Authors
-
-This module was written and is maintained by:
+This module was written by:
 
 =over
 
@@ -1017,7 +1020,7 @@ It is based on documentation, ideas, kibbitzing, and code from:
 
 =back
 
-=head1 Copyright and License
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (c) 2009-2013 David E. Wheeler. Some Rights Reserved.
 

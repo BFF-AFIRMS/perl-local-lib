@@ -1,0 +1,89 @@
+{
+   "abstract" : "Log::Report in its lightest form",
+   "author" : [
+      "Mark Overmeer <mark@overmeer.net>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "ExtUtils::MakeMaker version 7.70, CPAN::Meta::Converter version 2.150010",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "Log-Report-Optional",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "develop" : {
+         "requires" : {
+            "OODoc" : "3.03"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "String::Print" : "0.91",
+            "Test::More" : "0.86"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Test::More" : "1",
+            "Test::Pod" : "1"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "homepage" : "http://perl.overmeer.net/CPAN/",
+      "repository" : {
+         "type" : "git",
+         "url" : "https://github.com/markov2/perl5-Log-Report-Optional.git",
+         "web" : "https://github.com/markov2/perl5-Log-Report-Optional"
+      }
+   },
+   "version" : "1.08",
+   "x_oodist" : {
+      "email" : "markov@cpan.org",
+      "first_year" : 2013,
+      "generate" : [
+         {
+            "format" : "pod3",
+            "podtail" : null
+         }
+      ],
+      "include" : [],
+      "oodoc_version" : 3.04,
+      "parser" : {
+         "pmhead" : null,
+         "skip_links" : [],
+         "syntax" : "markov"
+      },
+      "raw" : {
+         "publish" : "../public_html/log-report-optional/raw"
+      },
+      "release" : {
+         "publish" : "../public_html/log-report-optional/source"
+      },
+      "tests" : {},
+      "use" : [
+         "../String-Print"
+      ]
+   },
+   "x_serialization_backend" : "JSON::PP version 4.16"
+}

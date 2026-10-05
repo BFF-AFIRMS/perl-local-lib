@@ -1,14 +1,11 @@
 package Net::DNS::RR::MINFO;
 
-#
-# $Id: MINFO.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: MINFO.pm 2002 2025-01-07 09:57:46Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,27 +13,27 @@ Net::DNS::RR::MINFO - DNS MINFO resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::Mailbox;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset, @opaque ) = @_;
+	my ( $self, $data, $offset, @opaque ) = @_;
 
-	( $self->{rmailbx}, $offset ) = decode Net::DNS::Mailbox1035(@_);
-	( $self->{emailbx}, $offset ) = decode Net::DNS::Mailbox1035( $data, $offset, @opaque );
+	( $self->{rmailbx}, $offset ) = Net::DNS::Mailbox1035->decode( $data, $offset, @opaque );
+	( $self->{emailbx}, $offset ) = Net::DNS::Mailbox1035->decode( $data, $offset, @opaque );
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
-	my $self = shift;
-	my ( $offset, @opaque ) = @_;
+	my ( $self,   @argument ) = @_;
+	my ( $offset, @opaque )	  = @argument;
 
-	my $rdata = $self->{rmailbx}->encode(@_);
+	my $rdata = $self->{rmailbx}->encode(@argument);
 	$rdata .= $self->{emailbx}->encode( $offset + length $rdata, @opaque );
+	return $rdata;
 }
 
 
@@ -44,30 +41,29 @@ sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
 	my @rdata = ( $self->{rmailbx}->string, $self->{emailbx}->string );
+	return @rdata;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->rmailbx(shift);
-	$self->emailbx(shift);
+	for (qw(rmailbx emailbx)) { $self->$_( shift @argument ) }
+	return;
 }
 
 
 sub rmailbx {
-	my $self = shift;
-
-	$self->{rmailbx} = new Net::DNS::Mailbox1035(shift) if scalar @_;
-	$self->{rmailbx}->address if $self->{rmailbx};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{rmailbx} = Net::DNS::Mailbox1035->new($_) }
+	return $self->{rmailbx} ? $self->{rmailbx}->address : undef;
 }
 
 
 sub emailbx {
-	my $self = shift;
-
-	$self->{emailbx} = new Net::DNS::Mailbox1035(shift) if scalar @_;
-	$self->{emailbx}->address if $self->{emailbx};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{emailbx} = Net::DNS::Mailbox1035->new($_) }
+	return $self->{emailbx} ? $self->{emailbx}->address : undef;
 }
 
 
@@ -77,8 +73,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name MINFO rmailbx emailbx');
+	use Net::DNS;
+	$rr = Net::DNS::RR('name MINFO rmailbx emailbx');
 
 =head1 DESCRIPTION
 
@@ -96,8 +92,8 @@ other unpredictable behaviour.
 
 =head2 rmailbx
 
-    $rmailbx = $rr->rmailbx;
-    $rr->rmailbx( $rmailbx );
+	$rmailbx = $rr->rmailbx;
+	$rr->rmailbx( $rmailbx );
 
 A domain name  which specifies a mailbox which is
 responsible for the mailing list or mailbox.  If this
@@ -109,8 +105,8 @@ This field provides a more general mechanism.
 
 =head2 emailbx
 
-    $emailbx = $rr->emailbx;
-    $rr->emailbx( $emailbx );
+	$emailbx = $rr->emailbx;
+	$rr->emailbx( $emailbx );
 
 A domain name  which specifies a mailbox which is to
 receive error messages related to the mailing list or
@@ -133,7 +129,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -150,6 +146,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1035 Section 3.3.7
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1035(3.3.7)|https://iana.org/go/rfc1035#section-3.3.7>
 
 =cut

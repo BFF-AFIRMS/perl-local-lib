@@ -3,7 +3,9 @@ package FFI::CheckLib;
 use strict;
 use warnings;
 use File::Spec;
+use List::Util 1.33 qw( any );
 use Carp qw( croak carp );
+use Env qw( @FFI_CHECKLIB_PATH );
 use base qw( Exporter );
 
 our @EXPORT = qw(
@@ -22,13 +24,45 @@ our @EXPORT_OK = qw(
 );
 
 # ABSTRACT: Check that a library is available for FFI
-our $VERSION = '0.24'; # VERSION
+our $VERSION = '0.31'; # VERSION
 
 
 our $system_path = [];
 our $os ||= $^O;
 my $try_ld_on_text = 0;
 
+sub _homebrew_lib_path {
+  require File::Which;
+  return undef unless File::Which::which('brew');
+  chomp(my $brew_path = (qx`brew --prefix`)[0]);
+  return "$brew_path/lib";
+}
+
+sub _macports_lib_path {
+  require File::Which;
+  my $port_path = File::Which::which('port');
+  return undef unless $port_path;
+  $port_path =~ s|bin/port|lib|;
+  return $port_path;
+}
+
+sub _darwin_extra_paths {
+  my $pkg_managers = lc( $ENV{FFI_CHECKLIB_PACKAGE} || 'homebrew,macports' );
+  return () if $pkg_managers eq 'none';
+  my $supported_managers = {
+      homebrew => \&_homebrew_lib_path,
+      macports => \&_macports_lib_path
+  };
+  my @extra_paths = ();
+  foreach my $pkg_manager (split( /,/, $pkg_managers )) {
+    if (my $lib_path = $supported_managers->{$pkg_manager}()) {
+      push @extra_paths, $lib_path;
+    }
+  }
+  return @extra_paths;
+}
+
+my @extra_paths = ();
 if($os eq 'MSWin32' || $os eq 'msys')
 {
   $system_path = eval {
@@ -42,9 +76,11 @@ else
 {
   $system_path = eval {
     require DynaLoader;
+    no warnings 'once';
     \@DynaLoader::dl_library_path;
   };
   die $@ if $@;
+  @extra_paths = _darwin_extra_paths() if $os eq 'darwin';
 }
 
 our $pattern = [ qr{^lib(.*?)\.so(?:\.([0-9]+(?:\.[0-9]+)*))?$} ];
@@ -63,9 +99,9 @@ elsif($os eq 'msys')
 }
 elsif($os eq 'MSWin32')
 {
-  #  handle cases like libgeos-3-7-0___.dll and libgtk-2.0-0.dll
-  $pattern = [ qr{^(?:lib)?(\w+?)(?:-([0-9-\.]+))?_*\.dll$}i ];
-  $version_split = qr/\-/;
+  #  handle cases like libgeos-3-7-0___.dll, libproj_9_1.dll and libgtk-2.0-0.dll
+  $pattern = [ qr{^(?:lib)?(\w+?)(?:[_-]([0-9\-\._]+))?_*\.dll$}i ];
+  $version_split = qr/[_\-]/;
 }
 elsif($os eq 'darwin')
 {
@@ -129,7 +165,7 @@ sub find_lib
   my $recursive = $args{_r} || $args{recursive} || 0;
 
   # make arguments be lists.
-  foreach my $arg (qw( lib libpath symbol verify ))
+  foreach my $arg (qw( lib libpath symbol verify alien ))
   {
     next if ref $args{$arg} eq 'ARRAY';
     if(defined $args{$arg})
@@ -149,34 +185,92 @@ sub find_lib
 
   my @path = @{ $args{libpath} };
   @path = map { _recurse($_) } @path if $recursive;
-  push @path, grep { defined } defined $args{systempath}
-    ? @{ $args{systempath} }
-    : @$system_path;
 
-  my $any = 1 if grep { $_ eq '*' } @{ $args{lib} };
+  if(defined $args{systempath})
+  {
+    push @path, grep { defined } @{ $args{systempath} }
+  }
+  else
+  {
+    # This is a little convaluted, but:
+    # 1. These are modifications of what we consider the "system" path
+    #    if systempath isn't explicitly passed in as systempath
+    # 2. FFI_CHECKLIB_PATH is considered an authortative modification
+    #    so it goes first and overrides FFI_CHECKLIB_PACKAGE
+    # 3. otherwise FFI_CHECKLIB_PACKAGE does its thing and goes on
+    #    the end because homebrew does a good job of not replacing
+    #    anything in the system by default.
+    # 4. We finally add what we consider the "system" path to the end of
+    #    the search path so that libpath will be searched first.
+    my @system_path = @$system_path;
+    if($ENV{FFI_CHECKLIB_PATH})
+    {
+      @system_path = (@FFI_CHECKLIB_PATH, @system_path);
+    }
+    else
+    {
+      foreach my $extra_path (@extra_paths)
+      {
+        push @path, $extra_path unless any { $_ eq $extra_path } @path;
+      }
+    }
+    push @path, @system_path;
+  }
+
+  my $any = any { $_ eq '*' } @{ $args{lib} };
   my %missing = map { $_ => 1 } @{ $args{lib} };
   my %symbols = map { $_ => 1 } @{ $args{symbol} };
   my @found;
 
   delete $missing{'*'};
 
+  alien: foreach my $alien (reverse @{ $args{alien} })
+  {
+    unless($alien =~ /^([A-Za-z_][A-Za-z_0-9]*)(::[A-Za-z_][A-Za-z_0-9]*)*$/)
+    {
+      croak "Doesn't appear to be a valid Alien name $alien";
+    }
+    unless(eval { $alien->can('dynamic_libs') })
+    {
+      {
+        my $pm = "$alien.pm";
+        $pm =~ s/::/\//g;
+        local $@ = '';
+        eval { require $pm };
+        next alien if $@;
+      }
+      unless(eval { $alien->can('dynamic_libs') })
+      {
+        croak "Alien $alien doesn't provide a dynamic_libs method";
+      }
+    }
+    unshift @path, [$alien->dynamic_libs];
+  }
+
   foreach my $path (@path)
   {
-    next unless -d $path;
-    my $dh;
-    opendir $dh, $path;
+    next if ref $path ne 'ARRAY' && ! -d $path;
+
     my @maybe =
       # make determinist based on names and versions
       sort { _cmp($a,$b) }
       # Filter out the items that do not match the name that we are looking for
       # Filter out any broken symbolic links
       grep { ($any || $missing{$_->[0]} ) && (-e $_->[1]) }
-      # get [ name, full_path ] mapping,
-      # each entry is a 2 element list ref
-      map { _matches($_,$path) }
-      # read all files from the directory
-      readdir $dh;
-    closedir $dh;
+      ref $path eq 'ARRAY'
+        ? do {
+          map {
+            my($v, $d, $f) = File::Spec->splitpath($_);
+            _matches($f, File::Spec->catpath($v,$d,''));
+          } @$path;
+        }
+        : do {
+          my $dh;
+          opendir $dh, $path;
+          # get [ name, full_path ] mapping,
+          # each entry is a 2 element list ref
+          map { _matches($_,$path) } readdir $dh;
+        };
 
     if($try_ld_on_text && $args{try_linker_script})
     {
@@ -225,7 +319,6 @@ sub find_lib
         while(-l $found)
         {
           require File::Basename;
-          require File::Spec;
           my $dir = File::Basename::dirname($found);
           $found = File::Spec->rel2abs( readlink($found), $dir );
         }
@@ -375,7 +468,7 @@ FFI::CheckLib - Check that a library is available for FFI
 
 =head1 VERSION
 
-version 0.24
+version 0.31
 
 =head1 SYNOPSIS
 
@@ -465,12 +558,12 @@ Example:
    lib => 'foo',
    verify => sub {
      my($name, $libpath) = @_;
-     
+ 
      my $ffi = FFI::Platypus->new;
      $ffi->lib($libpath);
-     
+ 
      my $f = $ffi->function('foo_version', [] => 'int');
-     
+ 
      return $f->call() >= 500; # we accept version 500 or better
    },
  );
@@ -493,8 +586,35 @@ On select platforms, this options will use the linker command (C<ld>)
 to attempt to resolve the real C<.so> for non-binary files.  Since there
 is extra overhead this is off by default.
 
-An example is libyaml on RedHat based Linux distributions.  On Debian
+An example is libyaml on Red Hat based Linux distributions.  On Debian
 these are handled with symlinks and no trickery is required.
+
+=item alien
+
+[version 0.25]
+
+If no libraries can be found, try the given aliens instead.  The Alien
+classes specified must provide the L<Alien::Base> interface for dynamic
+libraries, which is to say they should provide a method called
+C<dynamic_libs> that returns a list of dynamic libraries.
+
+[version 0.28]
+
+In 0.28 and later, if the L<Alien> is not installed then it will be
+ignored and this module will search in system or specified directories
+only.  This module I<will> still throw an exception, if the L<Alien>
+doesn't look like a module name or if it does not provide a C<dynamic_libs>
+method (which is implemented by all L<Alien::Base> subclasses).
+
+[version 0.30]
+[breaking change]
+
+Starting with version 0.30, libraries provided by L<Alien>s is preferred
+over the system libraries.  The original thinking was that you want to
+prefer the system libraries because they are more likely to get patched
+with regular system updates.  Unfortunately, the reason a module needs to
+install an Alien is likely because the system library is not new enough,
+so we now prefer the L<Alien>s instead.
 
 =back
 
@@ -547,7 +667,7 @@ false (0) otherwise.
 
 [version 0.17]
 
- my $path = where($name);
+ my $path = which($name);
 
 Return the path to the first library that matches the given name.
 
@@ -588,6 +708,108 @@ probably do some careful consideration before you do so.
 
 This function is not exportable, even on request.
 
+=head1 ENVIRONMENT
+
+L<FFI::CheckLib> responds to these environment variables:
+
+=over 4
+
+=item FFI_CHECKLIB_PACKAGE
+
+On macOS platforms with L<Homebrew|http://brew.sh> and/or L<MacPorts|https://www.macports.org>
+installed, their corresponding lib paths will be automatically appended to C<$system_path>.
+In case of having both managers installed, Homebrew will appear before.
+
+This behaviour can be overridden using the environment variable C<FFI_CHECKLIB_PACKAGE>.
+
+Allowed values are:
+
+- C<none>: Won't use either Homebrew's path nor MacPorts
+- C<homebrew>: Will append C<$(brew --prefix)/lib> to the system paths
+- C<macports>: Will append C<port>'s default lib path
+
+A comma separated list is also valid:
+
+ export FFI_CHECKLIB_PACKAGE=macports,homebrew
+
+Order matters. So in this example, MacPorts' lib path appears before Homebrew's path.
+
+=item FFI_CHECKLIB_PATH
+
+List of directories that will be considered by L<FFI::CheckLib> as additional "system
+directories".  They will be searched before other system directories but after C<libpath>.
+The variable is colon separated on Unix and semicolon separated on Windows.  If you
+use this variable, C<FFI_CHECKLIB_PACKAGE> will be ignored.
+
+=item PATH
+
+On Windows the C<PATH> environment variable will be used as a search path for
+libraries.
+
+=back
+
+On some operating systems C<LD_LIBRARY_PATH>, C<DYLD_LIBRARY_PATH>,
+C<DYLD_FALLBACK_LIBRARY_PATH> or others I<may> be used as part of the search
+for dynamic libraries and I<may> be used (indirectly) by L<FFI::CheckLib>
+as well.
+
+=head1 FAQ
+
+=over 4
+
+=item Why not just use C<dlopen>?
+
+Calling C<dlopen> on a library name and then C<dlclose> immediately can tell
+you if you have the exact name of a library available on a system.  It does
+have a number of drawbacks as well.
+
+=over 4
+
+=item No absolute or relative path
+
+It only tells you that the library is I<somewhere> on the system, not having
+the absolute or relative path makes it harder to generate useful diagnostics.
+
+=item POSIX only
+
+This doesn't work on non-POSIX systems like Microsoft Windows. If you are
+using a POSIX emulation layer on Windows that provides C<dlopen>, like
+Cygwin, there are a number of gotchas there as well.  Having a layer written
+in Perl handles this means that developers on Unix can develop FFI that will
+more likely work on these platforms without special casing them.
+
+=item inconsistent implementations
+
+Even on POSIX systems you have inconsistent implementations.  OpenBSD for
+example don't usually include symlinks for C<.so> files meaning you need
+to know the exact C<.so> version.
+
+=item non-system directories
+
+By default C<dlopen> only works for libraries in the system paths.  Most
+platforms have a way of configuring the search for different non-system
+paths, but none of them are portable, and are usually discouraged anyway.
+L<Alien> and friends need to do searches for dynamic libraries in
+non-system directories for C<share> installs.
+
+=back
+
+=item My 64-bit Perl is misconfigured and has 32-bit libraries in its search path.  Is that a bug in L<FFI::CheckLib>?
+
+Nope.
+
+=item The way L<FFI::CheckLib> is implemented it won't work on AIX, HP-UX, OpenVMS or Plan 9.
+
+I know for a fact that it doesn't work on AIX I<as currently implemented>
+because I used to develop on AIX in the early 2000s, and I am aware of some
+of the technical challenges.  There are probably other systems that it won't
+work on.  I would love to add support for these platforms.  Realistically
+these platforms have a tiny market share, and absent patches from users or
+the companies that own these operating systems (patches welcome), or hardware
+/ CPU time donations, these platforms are unsupportable anyway.
+
+=back
+
 =head1 SEE ALSO
 
 =over 4
@@ -616,9 +838,17 @@ Ilya Pavlov (Ilya, ILUX)
 
 Shawn Laffan (SLAFFAN)
 
+Petr Písař (ppisar)
+
+Michael R. Davis (MRDVT)
+
+Shawn Laffan (SLAFFAN)
+
+Carlos D. Álvaro (cdalvaro)
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2014-2018 by Graham Ollis.
+This software is copyright (c) 2014-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

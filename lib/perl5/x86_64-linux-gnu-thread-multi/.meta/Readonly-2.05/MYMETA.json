@@ -10,7 +10,7 @@
    ],
    "meta-spec" : {
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
-      "version" : "2"
+      "version" : 2
    },
    "name" : "Readonly",
    "no_index" : {
@@ -86,5 +86,5 @@
       "Ronald Schmidt <ronaldxs@software-path.com>",
       "Michael Ivanchenko <ivanchenko.michael.work@gmail.com>"
    ],
-   "x_serialization_backend" : "JSON::PP version 2.27300_01"
+   "x_serialization_backend" : "JSON::PP version 4.16"
 }

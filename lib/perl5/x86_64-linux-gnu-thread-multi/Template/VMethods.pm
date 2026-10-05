@@ -9,13 +9,10 @@
 #   Andy Wardley   <abw@wardley.org>
 #
 # COPYRIGHT
-#   Copyright (C) 1996-2015 Andy Wardley.  All Rights Reserved.
+#   Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 #
 #   This module is free software; you can redistribute it and/or
 #   modify it under the same terms as Perl itself.
-#
-# REVISION
-#   $Id$
 #
 #============================================================================
 
@@ -25,11 +22,9 @@ use strict;
 use warnings;
 use Scalar::Util qw( blessed looks_like_number );
 use Template::Filters;
-require Template::Stash;
 
-our $VERSION = 2.16;
+our $VERSION = '3.106';
 our $DEBUG   = 0 unless defined $DEBUG;
-our $PRIVATE = $Template::Stash::PRIVATE;
 
 our $ROOT_VMETHODS = {
     inc     => \&root_inc,
@@ -109,6 +104,10 @@ our $LIST_VMETHODS = {
     splice  => \&list_splice,
 };
 
+# Template::Stash needs the above, so defer loading this module
+# until they are defined.
+require Template::Stash;
+our $PRIVATE = $Template::Stash::PRIVATE;
 
 #========================================================================
 # root virtual methods
@@ -176,20 +175,18 @@ sub text_lcfirst {
 }
 
 sub text_trim {
-    for ($_[0]) {
-        s/^\s+//;
-        s/\s+$//;
-    }
-    return $_[0];
+    my $text = $_[0];
+    $text =~ s/^\s+//;
+    $text =~ s/\s+$//;
+    return $text;
 }
 
 sub text_collapse {
-    for ($_[0]) {
-        s/^\s+//;
-        s/\s+$//;
-        s/\s+/ /g
-    }
-    return $_[0];
+    my $text = $_[0];
+    $text =~ s/^\s+//;
+    $text =~ s/\s+$//;
+    $text =~ s/\s+/ /g;
+    return $text;
 }
 
 sub text_match {
@@ -208,18 +205,17 @@ sub text_search {
 
 sub text_repeat {
     my ($str, $count) = @_;
-    $str = '' unless defined $str;
+    $str //= '';
     return '' unless $count;
-    $count ||= 1;
     return $str x $count;
 }
 
 sub text_replace {
     my ($text, $pattern, $replace, $global) = @_;
-    $text    = '' unless defined $text;
-    $pattern = '' unless defined $pattern;
-    $replace = '' unless defined $replace;
-    $global  = 1  unless defined $global;
+    $text    //= '';
+    $pattern //= '';
+    $replace //= '';
+    $global  //= 1;
 
     if ($replace =~ /\$\d+/) {
         # replacement string may contain backrefs
@@ -233,7 +229,17 @@ sub text_replace {
             $chunk;
         };
         if ($global) {
-            $text =~ s{$pattern}{ &$expand($replace, [@-], [@+]) }eg;
+            my $prev_end = -1;
+            $text =~ s{$pattern}{
+                my $s = $-[0];
+                my $e = $+[0];
+                if ($s == $e && $s == $prev_end) {
+                    '';
+                } else {
+                    $prev_end = $e;
+                    &$expand($replace, [@-], [@+]);
+                }
+            }eg;
         }
         else {
             $text =~ s{$pattern}{ &$expand($replace, [@-], [@+]) }e;
@@ -241,7 +247,17 @@ sub text_replace {
     }
     else {
         if ($global) {
-            $text =~ s/$pattern/$replace/g;
+            my $prev_end = -1;
+            $text =~ s{$pattern}{
+                my $s = $-[0];
+                my $e = $+[0];
+                if ($s == $e && $s == $prev_end) {
+                    '';
+                } else {
+                    $prev_end = $e;
+                    $replace;
+                }
+            }eg;
         }
         else {
             $text =~ s/$pattern/$replace/;
@@ -259,24 +275,28 @@ sub text_remove {
 
 sub text_split {
     my ($str, $split, $limit) = @_;
-    $str = '' unless defined $str;
+    $str //= '';
 
     # For versions of Perl prior to 5.18 we have to be very careful about
     # spelling out each possible combination of arguments because split()
     # is very sensitive to them, for example C<split(' ', ...)> behaves
-    # differently to C<$space=' '; split($space, ...)>.  Test 33 of 
+    # differently to C<$space=' '; split($space, ...)>.  Test 33 of
     # vmethods/text.t depends on this behaviour.
 
     if ($] < 5.018) {
         if (defined $limit) {
-            return [ defined $split
-                     ? split($split, $str, $limit)
-                     : split(' ', $str, $limit) ];
+            return [
+                defined $split
+                    ? split($split, $str, $limit)
+                    : split(' ', $str, $limit)
+            ];
         }
         else {
-            return [ defined $split
-                     ? split($split, $str)
-                     : split(' ', $str) ];
+            return [
+                defined $split
+                    ? split($split, $str)
+                    : split(' ', $str)
+            ];
         }
     }
 
@@ -292,7 +312,7 @@ sub text_split {
             $split_re = qr/$split/;
         };
     }
-    $split_re = ' ' unless defined $split_re;
+    $split_re //= ' ';
     $limit ||= 0;
     return [split($split_re, $str, $limit)];
 }
@@ -358,7 +378,7 @@ sub text_dquote {
 
 sub hash_item {
     my ($hash, $item) = @_;
-    $item = '' unless defined $item;
+    $item //= '';
     return if $PRIVATE && $item =~ /$PRIVATE/;
     $hash->{ $item };
 }
@@ -406,11 +426,13 @@ sub hash_list {
     return ($what eq 'keys')   ? [   keys %$hash ]
         :  ($what eq 'values') ? [ values %$hash ]
         :  ($what eq 'each')   ? [        %$hash ]
-        :  # for now we do what pairs does but this will be changed
-           # in TT3 to return [ $hash ] by default
-        [ map { { key => $_ , value => $hash->{ $_ } } }
-          sort keys %$hash
-          ];
+        :
+        [
+            # for now we do what pairs does but this will be changed
+            # in TT3 to return [ $hash ] by default
+            map { { key => $_ , value => $hash->{ $_ } } }
+            sort keys %$hash
+        ];
 }
 
 sub hash_exists {
@@ -431,8 +453,9 @@ sub hash_delete {
 
 sub hash_import {
     my ($hash, $imp) = @_;
-    $imp = {} unless ref $imp eq 'HASH';
-    @$hash{ keys %$imp } = values %$imp;
+    if (ref $imp eq 'HASH') {
+        @$hash{ keys %$imp } = values %$imp;
+    }
     return '';
 }
 
@@ -536,33 +559,32 @@ sub list_reverse {
 
 sub list_grep {
     my ($list, $pattern) = @_;
-    $pattern ||= '';
+    $pattern = '' unless defined $pattern;
     return [ grep /$pattern/, @$list ];
 }
 
 sub list_join {
     my ($list, $joint) = @_;
-    join(defined $joint ? $joint : ' ',
-         map { defined $_ ? $_ : '' } @$list);
+    join($joint // ' ', map { $_ // '' } @$list);
 }
 
 sub _list_sort_make_key {
-   my ($item, $fields) = @_;
-   my @keys;
+    my ($item, $fields) = @_;
+    my @keys;
 
-   if (ref($item) eq 'HASH') {
-       @keys = map { $item->{ $_ } } @$fields;
-   }
-   elsif (blessed $item) {
-       @keys = map { $item->can($_) ? $item->$_() : $item } @$fields;
-   }
-   else {
-       @keys = $item;
-   }
+    if (ref($item) eq 'HASH') {
+        @keys = map { $item->{ $_ } } @$fields;
+    }
+    elsif (blessed $item) {
+        @keys = map { $item->can($_) ? $item->$_() : $item } @$fields;
+    }
+    else {
+        @keys = $item;
+    }
 
-   # ugly hack to generate a single string using a delimiter that is
-   # unlikely (but not impossible) to be found in the wild.
-   return lc join('/*^UNLIKELY^*/', map { defined $_ ? $_ : '' } @keys);
+    # ugly hack to generate a single string using a delimiter that is
+    # unlikely (but not impossible) to be found in the wild.
+    return lc join('/*^UNLIKELY^*/', map { $_ // '' } @keys);
 }
 
 sub list_sort {
@@ -574,10 +596,10 @@ sub list_sort {
             sort { $a->[1] cmp $b->[1] }
             map  { [ $_, _list_sort_make_key($_, \@fields) ] }
             @$list
-        :  map  { $_->[0] }
-           sort { $a->[1] cmp $b->[1] }
-           map  { [ $_, lc $_ ] }
-           @$list,
+        :   map  { $_->[0] }
+            sort { $a->[1] cmp $b->[1] }
+            map  { [ $_, lc $_ ] }
+            @$list,
     ];
 }
 
@@ -616,7 +638,7 @@ sub list_unique {
 sub list_import {
     my $list = shift;
     push(@$list, grep defined, map ref eq 'ARRAY' ? @$_ : undef, @_);
-    return '';
+    return $list;
 }
 
 sub list_merge {
@@ -627,7 +649,7 @@ sub list_merge {
 sub list_slice {
     my ($list, $from, $to) = @_;
     $from ||= 0;
-    $to    = $#$list unless defined $to;
+    $to   //= $#$list;
     $from += @$list if $from < 0;
     $to   += @$list if $to   < 0;
     return [ @$list[$from..$to] ];
@@ -674,7 +696,7 @@ Andy Wardley E<lt>abw@wardley.orgE<gt> L<http://wardley.org/>
 
 =head1 COPYRIGHT
 
-Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

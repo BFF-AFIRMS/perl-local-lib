@@ -1,6 +1,6 @@
-package Email::Sender;
+package Email::Sender 2.601;
 # ABSTRACT: a library for sending email
-$Email::Sender::VERSION = '1.300031';
+
 use Moo::Role;
 requires 'send';
 
@@ -68,7 +68,7 @@ Email::Sender - a library for sending email
 
 =head1 VERSION
 
-version 1.300031
+version 2.601
 
 =head1 SYNOPSIS
 
@@ -108,6 +108,16 @@ classes.
 Documentation may be found in L<Email::Sender::Manual>, and new users should
 start with L<Email::Sender::Manual::QuickStart>.
 
+=head1 PERL VERSION
+
+This library should run on perls released even a long time ago.  It should
+work on any version of perl released in the last five years.
+
+Although it may work on older versions of perl, no guarantee is made that the
+minimum required version will not be increased.  The version may be increased
+for any reason, and there is no promise that patches will be accepted to
+lower the minimum required perl.
+
 =head1 IMPLEMENTING
 
 Email::Sender itself is a Moo role.  Any class that implements Email::Sender
@@ -119,11 +129,11 @@ L<Email::Sender::Failure> on failure.
 
 =head1 AUTHOR
 
-Ricardo Signes <rjbs@cpan.org>
+Ricardo Signes <cpan@semiotic.systems>
 
 =head1 CONTRIBUTORS
 
-=for stopwords Alex Efros Aristotle Pagaltzis Christian Walde David Golden Steinbrunner Hans Dieter Pearcey HIROSE Masaaki Justin Hunter Karen Etheridge Kenichi Ishigaki kga Kris Matthews William Blunn
+=for stopwords Alex Efros Aristotle Pagaltzis Bernhard Graf Christian Walde David Golden Steinbrunner Erik Huelsmann Hans Dieter Pearcey HIROSE Masaaki James E Keenan Justin Hunter Karen Etheridge Kenichi Ishigaki kga Kris Matthews Marc Bradshaw Ricardo Signes Stefan Hornburg (Racke) William Blunn
 
 =over 4
 
@@ -134,6 +144,10 @@ Alex Efros <powerman@powerman.name>
 =item *
 
 Aristotle Pagaltzis <pagaltzis@gmx.de>
+
+=item *
+
+Bernhard Graf <augensalat@gmail.com>
 
 =item *
 
@@ -149,11 +163,19 @@ David Steinbrunner <dsteinbrunner@pobox.com>
 
 =item *
 
+Erik Huelsmann <ehuels@gmail.com>
+
+=item *
+
 Hans Dieter Pearcey <hdp@cpan.org>
 
 =item *
 
 HIROSE Masaaki <hirose31@gmail.com>
+
+=item *
+
+James E Keenan <jkeenan@cpan.org>
 
 =item *
 
@@ -177,13 +199,29 @@ Kris Matthews <kris@tigerlms.com>
 
 =item *
 
+Marc Bradshaw <marc@marcbradshaw.net>
+
+=item *
+
+Ricardo Signes <rjbs@semiotic.systems>
+
+=item *
+
+Ricardo Signes <rjbs@users.noreply.github.com>
+
+=item *
+
+Stefan Hornburg (Racke) <racke@linuxia.de>
+
+=item *
+
 William Blunn <zgpmax@cpan.org>
 
 =back
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2017 by Ricardo Signes.
+This software is copyright (c) 2024 by Ricardo Signes.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

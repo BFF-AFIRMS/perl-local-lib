@@ -1,47 +1,49 @@
 # $Id: Tree.pm,v 1.2 2003-07-31 07:54:51 matt Exp $
 
 package XML::Parser::Style::Tree;
-$XML::Parser::Built_In_Styles{Tree} = 1;
+use strict;
+use warnings;
 
 sub Init {
-  my $expat = shift;
-  $expat->{Lists} = [];
-  $expat->{Curlist} = $expat->{Tree} = [];
+    my $expat = shift;
+    $expat->{Lists} = [];
+    $expat->{Curlist} = $expat->{Tree} = [];
 }
 
 sub Start {
-  my $expat = shift;
-  my $tag = shift;
-  my $newlist = [ { @_ } ];
-  push @{ $expat->{Lists} }, $expat->{Curlist};
-  push @{ $expat->{Curlist} }, $tag => $newlist;
-  $expat->{Curlist} = $newlist;
+    my $expat   = shift;
+    my $tag     = shift;
+    my $newlist = [ {@_} ];
+    push @{ $expat->{Lists} }, $expat->{Curlist};
+    push @{ $expat->{Curlist} }, $tag => $newlist;
+    $expat->{Curlist} = $newlist;
 }
 
 sub End {
-  my $expat = shift;
-  my $tag = shift;
-  $expat->{Curlist} = pop @{ $expat->{Lists} };
+    my $expat = shift;
+    my $tag   = shift;
+    $expat->{Curlist} = pop @{ $expat->{Lists} };
 }
 
 sub Char {
-  my $expat = shift;
-  my $text = shift;
-  my $clist = $expat->{Curlist};
-  my $pos = $#$clist;
-  
-  if ($pos > 0 and $clist->[$pos - 1] eq '0') {
-    $clist->[$pos] .= $text;
-  } else {
-    push @$clist, 0 => $text;
-  }
+    my $expat = shift;
+    my $text  = shift;
+    my $clist = $expat->{Curlist};
+    my $pos   = $#$clist;
+
+    if ( $pos > 0 and $clist->[ $pos - 1 ] eq '0' ) {
+        $clist->[$pos] .= $text;
+    }
+    else {
+        push @$clist, 0 => $text;
+    }
 }
 
 sub Final {
-  my $expat = shift;
-  delete $expat->{Curlist};
-  delete $expat->{Lists};
-  $expat->{Tree};
+    my $expat = shift;
+    delete $expat->{Curlist};
+    delete $expat->{Lists};
+    $expat->{Tree};
 }
 
 1;
@@ -75,6 +77,7 @@ So for example the result of parsing:
   <foo><head id="a">Hello <em>there</em></head><bar>Howdy<ref/></bar>do</foo>
 
 would be:
+
              Tag   Content
   ==================================================================
   [foo, [{}, head, [{id => "a"}, 0, "Hello ",  em, [{}, 0, "there"]],
@@ -86,5 +89,18 @@ would be:
 The root document "foo", has 3 children: a "head" element, a "bar"
 element and the text "do". After the empty attribute hash, these are
 represented in it's contents by 3 tag-content pairs.
+
+=head2 Entity Expansion
+
+The underlying Expat parser always expands predefined XML entity
+references (C<&lt;>, C<&gt;>, C<&amp;>, C<&quot;>, C<&apos;>) in both
+text content and attribute values before they reach the Tree style
+handlers. This is required by the XML specification and cannot be
+prevented. For example, C<&lt;> in the source XML will appear as C<< < >>
+in the resulting tree structure.
+
+If you need access to the original unexpanded text, consider using the
+handler-based API with the C<original_string> method on the Expat object
+instead of the Tree style.
 
 =cut

@@ -20,7 +20,7 @@ package DBI::SQL::Nano;
 #######################
 use strict;
 use warnings;
-use vars qw( $VERSION $versions );
+our ( $VERSION, $versions );
 
 use Carp qw(croak);
 
@@ -668,8 +668,8 @@ sub is_matched
         return 1 if ( !defined $val1 or $val1 eq '' );
         return 0;
     }
-    $val1 = '' unless ( defined $val1 );
-    $val2 = '' unless ( defined $val2 );
+    $val1 //= '';
+    $val2 //= '';
     if ( $op =~ /LIKE|CLIKE/i )
     {
         $val2 = quotemeta($val2);
@@ -693,8 +693,8 @@ sub is_matched
         if ( $op eq '>' )  { return $val1 gt $val2; }
         if ( $op eq '=' )  { return $val1 eq $val2; }
         if ( $op eq '<>' ) { return $val1 ne $val2; }
-        if ( $op eq '<=' ) { return $val1 ge $val2; }
-        if ( $op eq '>=' ) { return $val1 le $val2; }
+        if ( $op eq '<=' ) { return $val1 le $val2; }
+        if ( $op eq '>=' ) { return $val1 ge $val2; }
     }
 }
 
@@ -928,6 +928,7 @@ script by putting this at the top of the script:
     * op may be one of:
          < > >= <= = <> LIKE CLIKE IS
     * CLIKE is a case insensitive LIKE
+    * IS NULL matches against NULL and empty strings
 
   order_clause ::= column_name [ASC|DESC]
     * a single column optional ORDER BY clause is supported
@@ -951,8 +952,7 @@ the table object, as well as SQL::Statement expects.
 
   package Your::Table;
 
-  use vars qw(@ISA);
-  @ISA = qw(DBI::SQL::Nano::Table);
+  our @ISA = qw(DBI::SQL::Nano::Table);
 
   sub drop ($$)        { ... }
   sub fetch_row ($$$)  { ... }
@@ -1011,4 +1011,3 @@ either the GNU General Public License (GPL) or the Artistic License,
 as specified in the Perl README file.
 
 =cut
-

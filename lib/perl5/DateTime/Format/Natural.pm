@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use base qw(
     DateTime::Format::Natural::Calc
+    DateTime::Format::Natural::Calendar
     DateTime::Format::Natural::Duration
     DateTime::Format::Natural::Expand
     DateTime::Format::Natural::Extract
@@ -15,13 +16,16 @@ use boolean qw(true false);
 
 use Carp qw(croak);
 use DateTime ();
+use DateTime::HiRes ();
 use DateTime::TimeZone ();
-use List::MoreUtils qw(all any none);
+use List::Util 1.33 qw(all any none);
 use Params::Validate ':all';
 use Scalar::Util qw(blessed);
 use Storable qw(dclone);
 
-our $VERSION = '1.07';
+use DateTime::Format::Natural::Utils qw(trim);
+
+our $VERSION = '1.27';
 
 validation_options(
     on_fail => sub
@@ -51,10 +55,12 @@ sub _init
     my %opts = @_;
 
     my %presets = (
-        lang          => 'en',
-        format        => 'd/m/y',
-        prefer_future =>  false,
-        time_zone     => 'floating',
+        lang           => 'en',
+        format         => 'd/m/y',
+        demand_future  =>  false,
+        prefer_future  =>  false,
+        time_zone      => 'floating',
+        calendar_class =>  undef,
     );
     foreach my $opt (keys %presets) {
         $self->{ucfirst $opt} = $presets{$opt};
@@ -67,10 +73,12 @@ sub _init
     $self->{Daytime} = $opts{daytime} || {};
 
     my $mod = join '::', (__PACKAGE__, 'Lang', uc $self->{Lang});
-    eval "require $mod"; die $@ if $@;
+    eval "require $mod; 1" or die $@;
 
     $self->{data} = $mod->__new();
     $self->{grammar_class} = $mod;
+
+    $self->{mode} = '';
 }
 
 sub _init_check
@@ -78,6 +86,30 @@ sub _init_check
     my $self = shift;
 
     validate(@_, {
+        calendar_class => {
+            type => SCALAR | UNDEF,
+            optional => true,
+            callbacks => {
+                'calendar class exists' => sub
+                {
+                    my $class = shift;
+                    return true unless defined $class;
+                    return $class eq 'DateTime::Calendar::Julian' && eval "require $class; 1";
+                },
+            },
+        },
+        demand_future => {
+            # SCALARREF due to boolean.pm's implementation
+            type => BOOLEAN | SCALARREF,
+            optional => true,
+            callbacks => {
+                'mutually exclusive' => sub
+                {
+                    return true unless exists $_[1]->{prefer_future};
+                    die "prefer_future provided\n";
+                },
+            },
+        },
         lang => {
             type => SCALAR,
             optional => true,
@@ -86,12 +118,23 @@ sub _init_check
         format => {
             type => SCALAR,
             optional => true,
-            regex => qr!^(?:[dmy]{1,4}[-./]){2}[dmy]{1,4}$!i,
+            regex => qr!^(?:
+                           (?: (?: [dmy]{1,4}[-./] ){2}[dmy]{1,4} )
+                             |
+                           (?: [dm]{1,2}/[dm]{1,2} )
+                         )$!ix,
         },
         prefer_future => {
             # SCALARREF due to boolean.pm's implementation
             type => BOOLEAN | SCALARREF,
             optional => true,
+            callbacks => {
+                'mutually exclusive' => sub
+                {
+                    return true unless exists $_[1]->{demand_future};
+                    die "demand_future provided\n";
+                },
+            },
         },
         time_zone => {
             type => SCALAR | OBJECT,
@@ -113,6 +156,28 @@ sub _init_check
         daytime => {
             type => HASHREF,
             optional => true,
+            callbacks => {
+                'valid daytime' => sub
+                {
+                    my $href = shift;
+                    my %daytimes = map { $_ => true } qw(morning afternoon evening);
+                    if (any { !$daytimes{$_} } keys %$href) {
+                        die "spelling of daytime\n";
+                    }
+                    elsif (any { !defined $href->{$_} } keys %$href) {
+                        die "undefined hour\n";
+                    }
+                    elsif (any { $href->{$_} !~ /^\d{1,2}$/ } keys %$href) {
+                        die "not a valid number\n";
+                    }
+                    elsif (any { $href->{$_} < 0 || $href->{$_} > 23 } keys %$href) {
+                        die "hour out of range\n";
+                    }
+                    else {
+                        return true;
+                    }
+                }
+            },
         },
         datetime => {
             type => OBJECT,
@@ -143,6 +208,8 @@ sub parse_datetime
 
     $self->{input_string} = $self->{date_string};
 
+    $self->{mode} = 'parse';
+
     my $date_string = $self->{date_string};
 
     $self->_rewrite(\$date_string);
@@ -161,20 +228,38 @@ sub parse_datetime
         my $dt = $self->_parse_formatted_md($date_string);
         return $dt if blessed($dt);
 
-        if ($self->{Prefer_future}) {
+        if ($self->{Prefer_future} || $self->{Demand_future}) {
             $self->_advance_future('md');
         }
     }
-    elsif ($date_string =~ /^(\d{4}(?:-\d{2}){0,2})T(\d{2}(?::\d{2}){0,2})$/) {
-        my ($date, $time) = ($1, $2);
-
+    elsif ($date_string =~ /^(\d{4}(?:-\d{2}){0,2})T(\d{2}(?::\d{2}){0,2})(?:[.,](\d+))?(Z|[+-]\d{2}(?::?\d{2})?)?$/) {
+        my ($date, $time, $fractional, $tz) = ($1, $2, $3, $4);
         my %args;
+
+        if (defined $tz) {
+            if ($tz eq 'Z') {
+                $self->{datetime}->set_time_zone('UTC');
+            } elsif ($tz =~ /^([+-])(\d{2})$/) {
+                $tz = "$1$2:00";
+            } else {
+                $tz =~ s/^([+-])(\d{2}):?(\d{2})$/$1$2:$3/;
+            }
+            $self->{datetime}->set_time_zone($tz);
+        }
 
         @args{qw(year month day)} = split /-/, $date;
         $args{$_} ||= 01 foreach qw(month day);
 
         @args{qw(hour minute second)} = split /:/, $time;
         $args{$_} ||= 00 foreach qw(minute second);
+
+        if (defined $fractional) {
+            my $nanosecond = $fractional;
+            if (length($nanosecond) < 9) {
+                $nanosecond .= '0' x (9 - length($nanosecond));
+            }
+            $args{nanosecond} = int($nanosecond);
+        }
 
         my $valid_date = $self->_check_date(map $args{$_}, qw(year month day));
         my $valid_time = $self->_check_time(map $args{$_}, qw(hour minute second));
@@ -187,7 +272,6 @@ sub parse_datetime
         }
 
         $self->_set(%args);
-
         $self->_set_valid_exp;
     }
     elsif ($date_string =~ /^([+-]) (\d+?) ([a-zA-Z]+)$/x) {
@@ -224,6 +308,8 @@ sub parse_datetime
 
         $self->_set(%args);
 
+        $self->{datetime}->truncate(to => 'second');
+        $self->_set_truncated;
         $self->_set_valid_exp;
     }
     else {
@@ -259,12 +345,7 @@ sub _params_init
         (${$params->{string}}) = @_;
     }
 
-    ${$params->{string}} = do {
-        local $_ = ${$params->{string}};
-        s/^\s+//;
-        s/\s+$//;
-        $_
-    };
+    trim($params->{string});
 }
 
 sub _parse_init
@@ -281,7 +362,7 @@ sub _parse_init
             $self->{datetime} = dclone($self->{Datetime});
         }
         else {
-            $self->{datetime} = DateTime->$method(
+            $self->{datetime} = DateTime::HiRes->$method(
                 time_zone => $self->{Time_zone},
                 %$args,
             );
@@ -301,6 +382,7 @@ sub _parse_init
     $self->_unset_error;
     $self->_unset_valid_exp;
     $self->_unset_trace;
+    $self->_unset_truncated;
 }
 
 sub parse_datetime_duration
@@ -326,10 +408,12 @@ sub parse_datetime_duration
         $shrinked = true;
     }
 
-    $self->_pre_duration(\@date_strings);
-    $self->{state} = {};
+    $self->_rewrite_duration(\@date_strings);
 
-    my (@queue, @traces);
+    $self->_pre_duration(\@date_strings);
+    @$self{qw(state truncated_duration)} = ({}, []);
+
+    my (@queue, @traces, @truncated);
     foreach my $date_string (@date_strings) {
         push @queue, $self->parse_datetime($date_string);
         $self->_save_state(
@@ -340,15 +424,19 @@ sub parse_datetime_duration
         if (@{$self->{traces}}) {
             push @traces, $self->{traces}[0];
         }
+        if ($self->{running_tests}) {
+            push @truncated, $self->_get_truncated;
+        }
     }
 
-    $self->_post_duration(\@queue, \@traces);
+    $self->_post_duration(\@queue, \@traces, \@truncated);
     $self->_restore_state;
 
     delete @$self{qw(duration insert state)};
 
-    @{$self->{traces}} = @traces;
-    $self->{input_string} = $duration_string;
+    @{$self->{traces}}             = @traces;
+    @{$self->{truncated_duration}} = @truncated;
+    $self->{input_string}          = $duration_string;
 
     if ($shrinked) {
         $self->_set_failure;
@@ -365,7 +453,17 @@ sub extract_datetime
     my $extract_string;
     $self->_params_init(@_, { string => \$extract_string });
 
+    $self->_unset_failure;
+    $self->_unset_error;
+    $self->_unset_valid_exp;
+
+    $self->{input_string} = $extract_string;
+
+    $self->{mode} = 'extract';
+
     my @expressions = $self->_extract_expressions($extract_string);
+
+    $self->_set_valid_exp if @expressions;
 
     return wantarray ? @expressions : $expressions[0];
 }
@@ -383,8 +481,22 @@ sub error
 
     return '' if $self->success;
 
-    my $error  = "'$self->{input_string}' does not parse ";
-       $error .= $self->_get_error || '(perhaps you have some garbage?)';
+    my $error = sub
+    {
+        return undef unless defined $self->{mode} && length $self->{mode};
+        my %errors = (
+            extract => "'$self->{input_string}' cannot be extracted from",
+            parse   => "'$self->{input_string}' does not parse",
+        );
+        return $errors{$self->{mode}};
+    }->();
+
+    if (defined $error) {
+        $error .= ' ' . ($self->_get_error || '(perhaps you have some garbage?)');
+    }
+    else {
+        $error = 'neither extracting nor parsing method invoked';
+    }
 
     return $error;
 }
@@ -393,7 +505,7 @@ sub trace
 {
     my $self = shift;
 
-    return @{$self->{traces}};
+    return @{$self->{traces} || []};
 }
 
 sub _process
@@ -511,6 +623,7 @@ sub _truncate
         my $index = $indexes{$unit} - 1;
         if (defined $units[$index] && !exists $self->{modified}{$units[$index]}) {
             $self->{datetime}->truncate(to => $unit);
+            $self->_set_truncated;
             last;
         }
     }
@@ -523,8 +636,8 @@ sub _post_process
 
     delete $opts{truncate_to};
 
-    if ($self->{Prefer_future} &&
-        (exists $opts{prefer_future} && $opts{prefer_future})
+    if (($self->{Prefer_future} || $self->{Demand_future})
+        && (exists $opts{advance_future} && $opts{advance_future})
     ) {
         $self->_advance_future;
     }
@@ -550,17 +663,39 @@ sub _advance_future
 
     my $now = exists $self->{Datetime}
       ? dclone($self->{Datetime})
-      : DateTime->now(time_zone => $self->{Time_zone});
+      : DateTime::HiRes->now(time_zone => $self->{Time_zone});
 
-    if ((all { /^(?:second|minute|hour)$/ } keys %modified)
+    my $day_of_week = sub { $_[0]->_Day_of_Week(map $_[0]->{datetime}->$_, qw(year month day)) };
+
+    my $skip_weekdays = false;
+
+    if ((all { /^(?:(?:nano)?second|minute|hour)$/ } keys %modified)
         && (exists $self->{modified}{hour} && $self->{modified}{hour} == 1)
-        && $self->{datetime}->hour < $now->hour
+        && (($self->{Prefer_future} && $self->{datetime} <  $now)
+         || ($self->{Demand_future} && $self->{datetime} <= $now))
     ) {
         $self->{postprocess}{day} = 1;
     }
-    elsif ($token_contains->('weekdays_all')
+    elsif (sub {
+        return false unless @{$self->{tokens}} == 2;
+        my ($day, $weekday) = map $self->{data}->__RE($_), qw(day weekday);
+        if ($self->{tokens}->[0] =~ $day
+         && $self->{tokens}->[1] =~ $weekday) {
+            $skip_weekdays = true;
+            return true;
+        }
+        return false;
+    }->()
+        && (all { /^(?:day|month|year)$/ } keys %modified)
+        && (($self->{Prefer_future} && $self->{datetime}->day <  $now->day)
+         || ($self->{Demand_future} && $self->{datetime}->day <= $now->day))
+    ) {
+        $self->{postprocess}{week} = 4;
+    }
+    elsif (($token_contains->('weekdays_all') && !$skip_weekdays)
         && (exists $self->{modified}{day} && $self->{modified}{day} == 1)
-        && ($self->_Day_of_Week(map $self->{datetime}->$_, qw(year month day)) < $now->wday)
+        && (($self->{Prefer_future} && $day_of_week->($self) <  $now->wday)
+         || ($self->{Demand_future} && $day_of_week->($self) <= $now->wday))
     ) {
         $self->{postprocess}{day} = 7;
     }
@@ -571,7 +706,8 @@ sub _advance_future
               ? $self->{modified}{day} == 1
                 ? true : false
               : true)
-        && ($self->{datetime}->day_of_year < $now->day_of_year)
+        && (($self->{Prefer_future} && $self->{datetime}->day_of_year <  $now->day_of_year)
+         || ($self->{Demand_future} && $self->{datetime}->day_of_year <= $now->day_of_year))
     ) {
         $self->{postprocess}{year} = 1;
     }
@@ -605,18 +741,23 @@ sub _get_valid_exp   { $_[0]->{valid_expression}         }
 sub _set_valid_exp   { $_[0]->{valid_expression} = true  }
 sub _unset_valid_exp { $_[0]->{valid_expression} = false }
 
+sub _get_truncated   { $_[0]->{truncated}         }
+sub _set_truncated   { $_[0]->{truncated} = true  }
+sub _unset_truncated { $_[0]->{truncated} = false }
+
 sub _get_datetime_object
 {
     my $self = shift;
 
     my $dt = DateTime->new(
-        time_zone => $self->{datetime}->time_zone,
-        year      => $self->{datetime}->year,
-        month     => $self->{datetime}->month,
-        day       => $self->{datetime}->day_of_month,
-        hour      => $self->{datetime}->hour,
-        minute    => $self->{datetime}->minute,
-        second    => $self->{datetime}->second,
+        time_zone  => $self->{datetime}->time_zone,
+        year       => $self->{datetime}->year,
+        month      => $self->{datetime}->month,
+        day        => $self->{datetime}->day_of_month,
+        hour       => $self->{datetime}->hour,
+        minute     => $self->{datetime}->minute,
+        second     => $self->{datetime}->second,
+        nanosecond => $self->{datetime}->nanosecond,
     );
 
     foreach my $unit (keys %{$self->{postprocess}}) {
@@ -700,15 +841,17 @@ Creates a new C<DateTime::Format::Natural> object. Arguments to C<new()> are opt
 not necessarily required.
 
  $parser = DateTime::Format::Natural->new(
-           datetime      => DateTime->new(...),
-           lang          => 'en',
-           format        => 'mm/dd/yy',
-           prefer_future => '[0|1]',
-           time_zone     => 'floating',
-           daytime       => { morning   => 06,
-                              afternoon => 13,
-                              evening   => 20,
-                            },
+           datetime       => DateTime->new(...),
+           lang           => 'en',
+           format         => 'mm/dd/yy',
+           prefer_future  => [0|1],
+           demand_future  => [0|1],
+           time_zone      => 'floating',
+           calendar_class => 'DateTime::Calendar::Julian',
+           daytime        => { morning   => 06,
+                               afternoon => 13,
+                               evening   => 20,
+                             },
  );
 
 =over 4
@@ -724,20 +867,50 @@ Defaults to 'C<en>'.
 
 =item * C<format>
 
-Specifies the format of numeric dates, defaults to 'C<d/m/y>'.
+Specifies the format of numeric dates.
+
+The format is used to influence how numeric dates are parsed. Given two
+numbers separated by a slash, the month/day order expected comes from
+this option. If there is a third number, this option describes where
+to expect the year. When this format can't be used to interpret the
+date, some unambiguous dates may be parsed, but there is no form
+guarantee.
+
+Current supported "month/day" formats: C<dd/mm>, C<mm/dd>.
+
+Current supported "year/month/day" formats (with slashes): C<dd/mm/yy>,
+C<dd/mm/yyyy>, C<mm/dd/yyyy>, C<yyyy/mm/dd>.
+
+Note that all of the above formats with three units do also parse
+with dots or dashes as format separators.
+
+Furthermore, formats can be abbreviated as long as they remain
+unambiguous.
+
+Defaults to 'C<d/m/y>'.
 
 =item * C<prefer_future>
 
 Prefers future time and dates. Accepts a boolean, defaults to false.
+
+=item * C<demand_future>
+
+Demands future time and dates. Similar to C<prefer_future>, but stronger.
+Accepts a boolean, defaults to false.
 
 =item * C<time_zone>
 
 The time zone to use when parsing and for output. Accepts any time zone
 recognized by L<DateTime>. Defaults to 'floating'.
 
+=item * C<calendar_class>
+
+The calendar class used for fixed-date holidays such as C<christmas day>.
+Accepts C<DateTime::Calendar::Julian>. Defaults to 'C<gregorian>'.
+
 =item * C<daytime>
 
-An anonymous hash reference consisting of customized daytime hours,
+A hash reference consisting of customized daytime hours,
 which may be selectively changed.
 
 =back
@@ -869,6 +1042,14 @@ valuable suggestions and patches:
  Debian Perl Group
  Tim Bunce
  Ricardo Signes
+ Felix Ostmann
+ Jörn Clausen
+ Jim Avera
+ Olaf Alders
+ Karen Etheridge
+ Graham Ollis
+ isla w
+ gibus
 
 =head1 SEE ALSO
 

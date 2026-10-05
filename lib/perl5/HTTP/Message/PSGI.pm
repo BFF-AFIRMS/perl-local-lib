@@ -8,7 +8,7 @@ use Carp ();
 use HTTP::Status qw(status_message);
 use URI::Escape ();
 use Plack::Util;
-use Try::Tiny;
+use Scalar::Util ();
 
 my $TRUE  = (1 == 1);
 my $FALSE = !$TRUE;
@@ -16,7 +16,7 @@ my $FALSE = !$TRUE;
 sub req_to_psgi {
     my $req = shift;
 
-    unless (try { $req->isa('HTTP::Request') }) {
+    unless (Scalar::Util::blessed($req) && $req->isa('HTTP::Request')) {
         Carp::croak("Request is not HTTP::Request: $req");
     }
 
@@ -137,8 +137,9 @@ sub _res_from_psgi {
     };
 
     if (!defined $body) {
+        $body = [];
         my $o = Plack::Util::inline_object
-            write => sub { push @{ $body ||= [] }, @_ },
+            write => sub { push @$body, @_ },
             close => $convert_resp;
 
         return $o;

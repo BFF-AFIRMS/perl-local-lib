@@ -1,13 +1,8 @@
 package Data::Visitor::Callback;
-BEGIN {
-  $Data::Visitor::Callback::AUTHORITY = 'cpan:NUFFIN';
-}
-{
-  $Data::Visitor::Callback::VERSION = '0.30';
-}
 use Moose;
 # ABSTRACT: A Data::Visitor with callbacks.
 
+our $VERSION = '0.32';
 use Data::Visitor ();
 
 use Carp qw(carp);
@@ -186,24 +181,15 @@ sub visit_scalar {
 	}
 }
 
-sub subname { $_[1] }
-
 BEGIN {
-	eval {
-		require Sub::Name;
-		no warnings 'redefine';
-		*subname = \&Sub::Name::subname;
-	};
-
 	foreach my $reftype ( qw/array hash glob code/ ) {
 		my $name = "visit_$reftype";
-		no strict 'refs';
-		*$name = subname(__PACKAGE__ . "::$name", eval '
-			sub {
+		eval '
+			sub '.$name.' {
 				my ( $self, $data ) = @_;
 				my $new_data = $self->callback_and_reg( '.$reftype.' => $data );
 				if ( "'.uc($reftype).'" eq (reftype($new_data)||"") ) {
-					my $visited = $self->SUPER::visit_'.$reftype.'( $new_data );
+					my $visited = $self->SUPER::'.$name.'( $new_data );
 
 					no warnings "uninitialized";
 					if ( refaddr($visited) != refaddr($data) ) {
@@ -215,7 +201,8 @@ BEGIN {
 					return $self->_register_mapping( $data, $self->visit( $new_data ) );
 				}
 			}
-		' || die $@);
+			1;
+		' or die $@;
 	}
 }
 
@@ -294,13 +281,15 @@ __END__
 
 =pod
 
+=encoding UTF-8
+
 =head1 NAME
 
 Data::Visitor::Callback - A Data::Visitor with callbacks.
 
 =head1 VERSION
 
-version 0.30
+version 0.32
 
 =head1 SYNOPSIS
 
@@ -338,8 +327,6 @@ version 0.30
 This is a L<Data::Visitor> subclass that lets you invoke callbacks instead of
 needing to subclass yourself.
 
-=encoding utf8
-
 =head1 METHODS
 
 =over 4
@@ -362,7 +349,7 @@ This is useful when you want to modify $_ directly
 
 =item tied_as_objects
 
-Whether ot not to visit the L<perlfunc/tied> of a tied structure instead of
+Whether or not to visit the L<perlfunc/tied> of a tied structure instead of
 pretending the structure is just a normal one.
 
 See L<Data::Visitor/visit_tied>.
@@ -418,12 +405,12 @@ Since L<Data::Visitor/visit_object> will not recurse downwards unless you
 delegate to C<visit_ref>, you can specify C<visit_ref> as the callback for
 C<object> in order to enter objects.
 
-It is reccomended that you specify the classes (or base classes) you want
+It is recommended that you specify the classes (or base classes) you want
 though, instead of just visiting any object forcefully.
 
 =item Some::Class
 
-You can use any class name as a callback. This is colled only after the
+You can use any class name as a callback. This is called only after the
 C<object> callback.
 
 If the object C<isa> the class then the callback will fire.
@@ -475,6 +462,11 @@ callback
 callback_and_reg
 subname
 
+=head1 SUPPORT
+
+Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=Data-Visitor>
+(or L<bug-Data-Visitor@rt.cpan.org|mailto:bug-Data-Visitor@rt.cpan.org>).
+
 =head1 AUTHORS
 
 =over 4
@@ -489,9 +481,9 @@ Marcel Grünauer <marcel@cpan.org>
 
 =back
 
-=head1 COPYRIGHT AND LICENSE
+=head1 COPYRIGHT AND LICENCE
 
-This software is copyright (c) 2013 by Yuval Kogman.
+This software is copyright (c) 2023 by Yuval Kogman.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

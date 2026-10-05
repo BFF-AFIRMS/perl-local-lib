@@ -1,5 +1,6 @@
 package DBI::ProfileData;
 use strict;
+use warnings;
 
 =head1 NAME
 
@@ -13,6 +14,8 @@ The easiest way to use this module is through the dbiprof frontend
   dbiprof --number 15 --sort count
 
 This module can also be used to roll your own profile analysis:
+
+  local $DBI::ProfileData::MAX_PATH_DEPTH = 256; # override the maximum path depth of files
 
   # load data from dbi.prof
   $prof = DBI::ProfileData->new(File => "dbi.prof");
@@ -76,6 +79,8 @@ use Symbol;
 use Fcntl qw(:flock);
 
 use DBI::Profile qw(dbi_profile_merge);
+
+our $MAX_PATH_DEPTH = 256;
 
 # some constants for use with node data arrays
 sub COUNT     () { 0 };
@@ -285,6 +290,13 @@ sub _read_body {
         if (/^\+\s+(\d+)\s?(.*)/) {
             # it's a key
             my ($key, $index) = ($2, $1 - 1);
+
+            # $index comes straight from the (untrusted) profile file; a
+            # single huge value would expand @path into a giant sparse
+            # array that is then join()ed and copied per data line, giving
+            # a tiny-file -> large-memory amplification. Bound it.
+            croak("Invalid path index at $filename line $.: $1 (You may need to adjust \$MAX_PATH_DEPTH)")
+                if $index < 0 || $index > $MAX_PATH_DEPTH;
 
             $#path = $index;      # truncate path to new length
             $path[$index] = unescape_key($key); # place new key at end

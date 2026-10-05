@@ -2,7 +2,7 @@ package SVG::XML;
 use strict;
 use warnings;
 
-our $VERSION = '2.84';
+our $VERSION = '2.89';
 
 =pod
 
@@ -22,18 +22,13 @@ L<SVG::Element>,
 L<SVG::Parser>,
 L<SVG::Extension>
 
-For Commercial Perl/SVG development, refer to the following sites:
-L<ROASP.com: Serverside SVG server|http://www.roitsystems.com/>,
-L<ROIT Systems: Commercial SVG perl solutions|http://www.roitsystems.com/>,
-L<SVG at the W3C|http://www.w3c.org/Graphics/SVG/>
-
 =cut
 
 use Exporter;
-use vars qw(@ISA @EXPORT);
-@ISA = ('Exporter');
 
-@EXPORT = qw(
+our @ISA = ('Exporter');
+
+our @EXPORT = qw(
     xmlesc
     xmlescape
     xmlescp
@@ -164,7 +159,7 @@ sub xmltagclose_ln {
 }
 
 sub dtddecl {
-    my $self = shift;
+    my $self    = shift;
     my $docroot = $self->{-docroot} || 'svg';
     my $id;
 

@@ -1,14 +1,11 @@
 package Net::DNS::RR::APL;
 
-#
-# $Id: APL.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: APL.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,15 +13,13 @@ Net::DNS::RR::APL - DNS APL resource record
 
 =cut
 
-
 use integer;
 
 use Carp;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	my $limit = $offset + $self->{rdlength};
 
@@ -39,6 +34,7 @@ sub _decode_rdata {			## decode rdata from wire-format octet string
 		push @$aplist, $item;
 	}
 	croak('corrupt APL data') unless $offset == $limit;	# more or less FUBAR
+	return;
 }
 
 
@@ -53,7 +49,7 @@ sub _encode_rdata {			## encode rdata as wire-format octet string
 		my $xlength = ( $_->{negate} ? 0x80 : 0 ) | length($address);
 		push @rdata, pack 'n C2 a*', @{$_}{qw(family prefix)}, $xlength, $address;
 	}
-	join '', @rdata;
+	return join '', @rdata;
 }
 
 
@@ -61,23 +57,26 @@ sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
 	my $aplist = $self->{aplist};
-	my @rdata = map $_->string, @$aplist;
+	my @rdata  = map { $_->string } @$aplist;
+	return @rdata;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->aplist(@_);
+	$self->aplist(@argument);
+	return;
 }
 
 
 sub aplist {
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	while ( scalar @_ ) {					# parse apitem strings
-		last unless $_[0] =~ m#[!:./]#;
-		shift =~ m#^(!?)(\d+):(.+)/(\d+)$#;
+	while ( scalar @argument ) {				# parse apitem strings
+		last unless $argument[0] =~ m#[!:./]#;
+		local $_ = shift @argument;
+		m#^(!?)(\d+):(.+)/(\d+)$#;
 		my $n = $1 ? 1 : 0;
 		my $f = $2 || 0;
 		my $a = $3;
@@ -86,7 +85,7 @@ sub aplist {
 	}
 
 	my $aplist = $self->{aplist} ||= [];
-	if ( my %argval = @_ ) {				# parse attribute=value list
+	if ( my %argval = @argument ) {				# parse attribute=value list
 		my $item = bless {}, 'Net::DNS::RR::APL::Item';
 		while ( my ( $attribute, $value ) = each %argval ) {
 			$item->$attribute($value) unless $attribute eq 'address';
@@ -96,14 +95,15 @@ sub aplist {
 	}
 
 	my @ap = @$aplist;
-	return wantarray ? @ap : join ' ', map $_->string, @ap if defined wantarray;
+	return unless defined wantarray;
+	return wantarray ? @ap : join ' ', map { $_->string } @ap;
 }
 
 
 ########################################
 
 
-package Net::DNS::RR::APL::Item;
+package Net::DNS::RR::APL::Item;	## no critic ProhibitMultiplePackages
 
 use Net::DNS::RR::A;
 use Net::DNS::RR::AAAA;
@@ -112,40 +112,35 @@ my %family = qw(1 Net::DNS::RR::A	2 Net::DNS::RR::AAAA);
 
 
 sub negate {
-	my $bit = 0x80;
-	for ( shift->{negate} ) {
-		my $set = $bit | ( $_ ||= 0 );
-		$_ = (shift) ? $set : ( $set ^ $bit ) if scalar @_;
-		return $_ & $bit;
-	}
+	my ( $self, @value ) = @_;
+	for (@value) { return $self->{negate} = $_ }
+	return $self->{negate};
 }
 
 
 sub family {
-	my $self = shift;
-
-	$self->{family} = 0 + shift if scalar @_;
-	$self->{family} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{family} = 0 + $_ }
+	return $self->{family} || 0;
 }
 
 
 sub prefix {
-	my $self = shift;
-
-	$self->{prefix} = 0 + shift if scalar @_;
-	$self->{prefix} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{prefix} = 0 + $_ }
+	return $self->{prefix} || 0;
 }
 
 
 sub address {
-	my $self = shift;
+	my ( $self, @value ) = @_;
 
 	my $family = $family{$self->family} || die 'unknown address family';
-	return bless( {%$self}, $family )->address unless scalar @_;
+	return bless( {%$self}, $family )->address unless scalar @value;
 
 	my $bitmask = $self->prefix;
-	my $address = bless( {}, $family )->address(shift);
-	$self->{address} = pack "B$bitmask", unpack 'B*', $address;
+	my $address = bless( {}, $family )->address( shift @value );
+	return $self->{address} = pack "B$bitmask", unpack 'B*', $address;
 }
 
 
@@ -164,8 +159,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name IN APL aplist');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name IN APL aplist');
 
 =head1 DESCRIPTION
 
@@ -183,17 +178,18 @@ other unpredictable behaviour.
 
 =head2 aplist
 
-    @aplist = $rr->aplist;
-  
-    @aplist = $rr->aplist( '1:192.168.32.0/21', '!1:192.168.38.0/28' );
-  
-    @aplist = $rr->aplist( '1:224.0.0.0/4', '2:FF00:0:0:0:0:0:0:0/8' );
-  
-    @aplist = $rr->aplist( negate  => 1,
-			   family  => 1,
-			   address => '192.168.38.0',
-			   prefix  => 28,
-			   );
+	@aplist = $rr->aplist;
+	
+	@aplist = $rr->aplist( '1:192.168.32.0/21', '!1:192.168.38.0/28' );
+	
+	@aplist = $rr->aplist( '1:224.0.0.0/4', '2:FF00:0:0:0:0:0:0:0/8' );
+	
+	@aplist = $rr->aplist(
+			negate	=> 1,
+			family	=> 1,
+			address => '192.168.38.0',
+			prefix	=> 28,
+			);
 
 Ordered, possibly empty, list of address prefix items.
 Additional items, if present, are appended to the existing list
@@ -208,38 +204,38 @@ created it.
 
 =head2 negate
 
-    $rr->negate(1);
+	$rr->negate(1);
 
-    if ( $rr->negate ) {
-	...
-    }
+	if ( $rr->negate ) {
+		...
+	}
 
 Boolean attribute indicating the prefix to be an address range exclusion.
 
 =head2 family
 
-    $family = $rr->family;
-    $rr->family( $family );
+	$family = $rr->family;
+	$rr->family( $family );
 
 Address family discriminant.
 
 =head2 prefix
 
-    $prefix = $rr->prefix;
-    $rr->prefix( $prefix );
+	$prefix = $rr->prefix;
+	$rr->prefix( $prefix );
 
 Number of bits comprising the address prefix.
 
 
 =head2 address
 
-    $address = $object->address;
+	$address = $object->address;
 
 Address portion of the prefix list item.
 
 =head2 string
 
-    $string = $object->string;
+	$string = $object->string;
 
 Returns the prefix list item in the form required in zone files.
 
@@ -259,7 +255,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -276,6 +272,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC3123
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC3123|https://iana.org/go/rfc3123>
 
 =cut

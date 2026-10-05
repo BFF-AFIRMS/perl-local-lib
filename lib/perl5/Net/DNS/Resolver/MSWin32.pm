@@ -1,9 +1,8 @@
 package Net::DNS::Resolver::MSWin32;
 
-#
-# $Id: MSWin32.pm 1568 2017-05-27 06:40:20Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1568 $)[1];
+use strict;
+use warnings;
+our $VERSION = (qw$Id: MSWin32.pm 2002 2025-01-07 09:57:46Z willem $)[2];
 
 
 =head1 NAME
@@ -13,16 +12,12 @@ Net::DNS::Resolver::MSWin32 - MS Windows resolver class
 =cut
 
 
-use strict;
-use warnings;
-use base qw(Net::DNS::Resolver::Base);
-
 use Carp;
 
-our $Registry;
+use constant WINHLP => defined eval 'require Win32::IPHelper';	## no critic
+use constant WINREG => defined eval 'use Win32::TieRegistry qw(KEY_READ REG_DWORD); 1';	   ## no critic
 
-use constant WINHLP => defined eval 'require Win32::IPHelper';
-use constant WINREG => defined eval 'use Win32::TieRegistry qw(KEY_READ REG_DWORD); 1';
+our $Registry;
 
 
 sub _init {
@@ -41,12 +36,12 @@ sub _init {
 	}
 
 
-	my @nameservers = map $_->{IpAddress}, @{$FIXED_INFO->{DnsServersList}};
-	$defaults->nameservers(@nameservers);
+	my @nameservers = map { $_->{IpAddress} } @{$FIXED_INFO->{DnsServersList}};
+	$defaults->nameservers( grep {$_} @nameservers );
 
 	my $devolution = 0;
 	my $domainname = $FIXED_INFO->{DomainName} || '';
-	my @searchlist = grep length, $domainname;
+	my @searchlist = grep {length} $domainname;
 
 	if (WINREG) {
 
@@ -55,11 +50,11 @@ sub _init {
 
 		my @root = qw(HKEY_LOCAL_MACHINE SYSTEM CurrentControlSet Services);
 
-		my $leaf = join '\\', @root, qw(Tcpip Parameters);
+		my $leaf      = join '\\', @root, qw(Tcpip Parameters);
 		my $reg_tcpip = $Registry->Open( $leaf, {Access => KEY_READ} );
 
 		unless ( defined $reg_tcpip ) {			# Didn't work, Win95/98/Me?
-			$leaf = join '\\', @root, qw(VxD MSTCP);
+			$leaf	   = join '\\', @root, qw(VxD MSTCP);
 			$reg_tcpip = $Registry->Open( $leaf, {Access => KEY_READ} );
 		}
 
@@ -93,6 +88,7 @@ sub _init {
 	%$defaults = Net::DNS::Resolver::Base::_untaint(%$defaults);
 
 	$defaults->_read_env;
+	return;
 }
 
 
@@ -102,7 +98,7 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS::Resolver;
+	use Net::DNS::Resolver;
 
 =head1 DESCRIPTION
 
@@ -123,7 +119,7 @@ All rights reserved.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific

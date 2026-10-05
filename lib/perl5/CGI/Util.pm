@@ -1,12 +1,11 @@
 package CGI::Util;
-use base 'Exporter';
+use parent 'Exporter';
 require 5.008001;
 use strict;
-use if $] >= 5.019, 'deprecate';
 our @EXPORT_OK = qw(rearrange rearrange_header make_attributes unescape escape
         expires ebcdic2ascii ascii2ebcdic);
 
-our $VERSION = '4.43';
+our $VERSION = '4.72';
 
 our $_EBCDIC = "\t" ne "\011";
 
@@ -245,8 +244,7 @@ sub escape {
 # cookies and HTTP headers.  (They differ, unfortunately.)
 # Thanks to Mark Fisher for this.
 sub expires {
-    my($time,$format) = @_;
-    $format ||= 'http';
+    my $time = shift;
 
     my(@MON)=qw/Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec/;
     my(@WDAY) = qw/Sun Mon Tue Wed Thu Fri Sat/;
@@ -255,13 +253,9 @@ sub expires {
     $time = expire_calc($time);
     return $time unless $time =~ /^\d+$/;
 
-    # make HTTP/cookie date string from GMT'ed time
-    # (cookies use '-' as date separator, HTTP uses ' ')
-    my($sc) = ' ';
-    $sc = '-' if $format eq "cookie";
     my($sec,$min,$hour,$mday,$mon,$year,$wday) = gmtime($time);
     $year += 1900;
-    return sprintf("%s, %02d$sc%s$sc%04d %02d:%02d:%02d GMT",
+    return sprintf("%s, %02d %s %04d %02d:%02d:%02d GMT",
                    $WDAY[$wday],$mday,$MON[$mon],$year,$hour,$min,$sec);
 }
 

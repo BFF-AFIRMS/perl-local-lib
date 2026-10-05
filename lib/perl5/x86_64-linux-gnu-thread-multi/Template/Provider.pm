@@ -14,23 +14,23 @@
 # AUTHORS
 #   Andy Wardley <abw@wardley.org>
 #
-#   Refactored by Bill Moseley for v2.19 to add negative caching (i.e. 
+#   Refactored by Bill Moseley for v2.19 to add negative caching (i.e.
 #   tracking templates that are NOTFOUND so that we can decline quickly)
 #   and to provide better support for subclassing the provider.
 #
 # COPYRIGHT
-#   Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+#   Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 #
 #   This module is free software; you can redistribute it and/or
 #   modify it under the same terms as Perl itself.
 #
 # WARNING:
 #   This code is ugly and contorted and is being totally re-written for TT3.
-#   In particular, we'll be throwing errors rather than messing around 
-#   returning (value, status) pairs.  With the benefit of hindsight, that 
+#   In particular, we'll be throwing errors rather than messing around
+#   returning (value, status) pairs.  With the benefit of hindsight, that
 #   was a really bad design decision on my part. I deserve to be knocked
 #   to the ground and kicked around a bit by hoards of angry TT developers
-#   for that one.  Bill's refactoring has made the module easier to subclass, 
+#   for that one.  Bill's refactoring has made the module easier to subclass,
 #   (so you can ease off the kicking now), but it really needs to be totally
 #   redesigned and rebuilt from the ground up along with the bits of TT that
 #   use it.                                           -- abw 2007/04/27
@@ -47,14 +47,15 @@ use Template::Document;
 use File::Basename;
 use File::Spec;
 
-use constant PREV   => 0;
-use constant NAME   => 1;   # template name -- indexed by this name in LOOKUP
-use constant DATA   => 2;   # Compiled template
-use constant LOAD   => 3;   # mtime of template
-use constant NEXT   => 4;   # link to next item in cache linked list
-use constant STAT   => 5;   # Time last stat()ed
+use constant PREV    => 0;
+use constant NAME    => 1;   # template name -- indexed by this name in LOOKUP
+use constant DATA    => 2;   # Compiled template
+use constant LOAD    => 3;   # mtime of template
+use constant NEXT    => 4;   # link to next item in cache linked list
+use constant STAT    => 5;   # Time last stat()ed
+use constant MSWin32 => $^O eq 'MSWin32';
 
-our $VERSION = 2.94;
+our $VERSION = '3.106';
 our $DEBUG   = 0 unless defined $DEBUG;
 our $ERROR   = '';
 
@@ -146,9 +147,6 @@ sub fetch {
             : (undef, Template::Constants::STATUS_DECLINED);
     }
 
-#    $self->_dump_cache()
-#       if $DEBUG > 1;
-
     return ($data, $error);
 }
 
@@ -161,10 +159,11 @@ sub fetch {
 #------------------------------------------------------------------------
 
 sub store {
-    my ($self, $name, $data) = @_;
+    my ($self, $name, $data, $mtime) = @_;
     $self->_store($name, {
-        data => $data,
-        load => 0,
+        data  => $data,
+        load  => 0,
+        mtime => $mtime
     });
 }
 
@@ -235,9 +234,9 @@ sub load {
 #------------------------------------------------------------------------
 
 sub include_path {
-     my ($self, $path) = @_;
-     $self->{ INCLUDE_PATH } = $path if $path;
-     return $self->{ INCLUDE_PATH };
+    my ($self, $path) = @_;
+    $self->{ INCLUDE_PATH } = $path if $path;
+    return $self->{ INCLUDE_PATH };
 }
 
 
@@ -335,9 +334,7 @@ sub _init {
     my $debug;
 
     # tweak delim to ignore C:/
-    unless (defined $dlim) {
-        $dlim = ($^O eq 'MSWin32') ? ':(?!\\/)' : ':';
-    }
+    $dlim //= MSWin32 ? qr/:(?!\\|\/)/ : qr/:/;
 
     # coerce INCLUDE_PATH to an array ref, if not already so
     $path = [ split(/$dlim/, $path) ]
@@ -358,9 +355,11 @@ sub _init {
 
     if ($self->{ DEBUG }) {
         local $" = ', ';
-        $self->debug("creating cache of ",
-                     defined $size ? $size : 'unlimited',
-                     " slots for [ @$path ]");
+        $self->debug(
+            "creating cache of ",
+            defined $size ? $size : 'unlimited',
+            " slots for [ @$path ]"
+        );
     }
 
     # create COMPILE_DIR and sub-directories representing each INCLUDE_PATH
@@ -370,9 +369,11 @@ sub _init {
         foreach my $dir (@$path) {
             next if ref $dir;
             my $wdir = $dir;
-            $wdir =~ s[:][]g if $^O eq 'MSWin32';
-            $wdir =~ /(.*)/;  # untaint
-            $wdir = "$1";     # quotes work around bug in Strawberry Perl
+            $wdir =~ tr[:][]d if MSWin32;
+            {
+                no warnings 'syntax';
+                $wdir = each %{ { $wdir => undef } } if ${^TAINT};    #untaint
+            }
             $wdir = File::Spec->catfile($cdir, $wdir);
             File::Path::mkpath($wdir) unless -d $wdir;
         }
@@ -445,13 +446,19 @@ sub _fetch {
         }
     }
 
+    my($template,$error);
+    my $uncompiled_template_mtime = $self->_template_modified( $name );  # does template exist?
+
+    # some templates like Provider::FromDATA does not provide mtime information
+    $uncompiled_template_mtime //= 0;
+
     # Is there an up-to-date compiled version on disk?
-    if ($self->_compiled_is_current($name)) {
+    if (my $template_mtime = $self->_compiled_is_current($name, $uncompiled_template_mtime)) {
         # require() the compiled template.
         my $compiled_template = $self->_load_compiled( $self->_compiled_filename($name) );
 
         # Store and return the compiled template
-        return $self->store( $name, $compiled_template ) if $compiled_template;
+        return $self->store( $name, $compiled_template, $template_mtime ) if $compiled_template;
 
         # Problem loading compiled template:
         # warn and continue to fetch source template
@@ -459,7 +466,7 @@ sub _fetch {
     }
 
     # load template from source
-    my ($template, $error) = $self->_load($name, $t_name);
+    ($template, $error) = $self->_load($name, $t_name);
 
     if ($error) {
         # Template could not be fetched.  Add to the negative/notfound cache.
@@ -533,6 +540,9 @@ sub _fetch_path {
 
 sub _compiled_filename {
     my ($self, $file) = @_;
+
+    return $self->{ COMPILEDPATH }{$file} if $self->{ COMPILEDPATH }{$file};
+
     my ($compext, $compdir) = @$self{ qw( COMPILE_EXT COMPILE_DIR ) };
     my ($path, $compiled);
 
@@ -540,11 +550,12 @@ sub _compiled_filename {
         unless $compext || $compdir;
 
     $path = $file;
-    $path =~ /^(.+)$/s or die "invalid filename: $path";
-    $path =~ s[:][]g if $^O eq 'MSWin32';
+    $path or die "invalid filename: $path";
+    $path =~ tr[:][]d if MSWin32;
+
 
     $compiled = "$path$compext";
-    $compiled = File::Spec->catfile($compdir, $compiled) if length $compdir;
+    $self->{ COMPILEDPATH }{$file} = $compiled = File::Spec->catfile($compdir, $compiled) if length $compdir;
 
     return $compiled;
 }
@@ -567,15 +578,18 @@ sub _load_compiled {
     # with Module::Name -> Module/Name.pm translation.
     my $fpath = File::Spec->rel2abs( $file );
 
-    my $compiled;
+    return $self->error("compiled template missing path") unless defined $fpath;
+
+    ($fpath) = $fpath =~ /^(.*)$/s;
 
     # load compiled template via require();  we zap any
     # %INC entry to ensure it is reloaded (we don't
     # want 1 returned by require() to say it's in memory)
     delete $INC{ $fpath };
+    my $compiled;
     eval { $compiled = require $fpath; };
     return $@
-        ? $self->error("compiled template $compiled: $@")
+        ? $self->error("compiled template $fpath: $@")
         : $compiled;
 }
 
@@ -602,15 +616,15 @@ sub _load {
 
     $alias = $name unless defined $alias or ref $name;
 
-    $self->debug("_load($name, ", defined $alias ? $alias : '<no alias>',
+    $self->debug("_load($name, ", $alias // '<no alias>',
                  ')') if $self->{ DEBUG };
 
     # SCALAR ref is the template text
     if (ref $name eq 'SCALAR') {
         # $name can be a SCALAR reference to the input text...
         return {
-            name => defined $alias ? $alias : 'input text',
-            path => defined $alias ? $alias : 'input text',
+            name => $alias // 'input text',
+            path => $alias // 'input text',
             text => $$name,
             time => $now,
             load => 0,
@@ -623,8 +637,8 @@ sub _load {
         my $text = <$name>;
         $text = $self->_decode_unicode($text) if $self->{ UNICODE };
         return {
-            name => defined $alias ? $alias : 'input file handle',
-            path => defined $alias ? $alias : 'input file handle',
+            name => $alias // 'input file handle',
+            path => $alias // 'input file handle',
             text => $text,
             time => $now,
             load => 0,
@@ -669,9 +683,11 @@ sub _refresh {
     my $stat_ttl = $self->{ STAT_TTL };
     my ($head, $file, $data, $error);
 
-    $self->debug("_refresh([ ",
-                 join(', ', map { defined $_ ? $_ : '<undef>' } @$slot),
-                 '])') if $self->{ DEBUG };
+    $self->debug(
+        "_refresh([ ",
+        join(', ', map { $_ // '<undef>' } @$slot),
+        '])'
+    ) if $self->{ DEBUG };
 
     # if it's more than $STAT_TTL seconds since we last performed a
     # stat() on the file then we need to do it again and see if the file
@@ -692,7 +708,7 @@ sub _refresh {
                 if $self->{ DEBUG };
 
             ($data, $error) = $self->_load($slot->[ NAME ], $slot->[ DATA ]->{ name });
-            ($data, $error) = $self->_compile($data)
+            ($data, $error) = $self->_compile($data, $self->_compiled_filename($slot->[ NAME ]))
                 unless $error;
 
             if ($error) {
@@ -764,12 +780,12 @@ sub _store {
     # docs if you can call store() when SIZE = 0.
     return $data->{data} if defined $size and !$size;
 
+    # check the modification time -- extra stat here
+    my $load = $data->{ mtime } || $self->_modified($name);
+
     # extract the compiled template from the data hash
     $data = $data->{ data };
     $self->debug("_store($name, $data)") if $self->{ DEBUG };
-
-    # check the modification time -- extra stat here
-    my $load = $self->_modified($name);
 
     if (defined $size && $self->{ SLOTS } >= $size) {
         # cache has reached size limit, so reuse oldest entry
@@ -802,7 +818,7 @@ sub _store {
         $slot = [ undef, $name, $data, $load, $head, time ];
         $head->[ PREV ] = $slot if $head;
         $self->{ HEAD } = $slot;
-        $self->{ TAIL } = $slot unless $self->{ TAIL };
+        $self->{ TAIL } ||= $slot;
 
         # add lookup from name to slot and increment nslots
         $self->{ LOOKUP }->{ $name } = $slot;
@@ -857,8 +873,10 @@ sub _compile {
         # write the Perl code to the file $compfile, if defined
         if ($compfile) {
             my $basedir = &File::Basename::dirname($compfile);
-            $basedir =~ /(.*)/;
-            $basedir = $1;
+            {
+                no warnings 'syntax';
+                $basedir = each %{ { $basedir => undef } } if ${^TAINT};    #untaint
+            }
 
             unless (-d $basedir) {
                 eval { File::Path::mkpath($basedir) };
@@ -877,15 +895,23 @@ sub _compile {
             # set atime and mtime of newly compiled file, don't bother
             # if time is undef
             if (!defined($error) && defined $data->{ 'time' }) {
-                my ($cfile) = $compfile =~ /^(.+)$/s or do {
-                    return("invalid filename: $compfile",
-                           Template::Constants::STATUS_ERROR);
+                my $cfile = do {
+                    no warnings 'syntax';
+                    each %{ { $compfile => undef } };
+                };
+                if (!length $cfile) {
+                    return(
+                        "invalid filename: $compfile",
+                        Template::Constants::STATUS_ERROR
+                    );
                 };
 
-                my ($ctime) = $data->{ 'time' } =~ /^(\d+)$/;
-                unless ($ctime || $ctime eq 0) {
-                    return("invalid time: $ctime",
-                           Template::Constants::STATUS_ERROR);
+                my $ctime = $data->{ time };
+                if (!length $ctime || $ctime =~ tr{0-9}{}c) {
+                    return(
+                        "invalid time: $ctime",
+                        Template::Constants::STATUS_ERROR
+                    );
                 }
                 utime($ctime, $ctime, $cfile);
 
@@ -901,8 +927,10 @@ sub _compile {
         }
     }
     else {
-        $error = Template::Exception->new( 'parse', "$data->{ name } " .
-                                           $parser->error() );
+        $error = Template::Exception->new(
+            'parse', "$data->{ name } " .
+            $parser->error()
+        );
     }
 
     # return STATUS_ERROR, or STATUS_DECLINED if we're being tolerant
@@ -919,7 +947,7 @@ sub _compile {
 #------------------------------------------------------------------------
 
 sub _compiled_is_current {
-    my ( $self, $template_name ) = @_;
+    my ( $self, $template_name, $uncompiled_template_mtime ) = @_;
 
     my $compiled_name   = $self->_compiled_filename($template_name);
     return unless defined $compiled_name;
@@ -927,12 +955,12 @@ sub _compiled_is_current {
     my $compiled_mtime  = (stat($compiled_name))[9];
     return unless defined $compiled_mtime;
 
-    my $template_mtime  = $self->_template_modified( $template_name );
+    my $template_mtime  = $uncompiled_template_mtime || $self->_template_modified( $template_name )  or return;
     return unless defined $template_mtime;
 
     # This was >= in the 2.15, but meant that downgrading
     # a source template would not get picked up.
-    return $compiled_mtime == $template_mtime;
+    return $compiled_mtime == $template_mtime ?  $template_mtime : 0;
 }
 
 
@@ -975,7 +1003,7 @@ sub _template_content {
     if(-d $path) {
         $error = "$path: not a file";
     }
-    elsif (open(FH, "< $path")) {
+    elsif (open(FH, "<", $path)) {
         local $/;
         binmode(FH);
         $data = <FH>;
@@ -1007,85 +1035,8 @@ sub _modified {
     return $time ? 1 : 0 unless defined $load;
 
     return $time
-         ? $load > $time
-         : $load;
-}
-
-#------------------------------------------------------------------------
-# _dump()
-#
-# Debug method which returns a string representing the internal object
-# state.
-#------------------------------------------------------------------------
-
-sub _dump {
-    my $self = shift;
-    my $size = $self->{ SIZE };
-    my $parser = $self->{ PARSER };
-    $parser = $parser ? $parser->_dump() : '<no parser>';
-    $parser =~ s/\n/\n    /gm;
-    $size = 'unlimited' unless defined $size;
-
-    my $output = "[Template::Provider] {\n";
-    my $format = "    %-16s => %s\n";
-    my $key;
-
-    $output .= sprintf($format, 'INCLUDE_PATH',
-                       '[ ' . join(', ', @{ $self->{ INCLUDE_PATH } }) . ' ]');
-    $output .= sprintf($format, 'CACHE_SIZE', $size);
-
-    foreach $key (qw( ABSOLUTE RELATIVE TOLERANT DELIMITER
-                      COMPILE_EXT COMPILE_DIR )) {
-        $output .= sprintf($format, $key, $self->{ $key });
-    }
-    $output .= sprintf($format, 'PARSER', $parser);
-
-
-    local $" = ', ';
-    my $lookup = $self->{ LOOKUP };
-    $lookup = join('', map {
-        sprintf("    $format", $_, defined $lookup->{ $_ }
-                ? ('[ ' . join(', ', map { defined $_ ? $_ : '<undef>' }
-                               @{ $lookup->{ $_ } }) . ' ]') : '<undef>');
-    } sort keys %$lookup);
-    $lookup = "{\n$lookup    }";
-
-    $output .= sprintf($format, LOOKUP => $lookup);
-
-    $output .= '}';
-    return $output;
-}
-
-
-#------------------------------------------------------------------------
-# _dump_cache()
-#
-# Debug method which prints the current state of the cache to STDERR.
-#------------------------------------------------------------------------
-
-sub _dump_cache {
-    my $self = shift;
-    my ($node, $lut, $count);
-
-    $count = 0;
-    if ($node = $self->{ HEAD }) {
-        while ($node) {
-            $lut->{ $node } = $count++;
-            $node = $node->[ NEXT ];
-        }
-        $node = $self->{ HEAD };
-        print STDERR "CACHE STATE:\n";
-        print STDERR "  HEAD: ", $self->{ HEAD }->[ NAME ], "\n";
-        print STDERR "  TAIL: ", $self->{ TAIL }->[ NAME ], "\n";
-        while ($node) {
-            my ($prev, $name, $data, $load, $next) = @$node;
-#           $name = '...' . substr($name, -10) if length $name > 10;
-            $prev = $prev ? "#$lut->{ $prev }<-": '<undef>';
-            $next = $next ? "->#$lut->{ $next }": '<undef>';
-            print STDERR "   #$lut->{ $node } : [ $prev, $name, $data, $load, $next ]\n";
-            $node = $node->[ NEXT ];
-        }
-    }
+        ? $load > $time
+        : $load;
 }
 
 #------------------------------------------------------------------------
@@ -1138,7 +1089,7 @@ Template::Provider - Provider module for loading/compiling templates
 =head1 SYNOPSIS
 
     $provider = Template::Provider->new(\%options);
-    
+
     ($template, $error) = $provider->fetch($name);
 
 =head1 DESCRIPTION
@@ -1160,7 +1111,7 @@ This documentation needs work.
 
 =head1 PUBLIC METHODS
 
-=head2 new(\%options) 
+=head2 new(\%options)
 
 Constructor method which instantiates and returns a new C<Template::Provider>
 object.  A reference to a hash array of configuration options may be passed.
@@ -1178,12 +1129,12 @@ the method returns C<(undef, STATUS_DECLINED)> instead of returning an error.
 
 =head2 load($name)
 
-Loads a template without parsing or compiling it.  This is used by the 
+Loads a template without parsing or compiling it.  This is used by the
 the L<INSERT|Template::Manual::Directives#INSERT> directive.
 
 =head2 store($name, $template)
 
-Stores the compiled template, C<$template>, in the cache under the name, 
+Stores the compiled template, C<$template>, in the cache under the name,
 C<$name>.  Susbequent calls to C<fetch($name)> will return this template in
 preference to any disk-based file.
 
@@ -1197,14 +1148,14 @@ the new value.
 
 This method generates a copy of the C<INCLUDE_PATH> list.  Any elements in the
 list which are dynamic generators (e.g. references to subroutines or objects
-implementing a C<paths()> method) will be called and the list of directories 
+implementing a C<paths()> method) will be called and the list of directories
 returned merged into the output list.
 
 It is possible to provide a generator which returns itself, thus sending
 this method into an infinite loop.  To detect and prevent this from happening,
 the C<$MAX_DIRS> package variable, set to C<64> by default, limits the maximum
 number of paths that can be added to, or generated for the output list.  If
-this number is exceeded then the method will immediately return an error 
+this number is exceeded then the method will immediately return an error
 reporting as much.
 
 =head1 CONFIGURATION OPTIONS
@@ -1226,7 +1177,7 @@ specify one or more directories in which template files are located.
 
     # multiple paths
     my $provider = Template::Provider->new({
-        INCLUDE_PATH => [ '/usr/local/templates', 
+        INCLUDE_PATH => [ '/usr/local/templates',
                           '/tmp/my/templates' ],
     });
 
@@ -1309,7 +1260,7 @@ before checking to see if the source template has changed.
 
 The L<COMPILE_EXT|Template::Manual::Config#COMPILE_EXT> option can be
 provided to specify a filename extension for compiled template files.
-It is undefined by default and no attempt will be made to read or write 
+It is undefined by default and no attempt will be made to read or write
 any compiled template files.
 
     my $provider = Template::Provider->new({
@@ -1348,14 +1299,14 @@ debugging messages from the L<Template::Provider> module by setting it to includ
 the C<DEBUG_PROVIDER> value.
 
     use Template::Constants qw( :debug );
-    
+
     my $template = Template->new({
         DEBUG => DEBUG_PROVIDER,
     });
 
 =head1 SUBCLASSING
 
-The C<Template::Provider> module can be subclassed to provide templates from a 
+The C<Template::Provider> module can be subclassed to provide templates from a
 different source (e.g. a database).  In most cases you'll just need to provide
 custom implementations of the C<_template_modified()> and C<_template_content()>
 methods.  If your provider requires and custom initialisation then you'll also
@@ -1390,7 +1341,7 @@ Andy Wardley E<lt>abw@wardley.orgE<gt> L<http://wardley.org/>
 
 =head1 COPYRIGHT
 
-Copyright (C) 1996-2007 Andy Wardley.  All Rights Reserved.
+Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

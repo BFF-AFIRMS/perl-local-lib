@@ -5,12 +5,12 @@ use strict;
 use warnings;
 use namespace::autoclean;
 
-our $VERSION = '1.51';
+our $VERSION = '1.67';
 
 use DateTime;
 use DateTime::TimeZone;
 
-use base qw(DateTime);
+use parent qw(DateTime);
 
 foreach my $m (qw( set set_time_zone truncate )) {
     ## no critic (TestingAndDebugging::ProhibitNoStrict)
@@ -78,7 +78,7 @@ package DateTime::Infinite::Future;
 use strict;
 use warnings;
 
-use base qw(DateTime::Infinite);
+use parent qw(DateTime::Infinite);
 
 {
     my $Pos = bless {
@@ -88,7 +88,7 @@ use base qw(DateTime::Infinite);
         local_rd_secs => DateTime::INFINITY,
         rd_nanosecs   => DateTime::INFINITY,
         tz            => DateTime::TimeZone->new( name => 'floating' ),
-        locale        => FakeLocale->instance(),
+        locale        => FakeLocale->instance,
         },
         __PACKAGE__;
 
@@ -103,7 +103,7 @@ package DateTime::Infinite::Past;
 use strict;
 use warnings;
 
-use base qw(DateTime::Infinite);
+use parent qw(DateTime::Infinite);
 
 {
     my $Neg = bless {
@@ -113,7 +113,7 @@ use base qw(DateTime::Infinite);
         local_rd_secs => DateTime::NEG_INFINITY,
         rd_nanosecs   => DateTime::NEG_INFINITY,
         tz            => DateTime::TimeZone->new( name => 'floating' ),
-        locale        => FakeLocale->instance(),
+        locale        => FakeLocale->instance,
         },
         __PACKAGE__;
 
@@ -214,61 +214,56 @@ DateTime::Infinite - Infinite past and future DateTime objects
 
 =head1 VERSION
 
-version 1.51
+version 1.67
 
 =head1 SYNOPSIS
 
-  my $future = DateTime::Infinite::Future->new();
-  my $past   = DateTime::Infinite::Past->new();
+  my $future = DateTime::Infinite::Future->new;
+  my $past   = DateTime::Infinite::Past->new;
 
 =head1 DESCRIPTION
 
-This module provides two L<DateTime.pm|DateTime> subclasses,
-C<DateTime::Infinite::Future> and C<DateTime::Infinite::Past>.
+This module provides two L<DateTime> subclasses, C<DateTime::Infinite::Future>
+and C<DateTime::Infinite::Past>.
 
-The objects are in the "floating" timezone, and this cannot be
-changed.
+The objects are always in the "floating" timezone, and this cannot be changed.
 
 =head1 METHODS
 
-The only constructor for these two classes is the C<new()> method, as
-shown in the L<SYNOPSIS|/SYNOPSIS>. This method takes no parameters.
+The only constructor for these two classes is the C<new> method, as shown in
+the L</SYNOPSIS>. This method takes no parameters.
 
-All "get" methods in this module simply return infinity, positive or
-negative. If the method is expected to return a string, it returns the
-string representation of positive or negative infinity used by your
-system. For example, on my system calling C<year()> returns a number
-which when printed appears either "Inf" or "-Inf".
+All "get" methods in this module simply return infinity, positive or negative.
+If the method is expected to return a string, it returns the string
+representation of positive or negative infinity used by your system. For
+example, on my system calling C<< $dt->year >>> returns a number which when
+printed appears either "Inf" or "-Inf".
 
 This also applies to methods that are compound stringifications, which return
-the same strings even for things like C<ymd()> or C<iso8601()>
+the same strings even for things like C<< $dt->ymd >> or C<< $dt->iso8601 >>
 
-The object is not mutable, so the C<set()>, C<set_time_zone()>, and
-C<truncate()> methods are all do-nothing methods that simply return
+The object is not mutable, so the C<< $dt->set >>, C<< $dt->set_time_zone >>,
+and C<< $dt->truncate >> methods are all do-nothing methods that simply return
 the object they are called with.
 
-Obviously, the C<is_finite()> method returns false and the
-C<is_infinite()> method returns true.
+Obviously, the C<< $dt->is_finite >> method returns false and the C<<
+$dt->is_infinite >> method returns true.
 
 =head1 SEE ALSO
 
 datetime@perl.org mailing list
 
-http://datetime.perl.org/
-
 =head1 BUGS
 
-There seem to be lots of problems when dealing with infinite numbers
-on Win32. This may be a problem with this code, Perl, or Win32's IEEE
-math implementation. Either way, the module may not be well-behaved
-on Win32 operating systems.
+There seem to be lots of problems when dealing with infinite numbers on Win32.
+This may be a problem with this code, Perl, or Win32's IEEE math
+implementation. Either way, the module may not be well-behaved on Win32
+operating systems.
 
 Bugs may be submitted at L<https://github.com/houseabsolute/DateTime.pm/issues>.
 
 There is a mailing list available for users of this distribution,
 L<mailto:datetime@perl.org>.
-
-I am also usually active on IRC as 'autarch' on C<irc://irc.perl.org>.
 
 =head1 SOURCE
 
@@ -280,7 +275,7 @@ Dave Rolsky <autarch@urth.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is Copyright (c) 2003 - 2019 by Dave Rolsky.
+This software is Copyright (c) 2003 - 2026 by Dave Rolsky.
 
 This is free software, licensed under:
 

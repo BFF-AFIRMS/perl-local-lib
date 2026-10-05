@@ -1,14 +1,11 @@
 package Net::DNS::RR::L32;
 
-#
-# $Id: L32.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: L32.pm 2003 2025-01-21 12:06:06Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,45 +13,43 @@ Net::DNS::RR::L32 - DNS L32 resource record
 
 =cut
 
-
 use integer;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset ) = @_;
+	my ( $self, $data, $offset ) = @_;
 
 	@{$self}{qw(preference locator32)} = unpack "\@$offset n a4", $$data;
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
 	my $self = shift;
 
-	pack 'n a4', $self->{preference}, $self->{locator32};
+	return pack 'n a4', $self->{preference}, $self->{locator32};
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	join ' ', $self->preference, $self->locator32;
+	return join ' ', $self->preference, $self->locator32;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->preference(shift);
-	$self->locator32(shift);
+	for (qw(preference locator32)) { $self->$_( shift @argument ) }
+	return;
 }
 
 
 sub preference {
-	my $self = shift;
-
-	$self->{preference} = 0 + shift if scalar @_;
-	$self->{preference} || 0;
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{preference} = 0 + $_ }
+	return $self->{preference} || 0;
 }
 
 
@@ -64,12 +59,12 @@ sub locator32 {
 
 	$self->{locator32} = pack 'C* @4', split /\./, $prfx if defined $prfx;
 
-	join '.', unpack 'C4', $self->{locator32} if $self->{locator32};
+	return $self->{locator32} ? join( '.', unpack 'C4', $self->{locator32} ) : undef;
 }
 
 
 my $function = sub {			## sort RRs in numerically ascending order.
-	$Net::DNS::a->{'preference'} <=> $Net::DNS::b->{'preference'};
+	return $Net::DNS::a->{'preference'} <=> $Net::DNS::b->{'preference'};
 };
 
 __PACKAGE__->set_rrsort_func( 'preference', $function );
@@ -83,15 +78,15 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name IN L32 preference locator32');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name IN L32 preference locator32');
 
-    $rr = new Net::DNS::RR(
-	name	   => 'example.com',
-	type	   => 'L32',
-	preference => 10,
-	locator32  => '10.1.02.0'
-	);
+	$rr = Net::DNS::RR->new(
+			name	   => 'example.com',
+			type	   => 'L32',
+			preference => 10,
+			locator32  => '10.1.02.0'
+			);
 
 =head1 DESCRIPTION
 
@@ -112,8 +107,8 @@ other unpredictable behaviour.
 
 =head2 preference
 
-    $preference = $rr->preference;
-    $rr->preference( $preference );
+	$preference = $rr->preference;
+	$rr->preference( $preference );
 
 A 16 bit unsigned integer in network byte order that indicates the
 relative preference for this L32 record among other L32 records
@@ -122,7 +117,7 @@ higher values.
 
 =head2 locator32
 
-    $locator32 = $rr->locator32;
+ $locator32 = $rr->locator32;
 
 The Locator32 field is an unsigned 32-bit integer in network byte
 order that has the same syntax and semantics as a 32-bit IPv4
@@ -142,7 +137,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -159,6 +154,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC6742
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC6742|https://iana.org/go/rfc6742>
 
 =cut

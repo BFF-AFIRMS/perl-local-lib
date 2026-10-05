@@ -1,13 +1,13 @@
 package Module::Find;
 
-use 5.006001;
+use 5.008001;
 use strict;
 use warnings;
 
 use File::Spec;
 use File::Find;
 
-our $VERSION = '0.13';
+our $VERSION = '0.17';
 
 our $basedir = undef;
 our @results = ();
@@ -123,6 +123,9 @@ sub usesub(*) {
 	$prune = 1;
 	
 	my @r = _find($_[0]);
+
+    local @INC = @Module::Find::ModuleDirs
+        if (@Module::Find::ModuleDirs);
 	
 	foreach my $m (@r) {
 		eval " require $m; import $m ; ";
@@ -146,6 +149,9 @@ sub useall(*) {
 	
 	my @r = _find($_[0]);
 	
+    local @INC = @Module::Find::ModuleDirs
+        if (@Module::Find::ModuleDirs);
+        
 	foreach my $m (@r) {
 		eval " require $m; import $m; ";
 		die $@ if $@;
@@ -158,14 +164,14 @@ sub useall(*) {
 # you know, this would be a nice application for currying...
 sub _wanted {
     my $name = File::Spec->abs2rel($_, $basedir);
-    return unless $name && $name ne File::Spec->curdir();
+    return unless $name && $name ne File::Spec->curdir() && substr($name, 0, 1) ne '.';
 
     if (-d && $prune) {
         $File::Find::prune = 1;
         return;
     }
 
-    return unless /\.pm$/ && -r;
+    return unless /\.pm$/;
 
     $name =~ s|\.pm$||;
     $name = join('::', File::Spec->splitdir($name));
@@ -182,21 +188,26 @@ sub _find(*) {
 
     my $dir = File::Spec->catdir(split(/::|'/, $category));
 
-    my @dirs;
-    if (@Module::Find::ModuleDirs) {
-        @dirs = map { File::Spec->catdir($_, $dir) }
-            @Module::Find::ModuleDirs;
-    } else {
-        @dirs = map { File::Spec->catdir($_, $dir) } @INC;
-    }
     @results = ();
 
-    foreach $basedir (@dirs) {
-        	next unless -d $basedir;
-    	
-        find({wanted   => \&_wanted,
-              no_chdir => 1,
-              follow   => $followMode}, $basedir);
+    foreach my $inc (@Module::Find::ModuleDirs ? @Module::Find::ModuleDirs : @INC) {
+        if (ref $inc) {
+            if (my @files = eval { $inc->files }) {
+                push @results,
+                    map { s/^\Q$category\E::// ? $_ : () }
+                    map { s{/}{::}g; s{\.pm$}{}; $_ }
+                    grep { /\.pm$/ }
+                    @files;
+            }
+        }
+        else {
+            our $basedir = File::Spec->catdir($inc, $dir);
+
+            next unless -d $basedir;
+            find({wanted   => \&_wanted,
+                  no_chdir => 1,
+                  follow   => $followMode}, $basedir);
+        }
     }
 
     # filter duplicate modules
@@ -306,14 +317,56 @@ Thanks to Colin Robertson for his input.
 =item 0.13, 2015-03-09
 
 This release contains two contributions from Moritz Lenz:
-- Link to Module::Pluggable and Class::Factory::Util in "SEE ALSO"
-- Align package name parsing with how perl does it (allowing single quotes as module separator)
+
+Link to Module::Pluggable and Class::Factory::Util in "SEE ALSO"
+
+Align package name parsing with how perl does it (allowing single quotes as module separator)
+
+Also, added a test for meta.yml
+
+=item 0.14, 2019-12-25
+
+A long overdue update. Thank you for the many contributions!
+
+Fixed RT#99055: Removed file readability check (pull request contributed by Moritz Lenz)
+
+Now supports @INC hooks (pull request contributed by Graham Knop)
+
+Now filters out filenames starting with a dot (pull request contributed by Desmond Daignault)
+
+Now uses strict (pull request contributed by Shlomi Fish)
+
+Fixed RT#122016: test/ files show up in metacpan (bug report contributed by Karen Etheridge)
+
+=item 0.15, 2019-12-26
+
+Fixed RT#127657 (bug report contributed by Karen Etheridge): Module::Find now uses @ModuleDirs
+(if specified) for loading modules. Previously, when using setmoduledirs() to set an array of
+directories that did not contain @INC, Module::Find would find the modules correctly, but load
+them from @INC.
+
+=item 0.16, 2022-08-01
+
+Fixes an issue where symlink tests failed on systems that do not support creation of symlinks.
+The issue appears on Windows systems due to changed behaviour in C<File::Find> described 
+in L<perl5/issue #19995|https://github.com/Perl/perl5/issues/19995>
+Symlink tests were previously skipped if C<symlink()> is not available, and now
+also if creation of a symlink is not possible.
+
+Fixes L<issue #9|https://github.com/crenz/Module-Find/issues/9>. Note that on Windows system,
+the patch to C<File::Find> from L<perl5/PR #20008|https://github.com/Perl/perl5/pull/20008> 
+will be required for proper operation. 
+
+=item 0.17, 2025-02-16
+
+Fixes L<issue 13|https://github.com/crenz/Module-Find/issues/13> / L<148978|https://rt.cpan.org/Ticket/Display.html?id=148978>
+where warnings where produced upon extracting the installation archive, which prevented installation under cpanm and other tools.
 
 =back
 
 =head1 DEVELOPMENT NOTES
 
-Please report any bugs using the CPAN RT system. The development repository for this module is hosted on GitHub: L<http://github.com/crenz/Module-Find/>.
+The development repository for this module is hosted on GitHub: L<http://github.com/crenz/Module-Find/>. Please report any bugs by opening an issue there.
 
 =head1 SEE ALSO
 
@@ -325,7 +378,7 @@ Christian Renz, E<lt>crenz@web42.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004-2014 by Christian Renz <crenz@web42.com>. All rights reserved.
+Copyright 2004-2025 by Christian Renz <crenz@web42.com>. All rights reserved.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

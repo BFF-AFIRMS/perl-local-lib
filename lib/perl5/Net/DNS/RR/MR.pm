@@ -1,14 +1,11 @@
 package Net::DNS::RR::MR;
 
-#
-# $Id: MR.pm 1528 2017-01-18 21:44:58Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1528 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: MR.pm 2002 2025-01-07 09:57:46Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,47 +13,45 @@ Net::DNS::RR::MR - DNS MR resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::DomainName;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->{newname} = decode Net::DNS::DomainName1035(@_);
+	$self->{newname} = Net::DNS::DomainName1035->decode(@argument);
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	my $newname = $self->{newname} || return '';
-	$newname->encode(@_);
+	return $self->{newname}->encode(@argument);
 }
 
 
 sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
-	my $newname = $self->{newname} || return '';
-	$newname->string;
+	return $self->{newname}->string;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->newname(shift);
+	$self->newname(@argument);
+	return;
 }
 
 
 sub newname {
-	my $self = shift;
-
-	$self->{newname} = new Net::DNS::DomainName1035(shift) if scalar @_;
-	$self->{newname}->name if $self->{newname};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{newname} = Net::DNS::DomainName1035->new($_) }
+	return $self->{newname} ? $self->{newname}->name : undef;
 }
 
 
@@ -66,8 +61,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name MR newname');
+	use Net::DNS;
+	$rr = Net::DNS::RR('name MR newname');
 
 =head1 DESCRIPTION
 
@@ -85,8 +80,8 @@ other unpredictable behaviour.
 
 =head2 newname
 
-    $newname = $rr->newname;
-    $rr->newname( $newname );
+	$newname = $rr->newname;
+	$rr->newname( $newname );
 
 A domain name which specifies a mailbox which is the
 proper rename of the specified mailbox.
@@ -105,7 +100,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -122,6 +117,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1035 Section 3.3.8
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1035(3.3.8)|https://iana.org/go/rfc1035#section-3.3.8>
 
 =cut

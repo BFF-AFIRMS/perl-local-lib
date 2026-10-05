@@ -2,14 +2,16 @@ package Alien::Base;
 
 use strict;
 use warnings;
+use 5.008004;
 use Carp;
 use Path::Tiny ();
 use Scalar::Util qw/blessed/;
 use Capture::Tiny 0.17 qw/capture_stdout/;
 use Text::ParseWords qw/shellwords/;
+use Alien::Util;
 
 # ABSTRACT: Base classes for Alien:: modules
-our $VERSION = '1.69'; # VERSION
+our $VERSION = '2.84'; # VERSION
 
 
 sub import {
@@ -38,7 +40,7 @@ sub import {
 
   my @libs = $class->split_flags( $class->libs );
 
-  my @L = grep { s/^-L// } @libs;
+  my @L = grep { s/^-L// } map { "$_" } @libs;  ## no critic (ControlStructures::ProhibitMutatingListFunctions)
   my @l = grep { /^-l/ } @libs;
 
   unshift @DynaLoader::dl_library_path, @L;
@@ -68,10 +70,10 @@ sub import {
 sub _dist_dir ($)
 {
   my($dist_name) = @_;
-  
+
   my @pm = split /-/, $dist_name;
   $pm[-1] .= ".pm";
-  
+
   foreach my $inc (@INC)
   {
     my $pm = Path::Tiny->new($inc, @pm);
@@ -94,7 +96,7 @@ sub dist_dir {
   my $dist = blessed $class || $class;
   $dist =~ s/::/-/g;
 
-  my $dist_dir = 
+  my $dist_dir =
     $class->config('finished_installing')
       ? _dist_dir $dist
       : $class->config('working_directory');
@@ -120,12 +122,13 @@ sub _flags
   my $distdir = $config->{distdir};
   $distdir =~ s{\\}{/}g if $^O =~ /^(MSWin32|msys)$/;
 
-  if($prefix ne $distdir)
+  if(defined $flags && $prefix ne $distdir)
   {
     $flags = join ' ', map {
-      s/^(-I|-L|-LIBPATH:)?\Q$prefix\E/$1$distdir/;
-      s/(\s)/\\$1/g;
-      $_;
+      my $flag = $_;
+      $flag =~ s/^(-I|-L|-LIBPATH:)?\Q$prefix\E/$1$distdir/;
+      $flag =~ s/(\s)/\\$1/g;
+      $flag;
     } $class->split_flags($flags);
   }
 
@@ -200,34 +203,9 @@ sub max_version {
 }
 
 
-# Sort::Versions isn't quite the same algorithm because it differs in
-# behaviour with leading zeroes.
-#   See also  https://dev.gentoo.org/~mgorny/pkg-config-spec.html#version-comparison
 sub version_cmp {
   shift;
-  my @x = (shift =~ m/([0-9]+|[a-z]+)/ig);
-  my @y = (shift =~ m/([0-9]+|[a-z]+)/ig);
-
-  while(@x and @y) {
-    my $x = shift @x; my $x_isnum = $x =~ m/[0-9]/;
-    my $y = shift @y; my $y_isnum = $y =~ m/[0-9]/;
-
-    if($x_isnum and $y_isnum) {
-      # Numerical comparison
-      return $x <=> $y if $x != $y;
-    }
-    elsif(!$x_isnum and !$y_isnum) {
-      # Alphabetic comparison
-      return $x cmp $y if $x ne $y;
-    }
-    else {
-      # Of differing types, the numeric one is newer
-      return $x_isnum - $y_isnum;
-    }
-  }
-
-  # Equal so far; the longer is newer
-  return @x <=> @y;
+  goto &Alien::Util::version_cmp;
 }
 
 
@@ -236,6 +214,22 @@ sub install_type {
   my $type = $self->config('install_type');
   return @_ ? $type eq $_[0] : $type;
 }
+
+
+
+sub is_system_install
+{
+  my($self) = @_;
+  $self->install_type('system');
+}
+
+
+sub is_share_install
+{
+  my($self) = @_;
+  $self->install_type('share');
+}
+
 
 sub _pkgconfig_keyword {
   my $self = shift;
@@ -282,9 +276,10 @@ sub _pkgconfig_keyword {
     $dist_dir =~ s{\\}{/}g if $^O eq 'MSWin32';
     my $old = quotemeta $self->config('original_prefix');
     @strings = map {
-      s{^(-I|-L|-LIBPATH:)?($old)}{$1.$dist_dir}e;
-      s/(\s)/\\$1/g;
-      $_;
+      my $flag = $_;
+      $flag =~ s{^(-I|-L|-LIBPATH:)?($old)}{$1.$dist_dir}e;
+      $flag =~ s/(\s)/\\$1/g;
+      $flag;
     } map { $self->split_flags($_) } @strings;
   }
 
@@ -311,7 +306,9 @@ sub _pkgconfig {
   # Run through all pkgconfig objects and ensure that their modules are loaded:
   for my $pkg_obj (values %all) {
     my $perl_module_name = blessed $pkg_obj;
-    eval "require $perl_module_name";
+    my $pm = "$perl_module_name.pm";
+    $pm =~ s/::/\//g;
+    eval { require $pm };
   }
 
   return @all{@_} if @_;
@@ -406,6 +403,7 @@ sub dynamic_libs {
     unless(defined $name)
     {
       $name = $class->config('name');
+      $name = '' unless defined $name;
       # strip leading lib from things like libarchive or libffi
       $name =~ s/^lib//;
       # strip trailing version numbers
@@ -413,11 +411,14 @@ sub dynamic_libs {
     }
 
     my @libpath;
-    foreach my $flag ($class->split_flags($class->libs))
+    if(defined $class->libs)
     {
-      if($flag =~ /^-L(.*)$/)
+      foreach my $flag ($class->split_flags($class->libs))
       {
-        push @libpath, $1;
+        if($flag =~ /^-L(.*)$/)
+        {
+          push @libpath, $1;
+        }
       }
     }
 
@@ -460,13 +461,28 @@ sub bin_dir {
   if($class->install_type('system'))
   {
     my $prop = $class->runtime_prop;
-    return unless defined $prop;
-    return unless defined $prop->{system_bin_dir};
+    return () unless defined $prop;
+    return () unless defined $prop->{system_bin_dir};
     return ref $prop->{system_bin_dir} ? @{ $prop->{system_bin_dir} } : ($prop->{system_bin_dir});
   }
   else
   {
     my $dir = Path::Tiny->new($class->dist_dir, 'bin');
+    return -d $dir ? ("$dir") : ();
+  }
+}
+
+
+
+sub dynamic_dir {
+  my ($class) = @_;
+  if($class->install_type('system'))
+  {
+    return ();
+  }
+  else
+  {
+    my $dir = Path::Tiny->new($class->dist_dir, 'dynamic');
     return -d $dir ? ("$dir") : ();
   }
 }
@@ -479,12 +495,12 @@ sub alien_helper {
 
 sub inline_auto_include {
   my ($class) = @_;
-  return [] unless $class->config('inline_auto_include');
-  $class->config('inline_auto_include')
+  $class->runtime_prop->{inline_auto_include} || $class->config('inline_auto_include') || []
 }
 
 sub Inline {
   my ($class, $language) = @_;
+  return unless defined $language;
   return if $language !~ /^(C|CPP)$/;
   my $config = {
     # INC should arguably be for -I flags only, but
@@ -604,17 +620,17 @@ Alien::Base - Base classes for Alien:: modules
 
 =head1 VERSION
 
-version 1.69
+version 2.84
 
 =head1 SYNOPSIS
 
  package Alien::MyLibrary;
-
+ 
  use strict;
  use warnings;
-
+ 
  use parent 'Alien::Base';
-
+ 
  1;
 
 (for details on the C<Makefile.PL> or C<Build.PL> and L<alienfile>
@@ -658,7 +674,7 @@ Or if you are using L<ExtUtils::Depends>:
    $eud->get_makefile_vars
  );
 
-If you are using L<Alien:Base::ModuleBuild> instead of the recommended L<Alien::Build>
+If you are using L<Alien::Base::ModuleBuild> instead of the recommended L<Alien::Build>
 and L<alienfile>, then in your C<MyLibrary::XS> module, you may need something like
 this in your main C<.pm> file IF your library uses dynamic libraries:
 
@@ -674,9 +690,10 @@ Or you can use it from an FFI module:
  
  use Alien::MyLibrary;
  use FFI::Platypus;
+ use FFI::CheckLib 0.28 qw( find_lib_or_die );
  
  my $ffi = FFI::Platypus->new;
- $ffi->lib(Alien::MyLibrary->dynamic_libs);
+ $ffi->lib(find_lib_or_die lib => 'mylib', alien => ['Alien::MyLibrary']);
  
  $ffi->attach( 'my_library_function' => [] => 'void' );
 
@@ -692,7 +709,7 @@ You can even use it with L<Inline> (C and C++ languages are supported):
 =head1 DESCRIPTION
 
 B<NOTE>: L<Alien::Base::ModuleBuild> is no longer bundled with L<Alien::Base> and has been spun off into a separate distribution.
-L<Alien::Build::ModuleBuild> will be a prerequisite for L<Alien::Base> until October 1, 2017.  If you are using L<Alien::Base::ModuleBuild>
+L<Alien::Base::ModuleBuild> will be a prerequisite for L<Alien::Base> until October 1, 2017.  If you are using L<Alien::Base::ModuleBuild>
 you need to make sure it is declared as a C<configure_requires> in your C<Build.PL>.  You may want to also consider using L<Alien::Base> and
 L<alienfile> as a more modern alternative.
 
@@ -725,6 +742,24 @@ L<Alien::Build> + L<alienfile>.
 
 =back
 
+Before using an L<Alien::Base> based L<Alien> directly, please consider the following advice:
+
+If you are wanting to use an L<Alien::Base> based L<Alien> with an XS module using L<ExtUtils::MakeMaker> or L<Module::Build>, it is highly
+recommended that you use L<Alien::Base::Wrapper>, rather than using the L<Alien> directly, because it handles a number of sharp edges and avoids
+pitfalls common when trying to use an L<Alien> directly with L<ExtUtils::MakeMaker>.
+
+In the same vein, if you are wanting to use an L<Alien::Base> based L<Alien> with an XS module using L<Dist::Zilla> it is highly recommended
+that you use L<Dist::Zilla::Plugin::AlienBase::Wrapper> for the same reasons.
+
+As of version 0.28, L<FFI::CheckLib> has a good interface for working with L<Alien::Base> based L<Alien>s in fallback mode, which is
+recommended.
+
+You should typically only be using an L<Alien::Base> based L<Alien> directly, if you need to integrate it with some other system, or if it
+is a tool based L<Alien> that you don't need to link.
+
+The above synopsis and linked manual documents will lead you down the right path, but it is worth knowing before you read further in this
+document.
+
 =head1 METHODS
 
 In the example snippets here, C<Alien::MyLibrary> represents any
@@ -748,7 +783,7 @@ unnecessary.
 =head2 cflags
 
  my $cflags = Alien::MyLibrary->cflags;
-
+ 
  use Text::ParseWords qw( shellwords );
  my @cflags = shellwords( Alien::MyLibrary->cflags );
 
@@ -768,7 +803,7 @@ if they are different.
 =head2 libs
 
  my $libs = Alien::MyLibrary->libs;
-
+ 
  use Text::ParseWords qw( shellwords );
  my @cflags = shellwords( Alien::MyLibrary->libs );
 
@@ -809,8 +844,8 @@ exactly, or at most the version specified, respectively.
 
   $cmp = Alien::MyLibrary->version_cmp($x, $y)
 
-Comparison method used by L<atleast_version>, L<exact_version> and
-L<max_version>. May be useful to implement custom comparisons, or for
+Comparison method used by L</atleast_version>, L</exact_version> and
+L</max_version>. May be useful to implement custom comparisons, or for
 subclasses to overload to get different version comparison semantics than the
 default rules, for packages that have some other rules than the F<pkg-config>
 behaviour.
@@ -824,8 +859,15 @@ behaviour to the C<< <=> >> and C<cmp> operators.
  my $bool = Alien::MyLibrary->install_type($install_type);
 
 Returns the install type that was used when C<Alien::MyLibrary> was
-installed.  If a type is provided (the second form in the synopsis)
-returns true if the actual install type matches.  Types include:
+installed.  
+
+If a type is provided (the second form in the synopsis)
+returns true if the actual install type matches.  
+For this use case it is recommended to use C<is_system_install> 
+or C<is_share_install> instead as these are less prone to 
+typographical errors.
+
+Types include:
 
 =over 4
 
@@ -841,13 +883,25 @@ or bundled with C<Alien::MyLibrary>.
 
 =back
 
+=head2 is_system_install
+
+ my $type = $build->is_system_install;
+
+Returns true if the alien is a system install type.  
+
+=head2 is_share_install
+
+ my $type = $build->is_share_install;
+
+Returns true if the alien is a share install type.  
+
 =head2 config
 
  my $value = Alien::MyLibrary->config($key);
 
 Returns the configuration data as determined during the install
-of L<Alien::MyLibrary>.  For the appropriate config keys, see
-L<Alien::Base::ModuleBuild::API#CONFIG-DATA>.
+of C<Alien::MyLibrary>.  For the appropriate config keys, see
+L<Alien::Base::ModuleBuild::API/"CONFIG DATA">.
 
 This is not typically used by L<Alien::Base> and L<alienfile>,
 but a compatible interface will be provided.
@@ -874,7 +928,22 @@ Example usage:
 
  use Env qw( @PATH );
  
- unshft @PATH, Alien::MyLibrary->bin_dir;
+ unshift @PATH, Alien::MyLibrary->bin_dir;
+
+=head2 dynamic_dir
+
+ my(@dir) = Alien::MyLibrary->dynamic_dir
+
+Returns the dynamic dir for a dynamic build (if the main
+build is static).  For a C<share> install this will be a
+directory under C<dist_dir> named C<dynamic> if it exists.
+System builds return an empty list.
+
+Example usage:
+
+ use Env qw( @PATH );
+ 
+ unshift @PATH, Alien::MyLibrary->dynamic_dir;
 
 =head2 alien_helper
 
@@ -930,7 +999,7 @@ need it.  From the L<alienfile> of C<Alien::nasm>:
    ...
    plugin 'Extract' => 'tar.gz';
    plugin 'Build::MSYS';
-   
+ 
    build [
      'sh configure --prefix=%{alien.install.prefix}',
      '%{gmake}',
@@ -980,14 +1049,11 @@ From your L<alienfile>
    pkg_name => [ 'libfoo', 'libbar', ],
  );
 
-Then in your base class:
+Then in your base class works like normal:
 
  package Alien::MyLibrary;
  
- use base qw( Alien::Base );
- use Role::Tiny::With qw( with );
- 
- with 'Alien::Role::Alt';
+ use parent qw( Alien::Base );
  
  1;
 
@@ -1022,7 +1088,7 @@ If you find a bug, please report it on the projects issue tracker on GitHub:
 
 =over 4
 
-=item L<https://github.com/Perl5-Alien/Alien-Base/issues>
+=item L<https://github.com/PerlAlien/Alien-Build/issues>
 
 =back
 
@@ -1041,7 +1107,7 @@ request.
 
 =over 4
 
-=item L<https://github.com/Perl5-Alien/Alien-Base/pulls>
+=item L<https://github.com/PerlAlien/Alien-Build/pulls>
 
 =back
 
@@ -1103,7 +1169,7 @@ Contributors:
 
 Diab Jerius (DJERIUS)
 
-Roy Storey
+Roy Storey (KIWIROY)
 
 Ilya Pavlov
 
@@ -1137,7 +1203,7 @@ Juan Julián Merelo Guervós (JJ)
 
 Joel Berger (JBERGER)
 
-Petr Pisar (ppisar)
+Petr Písař (ppisar)
 
 Lance Wicks (LANCEW)
 
@@ -1153,9 +1219,15 @@ Shawn Laffan (SLAFFAN)
 
 Paul Evans (leonerd, PEVANS)
 
+Håkon Hægland (hakonhagland, HAKONH)
+
+nick nauwelaerts (INPHOBIA)
+
+Florian Weimer
+
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2011-2019 by Graham Ollis.
+This software is copyright (c) 2011-2022 by Graham Ollis.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
@@ -1164,5 +1236,4 @@ the same terms as the Perl 5 programming language system itself.
 
 __END__
 __POD__
-
 

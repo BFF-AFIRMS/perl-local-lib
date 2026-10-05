@@ -239,7 +239,7 @@ methods !Statement records an empty string.
 For statement handles this is always simply the string that was
 given to prepare() when the handle was created.  For database handles
 this is the statement that was last prepared or executed on that
-database handle. That can lead to a little 'fuzzyness' because, for
+database handle. That can lead to a little 'fuzziness' because, for
 example, calls to the quote() method to build a new statement will
 typically be associated with the previous statement. In practice
 this isn't a significant issue and the dynamic Path mechanism can
@@ -675,17 +675,18 @@ many forward references.  (Patches welcome!)
 
 
 use strict;
-use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION);
+use warnings;
 use Exporter ();
 use UNIVERSAL ();
 use Carp;
+use Module::Load ();
 
 use DBI qw(dbi_time dbi_profile dbi_profile_merge_nodes dbi_profile_merge);
 
-$VERSION = "2.015065";
+our $VERSION = "2.015065";
 
-@ISA = qw(Exporter);
-@EXPORT = qw(
+our @ISA = qw(Exporter);
+our @EXPORT = qw(
     DBIprofile_Statement
     DBIprofile_MethodName
     DBIprofile_MethodClass
@@ -694,7 +695,7 @@ $VERSION = "2.015065";
     dbi_profile_merge
     dbi_time
 );
-@EXPORT_OK = qw(
+our @EXPORT_OK = qw(
     format_profile_thingy
 );
 
@@ -738,7 +739,7 @@ sub _auto_new {
             push @p, DBIprofile_Statement	if $element & 0x02;
             push @p, DBIprofile_MethodName	if $element & 0x04;
             push @p, DBIprofile_MethodClass	if $element & 0x08;
-            push @p, '!Caller2'            	if $element & 0x10;
+            push @p, '!Caller2'			if $element & 0x10;
             push @Path, ($reverse ? reverse @p : @p);
         }
         elsif ($element =~ m/^&(\w.*)/) {
@@ -758,7 +759,9 @@ sub _auto_new {
         }
     }
 
-    eval "require $package" if $package; # silently ignores errors
+    eval {
+        Module::Load::load $package if $package; # silently ignores errors
+    };
     $package ||= $class;
 
     return $package->new(Path => \@Path, @args);
@@ -951,4 +954,3 @@ sub DESTROY {
 }
 
 1;
-

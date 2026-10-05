@@ -2,18 +2,17 @@
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
 
-package Authen::SASL::Perl;
+package Authen::SASL::Perl 2.2000;
 
 use strict;
-use vars qw($VERSION);
+use warnings;
 use Carp;
 
-$VERSION = "2.14";
 
 my %secflags = (
-	noplaintext  => 1,
-	noanonymous  => 1,
-	nodictionary => 1,
+        noplaintext  => 1,
+        noanonymous  => 1,
+        nodictionary => 1,
 );
 my %have;
 
@@ -59,17 +58,19 @@ sub client_new {
   } grep {
     my $have = $have{$_} ||= (eval "require $_;" and $_->can('_secflags')) ? 1 : -1;
     $have > 0 and $_->_secflags(@sec) == @sec
+        and $_->_acceptable( %{$parent->callback} )
   } map {
     (my $mpkg = __PACKAGE__ . "::$_") =~ s/-/_/g;
     $mpkg;
   } split /[^-\w]+/, $parent->mechanism
-    or croak "No SASL mechanism found\n";
+    or croak "No SASL mechanism found: ", $parent->mechanism, "\n";
 
   $mpkg[0]->_init($self);
 }
 
 sub _init_server {}
 
+sub _acceptable  { 1 }
 sub _order   { 0 }
 sub code     { defined(shift->{error}) || 0 }
 sub error    { shift->{error}    }
@@ -131,7 +132,7 @@ sub server_step  { undef }
 sub server_start { undef }
 
 # Private methods used by Authen::SASL::Perl that
-# may be overridden in mechanism sub-calsses
+# may be overridden in mechanism sub-classes
 
 sub _init {
   my ($pkg, $href) = @_;
@@ -190,7 +191,8 @@ sub securesocket {
 # Add SASL encoding/decoding to a filehandle
 #
 
-  package Authen::SASL::Perl::Layer;
+  package # private package; prevent detection by MetaCPAN
+      Authen::SASL::Perl::Layer;
 
   use bytes;
 
@@ -318,10 +320,11 @@ sub securesocket {
   # Encrypting a write() to a filehandle is much easier than reading, because
   # all the data to be encrypted is immediately available
   sub WRITE {
-    my ($self, undef, $len, $offset) = @_;
+    my ($self, $data, $len, $offset) = @_;
     my $debug = $self->{conn}->{debug};
 
     my $fh = $self->{fh};
+    $len = length($data) if $len > length($data); # RT 85294
 
     # put on wire in peer-sized chunks
     my $bsz = $self->{sndbufsz};
@@ -330,7 +333,7 @@ sub securesocket {
         if ($debug & 8);
 
       # call mechanism specific encoding routine
-      my $x = $self->{conn}->encode(substr($_[1], $offset || 0, $bsz));
+      my $x = $self->{conn}->encode(substr($data, $offset || 0, $bsz));
       print $fh pack('N', length($x)), $x;
       $len -= $bsz;
       $offset += $bsz;

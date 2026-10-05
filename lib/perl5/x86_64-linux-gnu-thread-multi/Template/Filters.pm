@@ -10,7 +10,7 @@
 #   by Leslie Michael Orchard <deus_x@nijacode.com>
 #
 # COPYRIGHT
-#   Copyright (C) 1996-2014 Andy Wardley.  All Rights Reserved.
+#   Copyright (C) 1996-2022 Andy Wardley.  All Rights Reserved.
 #
 #   This module is free software; you can redistribute it and/or
 #   modify it under the same terms as Perl itself.
@@ -26,7 +26,7 @@ use base 'Template::Base';
 use Template::Constants;
 use Scalar::Util 'blessed';
 
-our $VERSION         = 2.87;
+our $VERSION         = '3.106';
 our $AVAILABLE       = { };
 our $TRUNCATE_LENGTH = 32;
 our $TRUNCATE_ADDON  = '...';
@@ -108,7 +108,7 @@ sub fetch {
 
     $self->debug("fetch($name, ",
                  defined $args ? ('[ ', join(', ', @$args), ' ]') : '<no args>', ', ',
-                 defined $context ? $context : '<no context>',
+                 $context // '<no context>',
                  ')') if $self->{ DEBUG };
 
     # allow $name to be specified as a reference to
@@ -211,49 +211,6 @@ sub _init {
     return $self;
 }
 
-
-
-#------------------------------------------------------------------------
-# _dump()
-#
-# Debug method
-#------------------------------------------------------------------------
-
-sub _dump {
-    my $self = shift;
-    my $output = "[Template::Filters] {\n";
-    my $format = "    %-16s => %s\n";
-    my $key;
-
-    foreach $key (qw( TOLERANT )) {
-        my $val = $self->{ $key };
-        $val = '<undef>' unless defined $val;
-        $output .= sprintf($format, $key, $val);
-    }
-
-    my $filters = $self->{ FILTERS };
-    $filters = join('', map {
-        sprintf("    $format", $_, $filters->{ $_ });
-    } keys %$filters);
-    $filters = "{\n$filters    }";
-
-    $output .= sprintf($format, 'FILTERS (local)' => $filters);
-
-    $filters = $FILTERS;
-    $filters = join('', map {
-        my $f = $filters->{ $_ };
-        my ($ref, $dynamic) = ref $f eq 'ARRAY' ? @$f : ($f, 0);
-        sprintf("    $format", $_, $dynamic ? 'dynamic' : 'static');
-    } sort keys %$filters);
-    $filters = "{\n$filters    }";
-
-    $output .= sprintf($format, 'FILTERS (global)' => $filters);
-
-    $output .= '}';
-    return $output;
-}
-
-
 #========================================================================
 #                         -- STATIC FILTER SUBS --
 #========================================================================
@@ -340,8 +297,9 @@ sub url_filter {
 #------------------------------------------------------------------------
 # html_filter()                                         [% FILTER html %]
 #
-# Convert any '<', '>' or '&' characters to the HTML equivalents, '&lt;',
-# '&gt;' and '&amp;', respectively.
+# Convert any '<', '>', '&', '"' or "'" characters to the HTML
+# equivalents, '&lt;', '&gt;', '&amp;', '&quot;' and '&#39;',
+# respectively.
 #------------------------------------------------------------------------
 
 sub html_filter {
@@ -351,6 +309,7 @@ sub html_filter {
         s/</&lt;/g;
         s/>/&gt;/g;
         s/"/&quot;/g;
+        s/'/&#39;/g;
     }
     return $text;
 }
@@ -359,8 +318,8 @@ sub html_filter {
 #------------------------------------------------------------------------
 # xml_filter()                                           [% FILTER xml %]
 #
-# Same as the html filter, but adds the conversion of ' to &apos; which
-# is native to XML.
+# Same as the html filter, but uses &apos; for single quotes (the XML
+# named entity) instead of &#39; (the numeric reference used for HTML).
 #------------------------------------------------------------------------
 
 sub xml_filter {
@@ -467,12 +426,11 @@ sub html_entity_filter_factory {
 
 sub indent_filter_factory {
     my ($context, $pad) = @_;
-    $pad = 4 unless defined $pad;
+    $pad //= 4;
     $pad = ' ' x $pad if $pad =~ /^\d+$/;
 
     return sub {
-        my $text = shift;
-        $text = '' unless defined $text;
+        my $text = shift // '';
         $text =~ s/^/$pad/mg;
         return $text;
     }
@@ -487,11 +445,10 @@ sub indent_filter_factory {
 
 sub format_filter_factory {
     my ($context, $format) = @_;
-    $format = '%s' unless defined $format;
+    $format //= '%s';
 
     return sub {
-        my $text = shift;
-        $text = '' unless defined $text;
+        my $text = shift // '';
         return join("\n", map{ sprintf($format, $_) } split(/\n/, $text));
     }
 }
@@ -508,8 +465,7 @@ sub repeat_filter_factory {
     $iter = 1 unless defined $iter and length $iter;
 
     return sub {
-        my $text = shift;
-        $text = '' unless defined $text;
+        my $text = shift // '';
         return join('\n', $text) x $iter;
     }
 }
@@ -523,13 +479,22 @@ sub repeat_filter_factory {
 
 sub replace_filter_factory {
     my ($context, $search, $replace) = @_;
-    $search = '' unless defined $search;
-    $replace = '' unless defined $replace;
+    $search //= '';
+    $replace //= '';
 
     return sub {
-        my $text = shift;
-        $text = '' unless defined $text;
-        $text =~ s/$search/$replace/g;
+        my $text = shift // '';
+        my $prev_end = -1;
+        $text =~ s{$search}{
+            my $s = $-[0];
+            my $e = $+[0];
+            if ($s == $e && $s == $prev_end) {
+                '';
+            } else {
+                $prev_end = $e;
+                $replace;
+            }
+        }eg;
         return $text;
     }
 }
@@ -545,8 +510,7 @@ sub remove_filter_factory {
     my ($context, $search) = @_;
 
     return sub {
-        my $text = shift;
-        $text = '' unless defined $text;
+        my $text = shift // '';
         $text =~ s/$search//g;
         return $text;
     }
@@ -561,11 +525,12 @@ sub remove_filter_factory {
 
 sub truncate_filter_factory {
     my ($context, $len, $char) = @_;
-    $len  = $TRUNCATE_LENGTH unless defined $len;
-    $char = $TRUNCATE_ADDON  unless defined $char;
+    $len  //= $TRUNCATE_LENGTH;
+    $char //= $TRUNCATE_ADDON;
 
-    # Length of char is the minimum length
-    my $lchar = length $char;
+    # Calculate visual length of the addon, treating HTML character entity
+    # references (e.g. &hellip; &#8230; &#x2026;) as single characters
+    my $lchar = _visual_length($char);
     if ($len < $lchar) {
         $char  = substr($char, 0, $len);
         $lchar = $len;
@@ -573,11 +538,45 @@ sub truncate_filter_factory {
 
     return sub {
         my $text = shift;
-        return $text if length $text <= $len;
-        return substr($text, 0, $len - $lchar) . $char;
-
-
+        return $text if _visual_length($text) <= $len;
+        return _truncate_visual($text, $len - $lchar) . $char;
     }
+}
+
+
+#------------------------------------------------------------------------
+# _visual_length($str)
+#
+# Returns the "visual" length of a string, counting each HTML character
+# entity reference (&name; &#digits; &#xhex;) as a single character.
+#------------------------------------------------------------------------
+
+sub _visual_length {
+    my $str = shift;
+    (my $copy = $str) =~ s/&(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);/_/g;
+    return length $copy;
+}
+
+
+#------------------------------------------------------------------------
+# _truncate_visual($str, $maxlen)
+#
+# Truncates $str to at most $maxlen visual characters, treating HTML
+# character entity references as single characters and never splitting
+# one in the middle.
+#------------------------------------------------------------------------
+
+sub _truncate_visual {
+    my ($str, $maxlen) = @_;
+    my $result = '';
+    my $vlen   = 0;
+
+    while ($str =~ /\G(&(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);|.)/gs) {
+        last if $vlen >= $maxlen;
+        $result .= $1;
+        $vlen++;
+    }
+    return $result;
 }
 
 
@@ -796,7 +795,7 @@ are added to the standard filters which are available by default.
     $filters = Template::Filters->new({
         FILTERS => {
             'sfilt1' =>   \&static_filter,
-            'dfilt1' => [ \&dyanamic_filter_factory, 1 ],
+            'dfilt1' => [ \&dynamic_filter_factory, 1 ],
         },
     });
 
@@ -829,7 +828,7 @@ Andy Wardley E<lt>abw@wardley.orgE<gt> L<http://wardley.org/>
 
 =head1 COPYRIGHT
 
-Copyright (C) 1996-2014 Andy Wardley.  All Rights Reserved.
+Copyright (C) 1996-20202Andy Wardley.  All Rights Reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

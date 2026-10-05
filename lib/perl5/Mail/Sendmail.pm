@@ -10,9 +10,9 @@ Mail::Sendmail - Simple platform independent mailer
 
 =cut
 
-require 5.006;
+our $VERSION = "0.83";
 
-our $VERSION = "0.80";
+require 5.006;
 
 use strict;
 use warnings;
@@ -53,6 +53,7 @@ our $auth_support;
 use Socket;
 use Time::Local; # for automatic time zone detection
 use Sys::Hostname; # for use of hostname in HELO
+use Sys::Hostname::Long; # for use of hostname in HELO
 
 #use Digest::HMAC_MD5 qw(hmac_md5 hmac_md5_hex);
 
@@ -248,9 +249,18 @@ sub sendmail {
         $k =~ s/-(.)/"-" . uc($1)/ge;
         $mail{$k} = shift @_;
         if ($k !~ /^(Message|Body|Text)$/i) {
-            # normalize possible line endings in headers
-            $mail{$k} =~ s/\015\012?/\012/go;
-            $mail{$k} =~ s/\012/$CRLF/go;
+            # Strip any CR/LF characters from header values to prevent
+            # CRLF injection (SMTP header injection).  Attacker-controlled
+            # header values containing "\nBcc: attacker@evil.com" would
+            # otherwise inject new headers or body content.
+            # See CWE-93 (Improper Neutralization of CRLF Sequences) and
+            # the equivalent fixes in Email::MIME (CVE-2024-4140) and
+            # many other mail libraries.
+            if ($mail{$k} =~ /[\015\012]/) {
+                warn "Mail::Sendmail: stripping CR/LF from $k header to "
+                   . "prevent CRLF injection\n";
+                $mail{$k} =~ s/[\015\012]+//g;
+            }
         }
     }
 
@@ -339,7 +349,7 @@ sub sendmail {
     }
 
     # get local hostname for polite HELO
-    $localhost = hostname() || 'localhost';
+    $localhost = hostname_long() || hostname() || 'localhost';
 
     foreach $server ( @{$mailcfg{'smtp'}} ) {
         # open socket needs to be inside this foreach loop on Linux,
@@ -545,7 +555,7 @@ sub sendmail {
             || return fail("send $header: error");
     };
 
-    #- test diconnecting from network here, to see what happens
+    #- test disconnecting from network here, to see what happens
     #- print STDERR "DISCONNECT NOW!\n";
     #- sleep 4;
     #- print STDERR "trying to continue, expecting an error... \n";
@@ -757,7 +767,7 @@ $mail{server}='my.smtp.server:2525' will try to connect to port 2525 on server m
 
 =item $mail{auth}
 
-This must be a reference to a hash containg all your authentication options:
+This must be a reference to a hash containing all your authentication options:
 
 $mail{auth} = \%options;
 or
@@ -967,7 +977,7 @@ from your scripts.
 
 
   $mail{Smtp} = 'special_server.for-this-message-only.domain.com';
-  $mail{'X-custom'} = 'My custom additionnal header';
+  $mail{'X-custom'} = 'My custom additional header';
   $mail{'mESSaGE : '} = "The message key looks terrible, but works.";
   # cheat on the date:
   $mail{Date} = Mail::Sendmail::time_to_date( time() - 86400 );
@@ -1018,8 +1028,6 @@ terrible things will happen to you if you use it badly, like for sending
 spam, or ...?)
 
 Thanks to the many users who sent me feedback, bug reports, suggestions, etc.
-And please excuse me if I forgot to answer your mail. I am not always reliabe
-in answering mail. I intend to set up a mailing list soon.
 
 Last revision: 06.02.2003. Latest version should be available on
 CPAN: F<http://www.cpan.org/modules/by-authors/id/M/MI/MIVKOVIC/>.

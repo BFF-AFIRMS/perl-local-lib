@@ -1,21 +1,17 @@
 package Net::DNS::RR::RP;
 
-#
-# $Id: RP.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: RP.pm 2002 2025-01-07 09:57:46Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
 Net::DNS::RR::RP - DNS RP resource record
 
 =cut
-
 
 use integer;
 
@@ -24,21 +20,21 @@ use Net::DNS::Mailbox;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
-	my ( $data, $offset, @opaque ) = @_;
+	my ( $self, $data, $offset, @opaque ) = @_;
 
-	( $self->{mbox}, $offset ) = decode Net::DNS::Mailbox2535( $data, $offset, @opaque );
-	$self->{txtdname} = decode Net::DNS::DomainName2535( $data, $offset, @opaque );
+	( $self->{mbox}, $offset ) = Net::DNS::Mailbox2535->decode( $data, $offset, @opaque );
+	$self->{txtdname} = Net::DNS::DomainName2535->decode( $data, $offset, @opaque );
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
-	my $self = shift;
-	my ( $offset, @opaque ) = @_;
+	my ( $self, $offset, @opaque ) = @_;
 
 	my $txtdname = $self->{txtdname};
-	my $rdata = $self->{mbox}->encode( $offset, @opaque );
+	my $rdata    = $self->{mbox}->encode( $offset, @opaque );
 	$rdata .= $txtdname->encode( $offset + length($rdata), @opaque );
+	return $rdata;
 }
 
 
@@ -46,30 +42,29 @@ sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
 	my @rdata = ( $self->{mbox}->string, $self->{txtdname}->string );
+	return @rdata;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->mbox(shift);
-	$self->txtdname(shift);
+	for (qw(mbox txtdname)) { $self->$_( shift @argument ) }
+	return;
 }
 
 
 sub mbox {
-	my $self = shift;
-
-	$self->{mbox} = new Net::DNS::Mailbox2535(shift) if scalar @_;
-	$self->{mbox}->address if $self->{mbox};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{mbox} = Net::DNS::Mailbox2535->new($_) }
+	return $self->{mbox} ? $self->{mbox}->address : undef;
 }
 
 
 sub txtdname {
-	my $self = shift;
-
-	$self->{txtdname} = new Net::DNS::DomainName2535(shift) if scalar @_;
-	$self->{txtdname}->name if $self->{txtdname};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{txtdname} = Net::DNS::DomainName2535->new($_) }
+	return $self->{txtdname} ? $self->{txtdname}->name : undef;
 }
 
 
@@ -79,8 +74,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name RP mbox txtdname');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name RP mbox txtdname');
 
 =head1 DESCRIPTION
 
@@ -98,8 +93,8 @@ other unpredictable behaviour.
 
 =head2 mbox
 
-    $mbox = $rr->mbox;
-    $rr->mbox( $mbox );
+	$mbox = $rr->mbox;
+	$rr->mbox( $mbox );
 
 A domain name which specifies the mailbox for the person responsible for
 this domain. The format in master files uses the DNS encoding convention
@@ -109,8 +104,8 @@ no mailbox is available.
 
 =head2 txtdname
 
-    $txtdname = $rr->txtdname;
-    $rr->txtdname( $txtdname );
+	$txtdname = $rr->txtdname;
+	$rr->txtdname( $txtdname );
 
 A domain name identifying TXT RRs. A subsequent query can be performed to
 retrieve the associated TXT records. This provides a level of indirection
@@ -132,7 +127,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -149,6 +144,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1183 Section 2.2
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1183(2.2)|https://iana.org/go/rfc1183#section-2.2>
 
 =cut

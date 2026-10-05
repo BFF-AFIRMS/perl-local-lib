@@ -1,10 +1,11 @@
 package XML::Generator;
 
 use strict;
+use warnings;
 use Carp;
 use vars qw/$VERSION $AUTOLOAD/;
 
-$VERSION = '1.04';
+our $VERSION = '1.13';
 
 =head1 NAME
 
@@ -27,7 +28,7 @@ XML::Generator - Perl extension for generating XML
   print $X->foo($X->bar({ baz => 3 }, $X->bam()),
 		$X->bar([ 'qux' => 'http://qux.com/' ],
 			  "Hey there, world"));
- 
+
 Either of the above yield:
 
    <foo xmlns:qux="http://qux.com/">
@@ -294,7 +295,7 @@ characters escaped if this option is supplied.  If the value is 'always',
 then &, < and > (and " within attribute values) will be converted into
 the corresponding XML entity, although & will not be converted if it looks
 like it could be part of a valid entity (but see below).  If the value is
-'unescaped', then the escaping will be turned off character-by- character
+'unescaped', then the escaping will be turned off character-by-character
 if the character in question is preceded by a backslash, or for the
 entire string if it is supplied as a scalar reference.  So, for example,
 
@@ -302,7 +303,7 @@ entire string if it is supplied as a scalar reference.  So, for example,
 
 	one('<');      # <one>&lt;</one>
 	two('\&');     # <two>\&amp;</two>
-	three(\'>');   # <three>&gt;</three> (scalar refs always allowed)
+	three(\'<f>'); # <three><f></three> (scalar refs always allowed)
 	four('&lt;');  # <four>&lt;</four> (looks like an entity)
 	five('&#34;'); # <five>&#34;</five> (looks like an entity)
 
@@ -312,7 +313,7 @@ but
 
 	one('<');     # <one>&lt;</one>
 	two('\&');    # <two>&</two>
-	three(\'>');  # <three>></three> (aiee!)
+	three(\'<f>');# <three><f></three>  (scalar refs always allowed)
 	four('&lt;'); # <four>&amp;lt;</four> (no special case for entities)
 
 By default, high-bit data will be passed through unmodified, so that
@@ -434,6 +435,12 @@ Sets the default encoding for use in XML declarations.
 Specify the dtd.  The value should be an array reference with three
 values; the type, the name and the uri.
 
+=head2 xml
+
+This is an hash ref value that should contain the version, encoding and dtd
+values (same as above). This is used in case C<conformance> is set to C<loose>,
+but you still want to use the xml declaration or prolog.
+
 =head1 IMPORT ARGUMENTS
 
 use XML::Generator ':option';
@@ -451,7 +458,7 @@ Note that if you already have an C<AUTOLOAD> defined, it will be overwritten.
 =head2 :stacked
 
 Implies :import, but if there is already an C<AUTOLOAD> defined, the
-overriding C<AUTOLOAD> will still give it a chance to run.  See L<"STACKED
+overriding C<AUTOLOAD> will still give it a chance to run.  See L<"STACKABLE
 AUTOLOADs">.
 
 =head2 ANYTHING ELSE
@@ -619,6 +626,10 @@ sub new {
     $options{'escape'} = 0;
   }
 
+  if ($options{'xml'} && ref $options{'xml'} ne 'HASH') {
+      Carp::croak("XML arguments must be a hash");
+  }
+
   if (ref $options{'namespace'} eq 'ARRAY') {
     if (@{ $options{'namespace'} } > 2 && (@{ $options{'namespace'} } % 2) != 0) {
       Carp::croak "odd number of arguments for namespace";
@@ -708,9 +719,9 @@ sub xmlpi {
      while (my($k, $v) = each %atts) {
        $this->XML::Generator::util::ck_syntax($k);
        XML::Generator::util::escape($v,
-                XML::Generator::util::ESCAPE_FILTER_INVALID_CHARS() |
                 XML::Generator::util::ESCAPE_ATTR() |
                 $this->{'escape'});
+       XML::Generator::util::filter($v);
        $xml .= qq{ $k="$v"};
      }
   }
@@ -743,7 +754,7 @@ sub xmlcmnt {
   return XML::Generator::comment->new([$xml]);
 }
 
-=head2 xmldecl(@args)
+=head2 xmldecl (@args)
 
 Declaration.  This can be used to specify the version, encoding, and
 other XML-related declarations (i.e., anything inside the <?xml?> tag).
@@ -767,24 +778,39 @@ explicitly provide undef as the value.
 
 =cut
 
+sub _allow_xml_cmd {
+    my $this = shift;
+    return 1 if $this->{conformance} eq 'strict';
+    return 1 if defined $this->{xml};
+    return 0;
+}
+
+
 sub xmldecl {
-  my($this, @args) = @_;
+  my $this = shift;
 
-  return $this->XML::Generator::util::tag('xmldecl', @_)
-		unless $this->{conformance} eq 'strict';
+  return $this->XML::Generator::util::tag('xmldecl', @_) unless $this->{conformance} eq 'strict';
+  return $this->_xmldecl(@_);
+}
 
-  my $version  = $this->{'version'} || '1.0';
+sub _xmldecl {
+  my $this = shift;
+  my @args = @_;
+
+  return unless $this->_allow_xml_cmd;
+
+  my $version  = $this->{xml}{version} // $this->{'version'} || '1.0';
 
   # there's no explicit support for encodings yet, but at the
   # least we can know to put it in the declaration
-  my $encoding = $this->{'encoding'};
+  my $encoding = $this->{xml}{encoding} // $this->{'encoding'};
 
   # similarly, although we don't do anything with DTDs yet, we
   # recognize a 'dtd' => [ ... ] option to the constructor, and
   # use it to create a <!DOCTYPE ...> and to indicate that this
   # document can't stand alone.
-  my $doctype = $this->xmldtd($this->{dtd});
-  my $standalone = $doctype ? "no" : "yes";
+  my $doctype = $this->xmldtd($this->{xml}{dtd} // $this->{dtd});
+  my $standalone;
 
   for (my $i = 0; $i < $#args; $i += 2) {
          if ($args[$i] eq 'version'   ) {
@@ -798,6 +824,7 @@ sub xmldecl {
     }
   }
 
+  $standalone = "no" if $doctype;;
   $version    =    qq{ version="$version"}    if defined    $version;
   $encoding   =   qq{ encoding="$encoding"}   if defined   $encoding;
   $standalone = qq{ standalone="$standalone"} if defined $standalone;
@@ -806,12 +833,9 @@ sub xmldecl {
   $version    ||= '';
   $standalone ||= '';
 
-  my $xml = "<?xml$version$encoding$standalone?>";
-  $xml .= "\n$doctype" if $doctype;
-
-  $xml = "$xml\n";
-
-  return $xml;
+  my @xml = ("<?xml$version$encoding$standalone?>");
+  push(@xml, $doctype) if $doctype;
+  return join("\n", @xml, "");
 }
 
 =head2 xmldtd
@@ -882,7 +906,7 @@ sub xml {
   my $this = shift;
 
   return $this->XML::Generator::util::tag('xml', @_)
-		unless $this->{conformance} eq 'strict';
+        unless $this->_allow_xml_cmd;
 
   unless (@_) {
     Carp::croak "usage: object->xml( (COMMENT | PI)* XML (COMMENT | PI)* )";
@@ -902,7 +926,7 @@ sub xml {
     }
   }
 
-  return XML::Generator::final->new([$this->xmldecl(), @_]);
+  return XML::Generator::final->new([$this->_xmldecl(), @_]);
 }
 
 =head1 CREATING A SUBCLASS
@@ -941,7 +965,7 @@ So, let's assume that we want to provide a custom HTML table() method:
 
    sub table {
        my $self = shift;
-       
+
        # parse our args to get namespace and attribute info
        my($namespace, $attr, @content) =
           $self->XML::Generator::util::parse_args(@_)
@@ -1133,9 +1157,7 @@ sub c_tag {
              : $arg->{'pretty'}
                ? " " x $arg->{'pretty'}
                : "";
-  if ($arg->{'filter_invalid_chars'}) {
-    $escape |= ESCAPE_FILTER_INVALID_CHARS;
-  }
+  my $filter = $arg->{'filter_invalid_chars'};
 
   my $blessClass = $indent ? 'XML::Generator::pretty' : 'XML::Generator::overload';
 
@@ -1156,11 +1178,12 @@ sub c_tag {
     }
 
     # Deal with escaping if required
-   if ($escape) {
+   if ($escape || $filter) {
       if ($attr) {
 	foreach my $key (keys %{$attr}) {
 	  next unless defined($attr->{$key});
 	  XML::Generator::util::escape($attr->{$key}, ESCAPE_ATTR() | $escape);
+	  XML::Generator::util::filter($attr->{$key}) if ($filter);
 	}
       }
       for (@args) {
@@ -1171,7 +1194,8 @@ sub c_tag {
 	  # un-ref it
 	  $_ = $$_;
 	} elsif (! UNIVERSAL::isa($_, 'XML::Generator::overload') ) {
-	  XML::Generator::util::escape($_, $escape);
+	  XML::Generator::util::escape($_, $escape) if $escape ;
+	  XML::Generator::util::filter($_) if $filter;
 	}
       }
     } else {
@@ -1390,7 +1414,7 @@ sub escape {
       $_[0] =~ s/\\>/>/g;
     }
     if ($f & ESCAPE_ATTR) {
-      $_[0] =~ s/([^\\]|^)"/$1&quot;/g;
+      $_[0] =~ s/(?<!\\)"/&quot;/g;
       $_[0] =~ s/\\"/"/g;
       if ($f & ESCAPE_APOS) {
       $_[0] =~ s/([^\\]|^)'/$1&apos;/g;
@@ -1399,10 +1423,7 @@ sub escape {
     }
   } 
   if ($f & ESCAPE_HIGH_BIT) {
-    $_[0] =~ s/([\200-\377])/'&#'.ord($1).';'/ge;
-  }
-  if ($f & ESCAPE_FILTER_INVALID_CHARS) {
-    filter($_[0]);
+    $_[0] =~ s/([^\x00-\x7f])/'&#'.ord($1).';'/ge;
   }
 }
 
@@ -1556,6 +1577,11 @@ First modular version
 Modular rewrite to enable subclassing
 
 =back
+
+=head1 LICENSE
+
+This library is free software, you can redistribute it and/or modify
+it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 

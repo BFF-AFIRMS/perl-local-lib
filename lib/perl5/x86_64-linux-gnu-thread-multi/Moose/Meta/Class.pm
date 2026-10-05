@@ -1,5 +1,5 @@
 package Moose::Meta::Class;
-our $VERSION = '2.2011';
+our $VERSION = '2.4000';
 
 use strict;
 use warnings;
@@ -814,7 +814,7 @@ Moose::Meta::Class - The Moose metaclass
 
 =head1 VERSION
 
-version 2.2011
+version 2.4000
 
 =head1 DESCRIPTION
 
@@ -902,12 +902,12 @@ This adds an C<augment> method modifier to the package.
 
 =item B<< $metaclass->calculate_all_roles >>
 
-This will return a unique array of L<Moose::Meta::Role> instances
+This will return a unique list of L<Moose::Meta::Role> instances
 which are attached to this class.
 
 =item B<< $metaclass->calculate_all_roles_with_inheritance >>
 
-This will return a unique array of L<Moose::Meta::Role> instances
+This will return a unique list of L<Moose::Meta::Role> instances
 which are attached to this class, and each of this class's ancestors.
 
 =item B<< $metaclass->add_role($role) >>
@@ -964,7 +964,7 @@ See L<Moose/BUGS> for details on reporting bugs.
 
 =item *
 
-Stevan Little <stevan.little@iinteractive.com>
+Stevan Little <stevan@cpan.org>
 
 =item *
 
@@ -972,11 +972,11 @@ Dave Rolsky <autarch@urth.org>
 
 =item *
 
-Jesse Luehrs <doy@tozt.net>
+Jesse Luehrs <doy@cpan.org>
 
 =item *
 
-Shawn M Moore <code@sartak.org>
+Shawn M Moore <sartak@cpan.org>
 
 =item *
 
@@ -992,7 +992,7 @@ Florian Ragwitz <rafl@debian.org>
 
 =item *
 
-Hans Dieter Pearcey <hdp@weftsoar.net>
+Hans Dieter Pearcey <hdp@cpan.org>
 
 =item *
 
@@ -1000,7 +1000,7 @@ Chris Prather <chris@prather.org>
 
 =item *
 
-Matt S Trout <mst@shadowcat.co.uk>
+Matt S Trout <mstrout@cpan.org>
 
 =back
 

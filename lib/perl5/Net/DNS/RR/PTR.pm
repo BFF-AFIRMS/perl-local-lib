@@ -1,14 +1,11 @@
 package Net::DNS::RR::PTR;
 
-#
-# $Id: PTR.pm 1597 2017-09-22 08:04:02Z willem $
-#
-our $VERSION = (qw$LastChangedRevision: 1597 $)[1];
-
-
 use strict;
 use warnings;
+our $VERSION = (qw$Id: PTR.pm 2002 2025-01-07 09:57:46Z willem $)[2];
+
 use base qw(Net::DNS::RR);
+
 
 =head1 NAME
 
@@ -16,24 +13,24 @@ Net::DNS::RR::PTR - DNS PTR resource record
 
 =cut
 
-
 use integer;
 
 use Net::DNS::DomainName;
 
 
 sub _decode_rdata {			## decode rdata from wire-format octet string
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->{ptrdname} = decode Net::DNS::DomainName1035(@_);
+	$self->{ptrdname} = Net::DNS::DomainName1035->decode(@argument);
+	return;
 }
 
 
 sub _encode_rdata {			## encode rdata as wire-format octet string
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
 	my $ptrdname = $self->{ptrdname};
-	$ptrdname->encode(@_);
+	return $ptrdname->encode(@argument);
 }
 
 
@@ -41,22 +38,22 @@ sub _format_rdata {			## format rdata portion of RR string.
 	my $self = shift;
 
 	my $ptrdname = $self->{ptrdname};
-	$ptrdname->string;
+	return $ptrdname->string;
 }
 
 
 sub _parse_rdata {			## populate RR from rdata in argument list
-	my $self = shift;
+	my ( $self, @argument ) = @_;
 
-	$self->ptrdname(shift);
+	$self->ptrdname(@argument);
+	return;
 }
 
 
 sub ptrdname {
-	my $self = shift;
-
-	$self->{ptrdname} = new Net::DNS::DomainName1035(shift) if scalar @_;
-	$self->{ptrdname}->name if $self->{ptrdname};
+	my ( $self, @value ) = @_;
+	for (@value) { $self->{ptrdname} = Net::DNS::DomainName1035->new($_) }
+	return $self->{ptrdname} ? $self->{ptrdname}->name : undef;
 }
 
 
@@ -66,8 +63,8 @@ __END__
 
 =head1 SYNOPSIS
 
-    use Net::DNS;
-    $rr = new Net::DNS::RR('name PTR ptrdname');
+	use Net::DNS;
+	$rr = Net::DNS::RR->new('name PTR ptrdname');
 
 =head1 DESCRIPTION
 
@@ -85,8 +82,8 @@ other unpredictable behaviour.
 
 =head2 ptrdname
 
-    $ptrdname = $rr->ptrdname;
-    $rr->ptrdname( $ptrdname );
+	$ptrdname = $rr->ptrdname;
+	$rr->ptrdname( $ptrdname );
 
 A domain name which points to some location in the
 domain name space.
@@ -105,7 +102,7 @@ Package template (c)2009,2012 O.M.Kolkman and R.W.Franks.
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted, provided
-that the above copyright notice appear in all copies and that both that
+that the original copyright notices appear in all copies and that both
 copyright notice and this permission notice appear in supporting
 documentation, and that the name of the author not be used in advertising
 or publicity pertaining to distribution of the software without specific
@@ -122,6 +119,7 @@ DEALINGS IN THE SOFTWARE.
 
 =head1 SEE ALSO
 
-L<perl>, L<Net::DNS>, L<Net::DNS::RR>, RFC1035 Section 3.3.12
+L<perl> L<Net::DNS> L<Net::DNS::RR>
+L<RFC1035(3.3.12)|https://iana.org/go/rfc1035#section-3.3.12>
 
 =cut
